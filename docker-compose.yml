@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: rtidb-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - server_uploads:/app/uploads
+      - server_data:/app/data
+    # Optional: limit memory if node-rti-maker is very heavy
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 4G
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: rtidb-client
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+
+volumes:
+  server_uploads:
+    name: rtidb_uploads
+  server_data:
+    name: rtidb_data

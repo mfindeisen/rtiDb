@@ -1,0 +1,41 @@
+# Node
+node_modules
+dist
+dist-ssr
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# rtiDb specific
+server/uploads/
+server/data/
+
+# Test datasets
+client/public/modern-viewer/webrti/
+client/public/modern-viewer/mock/
+client/public/modern-viewer/test-record/
+
+# C++ build artifacts
+server/lib/webGLRTIMaker-src/Makefile.*
+server/lib/webGLRTIMaker-src/.qmake.stash
+server/lib/webGLRTIMaker-src/release/
+server/lib/webGLRTIMaker-src/debug/
+server/lib/webGLRTIMaker-src/*.o
+server/lib/webGLRTIMaker-src/webGLRtiMaker
+
