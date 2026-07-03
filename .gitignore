@@ -39,3 +39,17 @@ server/lib/webGLRTIMaker-src/debug/
 server/lib/webGLRTIMaker-src/*.o
 server/lib/webGLRTIMaker-src/webGLRtiMaker
 
+# Deploy scripts
+deploy.sh
+deploy.ps1
+
+# Binaries
+server/lib/rtiprep/
+
+# Generated Documentation
+client/public/docs/
+
+# Local AI Agent configuration
+.agents/
+
+
