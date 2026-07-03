@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="description" content="WebRTIViewer is a simple viewer for high resolution RTI images" />
+		<title>Legacy RTI-Viewer</title>
+		<link type="text/css" href="css/ui-lightness/jquery-ui-1.10.3.custom.css" rel="Stylesheet">
+		<link type="text/css" href="css/webrtiviewer.css" rel="Stylesheet">
+		<script type="text/javascript" src="js/jquery_min.js"></script>
+		<script type="text/javascript" src="js/jquery-ui.js"></script>
+		<script type="text/javascript" src="spidergl/spidergl_min.js"></script>
+		<script type="text/javascript" src="spidergl/multires.js"></script>
+		<style>
+			html, body {
+				margin: 0;
+				padding: 0;
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				background-color: #0f172a; /* Slate 900 */
+			}
+			#viewerContainer {
+				width: 100%;
+				height: 100%;
+			}
+			/* Customise the legacy toolbar buttons to look a bit more polished and aligned with dark mode */
+			.toolbar {
+				background: rgba(15, 23, 42, 0.6) !important;
+				backdrop-filter: blur(8px) !important;
+				border: 1px border rgba(255, 255, 255, 0.1) !important;
+				border-radius: 8px !important;
+				padding: 6px !important;
+				box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="viewerContainer"></div>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				const params = new URLSearchParams(window.location.search);
+				const rtiUrl = params.get('url');
+				if (rtiUrl) {
+					// We initialize the viewer with the width and height of the window.
+					const width = window.innerWidth;
+					const height = window.innerHeight;
+					createRtiViewer("viewerContainer", rtiUrl, width, height);
+
+					// Simple window resize listener to update canvas width/height and notify SpiderGL
+					window.addEventListener('resize', function() {
+						const canvas = document.querySelector('#viewerContainer canvas');
+						const canvasDiv = document.querySelector('#viewerContainer_div');
+						if (canvas && canvasDiv) {
+							const w = window.innerWidth;
+							const h = window.innerHeight;
+							canvasDiv.style.width = w + "px";
+							canvasDiv.style.height = h + "px";
+							canvas.width = w;
+							canvas.height = h;
+							$(canvas).css({ width: w, height: h });
+							$(canvas).attr("width", w);
+							$(canvas).attr("height", h);
+							if (window.multiResRTI && typeof window.multiResRTI.resize === 'function') {
+								window.multiResRTI.resize();
+							}
+						}
+					});
+				} else {
+					document.getElementById('viewerContainer').innerHTML = 
+						'<div style="color: #94a3b8; text-align: center; padding: 40px; font-family: sans-serif; font-size: 16px;">Error: No RTI folder URL provided in query parameters.</div>';
+				}
+			});
+		</script>
+	</body>
+</html>

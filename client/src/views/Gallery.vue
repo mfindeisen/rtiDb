@@ -72,7 +72,7 @@
               </td>
               <td class="p-4 align-middle">
                 <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{{ rec.name }}</h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{{ rec.description }}</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-1" :dir="rec.direction">{{ rec.description }}</p>
               </td>
               <td class="p-4 align-middle text-sm text-slate-500 dark:text-slate-400">
                 <div class="flex items-center gap-1.5">
