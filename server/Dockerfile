@@ -19,9 +19,12 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile || pnpm install
 
 COPY . .
 
-# Copy compiled binary from stage 1
+# Copy compiled C++ binary from stage 1
 COPY --from=cpp-builder /build/webGLRtiMaker /app/lib/webGLRTIMaker-src/webGLRtiMaker
 RUN chmod +x /app/lib/webGLRTIMaker-src/webGLRtiMaker
+
+# rtiprep Go binary (must be compiled for linux/amd64 and placed at server/lib/rtiprep/rtiprep)
+RUN if [ -f /app/lib/rtiprep/rtiprep ]; then chmod +x /app/lib/rtiprep/rtiprep; fi
 
 # Expose port
 EXPOSE 3000

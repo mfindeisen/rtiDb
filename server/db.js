@@ -19,9 +19,12 @@ db.exec(`
     description TEXT,
     date TEXT NOT NULL,
     folder_url TEXT,
+    tiff_url TEXT,
+    output_type TEXT DEFAULT 'tiles',
     status TEXT NOT NULL,
     progress INTEGER DEFAULT 0,
-    is_published INTEGER DEFAULT 0
+    is_published INTEGER DEFAULT 0,
+    direction TEXT DEFAULT 'ltr'
   )
 `);
 
@@ -40,6 +43,21 @@ try {
 // Add thumbnail_url column to existing tables if missing
 try {
   db.exec(`ALTER TABLE records ADD COLUMN thumbnail_url TEXT;`);
+} catch (e) {}
+
+// Add direction column to existing tables if missing
+try {
+  db.exec(`ALTER TABLE records ADD COLUMN direction TEXT DEFAULT 'ltr';`);
+} catch (e) {}
+
+// Add tiff_url column for GeoTIFF output mode
+try {
+  db.exec(`ALTER TABLE records ADD COLUMN tiff_url TEXT;`);
+} catch (e) {}
+
+// Add output_type column to distinguish 'tiles' vs 'geotiff'
+try {
+  db.exec(`ALTER TABLE records ADD COLUMN output_type TEXT DEFAULT 'tiles';`);
 } catch (e) {}
 
 export default db;
