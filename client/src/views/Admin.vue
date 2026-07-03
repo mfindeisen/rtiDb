@@ -19,17 +19,62 @@
       <form @submit.prevent="uploadFile" class="space-y-6">
         <div class="flex flex-col text-left">
           <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Scan Name</label>
-          <input type="text" v-model="name" required placeholder="" class="form-input" />
+          <input type="text" v-model="name" required placeholder="" class="form-input" :disabled="isUploading" />
         </div>
         
         <div class="flex flex-col text-left">
           <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Description</label>
-          <textarea v-model="description" rows="3" placeholder="Additional details about the scan..." class="form-input"></textarea>
+          <textarea v-model="description" rows="3" placeholder="Additional details about the scan..." class="form-input" :disabled="isUploading" :dir="direction"></textarea>
+          
+          <!-- Direction Switcher -->
+          <div class="flex bg-slate-100 dark:bg-black/30 p-1 rounded-lg w-fit mt-2">
+            <button type="button" @click="direction = 'ltr'" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer" :class="direction === 'ltr' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'" :disabled="isUploading">
+              Left-to-Right (LTR)
+            </button>
+            <button type="button" @click="direction = 'rtl'" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer" :class="direction === 'rtl' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'" :disabled="isUploading">
+              Right-to-Left (RTL)
+            </button>
+          </div>
         </div>
         
         <div class="flex flex-col text-left">
           <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">RTI File (.rti)</label>
-          <input type="file" ref="fileInput" required accept=".ptm,.hsh,.rti" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/50 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800 transition-colors cursor-pointer" />
+          <input type="file" ref="fileInput" required accept=".ptm,.hsh,.rti" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/50 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800 transition-colors cursor-pointer" :disabled="isUploading" />
+        </div>
+
+        <!-- Output Format Toggle -->
+        <div class="flex flex-col text-left">
+          <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Output Format</label>
+          <div class="flex rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 w-full">
+            <button
+              type="button"
+              @click="outputType = 'geotiff'"
+              :disabled="isUploading"
+              :class="[
+                'flex-1 py-3 px-4 text-sm font-semibold transition-all flex flex-col items-start gap-0.5',
+                outputType === 'geotiff'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
+              ]"
+            >
+              <span class="flex items-center gap-2"><Map class="w-4 h-4" /> GeoTIFF <span class="text-[10px] font-normal opacity-70">(Modern)</span></span>
+              <span class="text-[11px] font-normal opacity-70">Single file, HTTP Range Requests, no legacy loader</span>
+            </button>
+            <button
+              type="button"
+              @click="outputType = 'tiles'"
+              :disabled="isUploading"
+              :class="[
+                'flex-1 py-3 px-4 text-sm font-semibold transition-all flex flex-col items-start gap-0.5 border-l border-slate-200 dark:border-white/10',
+                outputType === 'tiles'
+                  ? 'bg-slate-700 text-white dark:bg-white/20'
+                  : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10'
+              ]"
+            >
+              <span class="flex items-center gap-2"><Layers class="w-4 h-4" /> Tile Folder <span class="text-[10px] font-normal opacity-70">(Legacy)</span></span>
+              <span class="text-[11px] font-normal opacity-70">Hundreds of JPEG/PNG tiles + info.xml</span>
+            </button>
+          </div>
         </div>
 
         <div class="pt-4 border-t border-slate-200 dark:border-white/10">
@@ -37,12 +82,12 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="flex flex-col text-left">
               <label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Quality ({{ quality }}%)</label>
-              <input type="range" v-model="quality" min="10" max="100" class="w-full mt-2 accent-blue-600" />
+              <input type="range" v-model="quality" min="10" max="100" class="w-full mt-2 accent-blue-600" :disabled="isUploading" />
             </div>
             
             <div class="flex flex-col text-left">
               <label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Tile Size</label>
-              <select v-model="tileSize" class="form-input py-1.5 cursor-pointer">
+              <select v-model="tileSize" class="form-input py-1.5 cursor-pointer" :disabled="isUploading">
                 <option value="128">128px</option>
                 <option value="256">256px</option>
                 <option value="512">512px</option>
@@ -52,7 +97,7 @@
             
             <div class="flex flex-col text-left">
               <label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Image Format</label>
-              <select v-model="format" class="form-input py-1.5 cursor-pointer">
+              <select v-model="format" class="form-input py-1.5 cursor-pointer" :disabled="isUploading">
                 <option value="jpg">JPG (Smaller)</option>
                 <option value="png">PNG (Lossless)</option>
                 <option value="webp">WebP (Modern)</option>
@@ -61,6 +106,21 @@
           </div>
         </div>
         
+        <!-- Upload Progress Bar -->
+        <div v-if="isUploading" class="space-y-2 mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
+          <div class="flex justify-between items-center text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>Uploading scan file to server...</span>
+            <span class="font-bold text-blue-600 dark:text-blue-400">{{ uploadProgress }}%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-200 dark:bg-black/30 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-500 transition-all duration-100" :style="{ width: uploadProgress + '%' }"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-blue-500/80 dark:text-blue-400/70 pt-1.5 border-t border-blue-100 dark:border-blue-800/30 mt-1">
+            <span>Speed: {{ uploadSpeed || 'Calculating...' }}</span>
+            <span>ETA: {{ uploadETA || 'Calculating...' }}</span>
+          </div>
+        </div>
+
         <button type="submit" class="btn-primary w-full mt-4" :disabled="isUploading">
           {{ isUploading ? 'Uploading to Server...' : 'Upload & Start Processing' }}
         </button>
@@ -83,7 +143,14 @@
           
           <div v-if="editingId === rec.id" class="space-y-3">
             <input type="text" v-model="editName" class="form-input p-2 text-sm" placeholder="Name" />
-            <textarea v-model="editDescription" class="form-input p-2 text-sm" rows="2" placeholder="Description"></textarea>
+            <textarea v-model="editDescription" class="form-input p-2 text-sm" rows="2" placeholder="Description" :dir="editDirection"></textarea>
+            
+            <!-- Edit Direction Switcher -->
+            <div class="flex bg-slate-100 dark:bg-black/30 p-0.5 rounded-md w-fit text-xs">
+              <button type="button" @click="editDirection = 'ltr'" class="px-2.5 py-1 rounded" :class="editDirection === 'ltr' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500'">LTR</button>
+              <button type="button" @click="editDirection = 'rtl'" class="px-2.5 py-1 rounded" :class="editDirection === 'rtl' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500'">RTL</button>
+            </div>
+
             <div class="flex gap-2">
               <button @click="saveEdit(rec.id)" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-sm transition-colors">Save</button>
               <button @click="cancelEdit" class="px-3 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-sm transition-colors">Cancel</button>
@@ -114,7 +181,7 @@
                   <CalendarIcon class="w-3.5 h-3.5" />
                   {{ new Date(rec.date).toLocaleString() }}
                 </div>
-                <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">{{ rec.description }}</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2" :dir="rec.direction">{{ rec.description }}</p>
               </div>
             </div>
 
@@ -131,7 +198,7 @@
               </div>
             </div>
             
-            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">{{ rec.description }}</p>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-3" :dir="rec.direction">{{ rec.description }}</p>
             
             <!-- Inline Progress Bar if processing -->
             <div v-if="rec.status === 'processing'" class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
@@ -162,7 +229,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Pencil, Trash2, ArrowLeft, Image as ImageIcon, Calendar as CalendarIcon } from '@lucide/vue';
+import { Pencil, Trash2, ArrowLeft, Image as ImageIcon, Calendar as CalendarIcon, Map, Layers } from '@lucide/vue';
 
 const router = useRouter();
 
@@ -174,13 +241,19 @@ const logout = () => {
 // --- Upload State ---
 const name = ref('');
 const description = ref('');
+const direction = ref('ltr');
 const fileInput = ref(null);
 
 const quality = ref(90);
 const tileSize = ref(256);
 const format = ref('jpg');
+const outputType = ref('geotiff'); // 'geotiff' | 'tiles'
 
 const isUploading = ref(false);
+const uploadProgress = ref(0);
+const uploadSpeed = ref('');
+const uploadETA = ref('');
+const uploadStartTime = ref(null);
 const error = ref('');
 
 // --- Records Management State ---
@@ -189,6 +262,29 @@ const loadingRecords = ref(true);
 const editingId = ref(null);
 const editName = ref('');
 const editDescription = ref('');
+const editDirection = ref('ltr');
+
+const formatSpeed = (bytesPerSec) => {
+  if (bytesPerSec === Infinity || isNaN(bytesPerSec) || bytesPerSec <= 0) return '0 B/s';
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  let index = 0;
+  let speed = bytesPerSec;
+  while (speed >= 1024 && index < units.length - 1) {
+    speed /= 1024;
+    index++;
+  }
+  return `${speed.toFixed(1)} ${units[index]}`;
+};
+
+const formatUploadETA = (seconds) => {
+  if (seconds === Infinity || isNaN(seconds) || seconds < 0) return '--:--';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+};
+
+
 
 let eventSource = null;
 
@@ -280,36 +376,78 @@ const uploadFile = async () => {
   if (!file) return;
 
   isUploading.value = true;
+  uploadProgress.value = 0;
+  uploadSpeed.value = '';
+  uploadETA.value = '';
+  uploadStartTime.value = Date.now();
   error.value = '';
 
   const formData = new FormData();
   formData.append('name', name.value);
   formData.append('description', description.value);
+  formData.append('direction', direction.value);
   formData.append('quality', quality.value);
   formData.append('tileSize', tileSize.value);
   formData.append('format', format.value);
+  formData.append('outputType', outputType.value);
   formData.append('file', file);
 
   try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      },
-      body: formData
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+      xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('adminToken')}`);
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          uploadProgress.value = percentComplete;
+
+          const elapsedMs = Date.now() - uploadStartTime.value;
+          if (elapsedMs > 0) {
+            const speed = event.loaded / (elapsedMs / 1000);
+            uploadSpeed.value = formatSpeed(speed);
+            
+            if (speed > 0) {
+              const remainingBytes = event.total - event.loaded;
+              const etaSec = remainingBytes / speed;
+              uploadETA.value = formatUploadETA(etaSec);
+            } else {
+              uploadETA.value = 'Calculating...';
+            }
+          }
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          logout();
+          reject(new Error("Unauthorized"));
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed (Status ${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error("Upload failed (Network error)"));
+      };
+
+      xhr.send(formData);
     });
 
-    if (res.status === 401) return logout();
-
-    if (!res.ok) throw new Error("Upload failed (Maybe file too large?)");
-    
     isUploading.value = false;
     resetForm();
 
     // Refresh list so the new uploading record appears at the top
     await fetchRecords();
   } catch (err) {
-    error.value = err.message;
+    if (err.message !== "Unauthorized") {
+      error.value = err.message;
+    }
     isUploading.value = false;
   }
 };
@@ -317,8 +455,12 @@ const uploadFile = async () => {
 const resetForm = () => {
   name.value = '';
   description.value = '';
+  direction.value = 'ltr';
   if (fileInput.value) fileInput.value.value = '';
   isUploading.value = false;
+  uploadProgress.value = 0;
+  uploadSpeed.value = '';
+  uploadETA.value = '';
   error.value = '';
 };
 
@@ -328,6 +470,7 @@ const startEdit = (rec) => {
   editingId.value = rec.id;
   editName.value = rec.name;
   editDescription.value = rec.description;
+  editDirection.value = rec.direction || 'ltr';
 };
 
 const cancelEdit = () => {
@@ -342,7 +485,7 @@ const saveEdit = async (id) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       },
-      body: JSON.stringify({ name: editName.value, description: editDescription.value })
+      body: JSON.stringify({ name: editName.value, description: editDescription.value, direction: editDirection.value })
     });
     if (res.status === 401) return logout();
     if (res.ok) {
@@ -350,6 +493,7 @@ const saveEdit = async (id) => {
       if (rec) {
         rec.name = editName.value;
         rec.description = editDescription.value;
+        rec.direction = editDirection.value;
       }
       editingId.value = null;
     }

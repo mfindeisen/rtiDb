@@ -267,6 +267,7 @@ function createRtiViewer(idDiv, imageUrl, width, height)
 	{
 		divError.innerHTML = '';
 		var multiResRTI = new MultiRes(canvasName);
+		window.multiResRTI = multiResRTI;
 		multiResRTI.setImageUrl(imageUrl);
 		function isRelitable(type){
 			if (type ==  "IMAGE")

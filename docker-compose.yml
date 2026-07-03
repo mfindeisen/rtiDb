@@ -7,16 +7,15 @@ services:
       dockerfile: Dockerfile
     container_name: rtidb-server
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
+    environment:
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - JWT_SECRET=${JWT_SECRET:-fallback_secret_key_change_in_production}
     volumes:
       - server_uploads:/app/uploads
       - server_data:/app/data
-    # Optional: limit memory if node-rti-maker is very heavy
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 4G
 
   client:
     build:
@@ -25,7 +24,7 @@ services:
     container_name: rtidb-client
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8090:80"
     depends_on:
       - server
 
