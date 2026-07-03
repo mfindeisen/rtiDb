@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import db from './db.js';
 import { processRTI } from './lib/rti-maker/index.js';
+import { processRtiToTiff } from './lib/rtiprep.js';
 
 dotenv.config();
 
@@ -101,11 +102,53 @@ app.get('/api/records', (req, res) => {
   res.json(records);
 });
 
+const getFolderStats = async (dirPath) => {
+  let totalSize = 0;
+  let fileCount = 0;
+  
+  const walk = async (dir) => {
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else if (entry.isFile()) {
+          const stat = await fs.stat(fullPath);
+          totalSize += stat.size;
+          fileCount++;
+        }
+      }
+    } catch (e) {
+      // Ignore if folder doesn't exist
+    }
+  };
+  
+  await walk(dirPath);
+  return { totalSize, fileCount };
+};
+
 // API: Get single record
-app.get('/api/records/:id', (req, res) => {
+app.get('/api/records/:id', async (req, res) => {
   const record = db.prepare('SELECT * FROM records WHERE id = ?').get(req.params.id);
-  if (record) res.json(record);
-  else res.status(404).send('Record not found');
+  if (record) {
+    let folderSize = 0;
+    let fileCount = 0;
+    if (record.status === 'done' && record.folder_url) {
+      const folderName = path.basename(record.folder_url);
+      const localPath = path.join(uploadDir, folderName);
+      const stats = await getFolderStats(localPath);
+      folderSize = stats.totalSize;
+      fileCount = stats.fileCount;
+    }
+    res.json({
+      ...record,
+      folder_size: folderSize,
+      file_count: fileCount
+    });
+  } else {
+    res.status(404).send('Record not found');
+  }
 });
 
 // API: Upload and process RTI
@@ -114,11 +157,13 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
     return res.status(400).send('No file uploaded.');
   }
 
-  const { name, description, quality, tileSize, format } = req.body;
+  const { name, description, quality, tileSize, format, direction, outputType } = req.body;
   
   if (!name || !req.file) {
     return res.status(400).send('Name and file are required');
   }
+
+  const isGeoTiff = outputType === 'geotiff';
 
   // Use default options or user provided settings
   const options = {
@@ -127,8 +172,8 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
     format: format || 'jpg'
   };
 
-  const recordId = db.prepare('INSERT INTO records (name, description, date, status) VALUES (?, ?, ?, ?)').run(
-    name, description || '', new Date().toISOString(), 'processing'
+  const recordId = db.prepare('INSERT INTO records (name, description, date, status, direction, output_type) VALUES (?, ?, ?, ?, ?, ?)').run(
+    name, description || '', new Date().toISOString(), 'processing', direction || 'ltr', isGeoTiff ? 'geotiff' : 'tiles'
   ).lastInsertRowid;
 
   const originalFilePath = req.file.path;
@@ -137,24 +182,38 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
   (async () => {
     try {
       broadcastProgress(recordId, 0);
-      const outputDir = await processRTI(originalFilePath, {
-        ...options,
-        onProgress: (percent, message) => {
-          if (percent !== undefined && percent !== null) {
-            db.prepare('UPDATE records SET progress = ? WHERE id = ?').run(percent, recordId);
+
+      if (isGeoTiff) {
+        // --- GeoTIFF mode: use rtiprep Go binary ---
+        const tiffPath = await processRtiToTiff(originalFilePath, {
+          onProgress: (percent, message) => {
+            if (percent !== undefined && percent !== null) {
+              db.prepare('UPDATE records SET progress = ? WHERE id = ?').run(percent, recordId);
+            }
+            broadcastProgress(recordId, percent, message);
           }
-          broadcastProgress(recordId, percent, message);
-        }
-      });
-      
-      // Update record with done status and folder url
-      // outputDir is absolute, we want the relative name
-      const folderName = path.basename(outputDir);
-      const publicUrl = `/static/uploads/${folderName}`;
-      const thumbnailUrl = `${publicUrl}/1_1.${options.format || 'jpg'}`;
-      
-      db.prepare('UPDATE records SET folder_url = ?, thumbnail_url = ?, status = ?, progress = 100 WHERE id = ?').run(publicUrl, thumbnailUrl, 'done', recordId);
-      broadcastProgress(recordId, 100);
+        });
+        const tiffName = path.basename(tiffPath);
+        const tiffPublicUrl = `/static/uploads/${tiffName}`;
+        db.prepare('UPDATE records SET tiff_url = ?, status = ?, progress = 100 WHERE id = ?').run(tiffPublicUrl, 'done', recordId);
+        broadcastProgress(recordId, 100);
+      } else {
+        // --- Classic tile mode: use legacy C++ webGLRtiMaker ---
+        const outputDir = await processRTI(originalFilePath, {
+          ...options,
+          onProgress: (percent, message) => {
+            if (percent !== undefined && percent !== null) {
+              db.prepare('UPDATE records SET progress = ? WHERE id = ?').run(percent, recordId);
+            }
+            broadcastProgress(recordId, percent, message);
+          }
+        });
+        const folderName = path.basename(outputDir);
+        const publicUrl = `/static/uploads/${folderName}`;
+        const thumbnailUrl = `${publicUrl}/1_1.${options.format || 'jpg'}`;
+        db.prepare('UPDATE records SET folder_url = ?, thumbnail_url = ?, status = ?, progress = 100 WHERE id = ?').run(publicUrl, thumbnailUrl, 'done', recordId);
+        broadcastProgress(recordId, 100);
+      }
 
       // Delete the original uploaded file
       await fs.unlink(originalFilePath);
@@ -163,7 +222,7 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
     } catch (error) {
       console.error(`Error processing RTI ${recordId}:`, error);
       db.prepare('UPDATE records SET status = ? WHERE id = ?').run('error', recordId);
-      broadcastProgress(recordId, -1); // error signal
+      broadcastProgress(recordId, -1);
     }
   })();
 
@@ -172,11 +231,11 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
 
 // API: Update record
 app.put('/api/records/:id', authMiddleware, (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, direction } = req.body;
   if (!name) return res.status(400).send('Name is required');
   
   try {
-    db.prepare('UPDATE records SET name = ?, description = ? WHERE id = ?').run(name, description, req.params.id);
+    db.prepare('UPDATE records SET name = ?, description = ?, direction = ? WHERE id = ?').run(name, description, direction || 'ltr', req.params.id);
     res.json({ success: true });
   } catch (err) {
     console.error('Update error:', err);
