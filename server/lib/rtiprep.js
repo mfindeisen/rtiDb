@@ -27,7 +27,11 @@ export async function processRtiToTiff(inputFile, options = {}) {
     //const binPath = path.resolve(__dirname, '../rtiprep/rtiprep');
     const binPath = path.resolve(__dirname, './rtiprep/rtiprep');
 
-    const args = ['-tiff', '-o', outputFile, inputFile];
+    const args = ['-tiff'];
+    if (options.weightsPath) {
+      args.push('-weights', options.weightsPath);
+    }
+    args.push('-o', outputFile, inputFile);
     const proc = spawn(binPath, args);
 
     proc.stdout.on('data', (data) => {

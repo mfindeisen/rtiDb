@@ -57,6 +57,11 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+const uploadFields = upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'latentMap', maxCount: 1 },
+  { name: 'weights', maxCount: 1 }
+]);
 
 // Serve the generated RTI files statically
 app.use('/static/uploads', express.static(uploadDir));
@@ -152,18 +157,26 @@ app.get('/api/records/:id', async (req, res) => {
 });
 
 // API: Upload and process RTI
-app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
-
-  const { name, description, quality, tileSize, format, direction, outputType } = req.body;
+app.post('/api/upload', authMiddleware, uploadFields, async (req, res) => {
+  const { name, description, quality, tileSize, format, direction, outputType, uploadMode } = req.body;
   
-  if (!name || !req.file) {
-    return res.status(400).send('Name and file are required');
+  if (!name) {
+    return res.status(400).send('Name is required');
   }
 
-  const isGeoTiff = outputType === 'geotiff';
+  const isNeural = uploadMode === 'neural';
+
+  if (isNeural) {
+    if (!req.files || !req.files['latentMap'] || !req.files['weights']) {
+      return res.status(400).send('Both latentMap image and weights JSON files are required for Neural RTI.');
+    }
+  } else {
+    if (!req.files || !req.files['file']) {
+      return res.status(400).send('No file uploaded.');
+    }
+  }
+
+  const isGeoTiff = isNeural || (outputType === 'geotiff');
 
   // Use default options or user provided settings
   const options = {
@@ -173,10 +186,11 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
   };
 
   const recordId = db.prepare('INSERT INTO records (name, description, date, status, direction, output_type) VALUES (?, ?, ?, ?, ?, ?)').run(
-    name, description || '', new Date().toISOString(), 'processing', direction || 'ltr', isGeoTiff ? 'geotiff' : 'tiles'
+    name, description || '', new Date().toISOString(), 'processing', direction || 'ltr', isNeural ? 'neural' : (isGeoTiff ? 'geotiff' : 'tiles')
   ).lastInsertRowid;
 
-  const originalFilePath = req.file.path;
+  const originalFilePath = isNeural ? req.files['latentMap'][0].path : req.files['file'][0].path;
+  const weightsPath = isNeural ? req.files['weights'][0].path : null;
 
   // Run processing in background
   (async () => {
@@ -184,8 +198,9 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
       broadcastProgress(recordId, 0);
 
       if (isGeoTiff) {
-        // --- GeoTIFF mode: use rtiprep Go binary ---
+        // --- GeoTIFF/Neural mode: use rtiprep Go binary ---
         const tiffPath = await processRtiToTiff(originalFilePath, {
+          weightsPath: weightsPath || undefined,
           onProgress: (percent, message) => {
             if (percent !== undefined && percent !== null) {
               db.prepare('UPDATE records SET progress = ? WHERE id = ?').run(percent, recordId);
@@ -215,14 +230,24 @@ app.post('/api/upload', authMiddleware, upload.single('file'), async (req, res) 
         broadcastProgress(recordId, 100);
       }
 
-      // Delete the original uploaded file
+      // Delete the original uploaded file(s)
       await fs.unlink(originalFilePath);
       console.log(`Deleted original file: ${originalFilePath}`);
+      if (weightsPath) {
+        await fs.unlink(weightsPath);
+        console.log(`Deleted weights file: ${weightsPath}`);
+      }
 
     } catch (error) {
       console.error(`Error processing RTI ${recordId}:`, error);
       db.prepare('UPDATE records SET status = ? WHERE id = ?').run('error', recordId);
       broadcastProgress(recordId, -1);
+      
+      // Attempt clean up
+      try {
+        await fs.unlink(originalFilePath);
+        if (weightsPath) await fs.unlink(weightsPath);
+      } catch (err) {}
     }
   })();
 
