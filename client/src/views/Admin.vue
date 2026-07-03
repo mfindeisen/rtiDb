@@ -37,13 +37,39 @@
           </div>
         </div>
         
+        <!-- Upload Mode Switcher -->
         <div class="flex flex-col text-left">
-          <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">RTI File (.rti)</label>
+          <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Upload Type</label>
+          <div class="flex bg-slate-100 dark:bg-black/30 p-1 rounded-lg w-fit">
+            <button type="button" @click="uploadMode = 'standard'" class="px-4 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer" :class="uploadMode === 'standard' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'" :disabled="isUploading">
+              Standard RTI (.rti, .ptm, .hsh)
+            </button>
+            <button type="button" @click="uploadMode = 'neural'" class="px-4 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer" :class="uploadMode === 'neural' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'" :disabled="isUploading">
+              Neural RTI (Compressed)
+            </button>
+          </div>
+        </div>
+
+        <!-- Standard File Input -->
+        <div v-if="uploadMode === 'standard'" class="flex flex-col text-left">
+          <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">RTI File (.rti, .ptm, .hsh)</label>
           <input type="file" ref="fileInput" required accept=".ptm,.hsh,.rti" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/50 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800 transition-colors cursor-pointer" :disabled="isUploading" />
         </div>
 
-        <!-- Output Format Toggle -->
-        <div class="flex flex-col text-left">
+        <!-- Neural RTI File Inputs -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+          <div class="flex flex-col">
+            <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Latent Map Image (.png, .jpg, .jpeg)</label>
+            <input type="file" ref="latentMapInput" required accept="image/png,image/jpeg,image/jpg" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/50 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800 transition-colors cursor-pointer" :disabled="isUploading" />
+          </div>
+          <div class="flex flex-col">
+            <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Decoder Weights (.json)</label>
+            <input type="file" ref="weightsInput" required accept="application/json,.json" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/50 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800 transition-colors cursor-pointer" :disabled="isUploading" />
+          </div>
+        </div>
+
+        <!-- Output Format Toggle (Standard Mode only) -->
+        <div v-if="uploadMode === 'standard'" class="flex flex-col text-left">
           <label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Output Format</label>
           <div class="flex rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 w-full">
             <button
@@ -77,7 +103,7 @@
           </div>
         </div>
 
-        <div class="pt-4 border-t border-slate-200 dark:border-white/10">
+        <div v-if="uploadMode === 'standard'" class="pt-4 border-t border-slate-200 dark:border-white/10">
           <h3 class="text-lg font-medium text-slate-800 dark:text-white mb-4">Advanced Settings</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="flex flex-col text-left">
@@ -248,6 +274,9 @@ const quality = ref(90);
 const tileSize = ref(256);
 const format = ref('jpg');
 const outputType = ref('geotiff'); // 'geotiff' | 'tiles'
+const uploadMode = ref('standard'); // 'standard' | 'neural'
+const latentMapInput = ref(null);
+const weightsInput = ref(null);
 
 const isUploading = ref(false);
 const uploadProgress = ref(0);
@@ -372,8 +401,23 @@ onUnmounted(() => {
 });
 
 const uploadFile = async () => {
-  const file = fileInput.value.files[0];
-  if (!file) return;
+  const isNeural = uploadMode.value === 'neural';
+  
+  let file = null;
+  let latentMapFile = null;
+  let weightsFile = null;
+
+  if (isNeural) {
+    latentMapFile = latentMapInput.value ? latentMapInput.value.files[0] : null;
+    weightsFile = weightsInput.value ? weightsInput.value.files[0] : null;
+    if (!latentMapFile || !weightsFile) {
+      error.value = 'Both latent map image and weights JSON files are required.';
+      return;
+    }
+  } else {
+    file = fileInput.value ? fileInput.value.files[0] : null;
+    if (!file) return;
+  }
 
   isUploading.value = true;
   uploadProgress.value = 0;
@@ -386,11 +430,18 @@ const uploadFile = async () => {
   formData.append('name', name.value);
   formData.append('description', description.value);
   formData.append('direction', direction.value);
-  formData.append('quality', quality.value);
-  formData.append('tileSize', tileSize.value);
-  formData.append('format', format.value);
-  formData.append('outputType', outputType.value);
-  formData.append('file', file);
+  formData.append('uploadMode', uploadMode.value);
+
+  if (isNeural) {
+    formData.append('latentMap', latentMapFile);
+    formData.append('weights', weightsFile);
+  } else {
+    formData.append('quality', quality.value);
+    formData.append('tileSize', tileSize.value);
+    formData.append('format', format.value);
+    formData.append('outputType', outputType.value);
+    formData.append('file', file);
+  }
 
   try {
     await new Promise((resolve, reject) => {
@@ -457,6 +508,8 @@ const resetForm = () => {
   description.value = '';
   direction.value = 'ltr';
   if (fileInput.value) fileInput.value.value = '';
+  if (latentMapInput.value) latentMapInput.value.value = '';
+  if (weightsInput.value) weightsInput.value.value = '';
   isUploading.value = false;
   uploadProgress.value = 0;
   uploadSpeed.value = '';
