@@ -16530,20 +16530,20 @@ var fb = class {
 			}
 			let n = await fetch(`${t.url}/info.json`);
 			if (n.ok) {
-				let e = await n.json();
+				let e = await n.json(), t = {
+					HSH_RTI: 1,
+					LRGB_PTM: 2,
+					RGB_PTM: 3,
+					IMAGE: 4
+				}, r = e.content || e, i = e.tree || e;
 				_.value = {
-					type: {
-						HSH_RTI: 1,
-						LRGB_PTM: 2,
-						RGB_PTM: 3,
-						IMAGE: 4
-					}[e.type] ?? 4,
-					width: e.width,
-					height: e.height,
-					tileSize: e.tileSize,
-					layerCount: e.layerCount ?? 1,
-					bias: e.bias ?? [],
-					scale: e.scale ?? []
+					type: t[r.type] ?? 4,
+					width: r.width,
+					height: r.height,
+					tileSize: i.tileSize,
+					layerCount: r.layerCount ?? r.coefficients ?? 1,
+					bias: r.bias ?? [],
+					scale: r.scale ?? []
 				}, console.log("Parsed RTI Info (JSON):", _.value);
 				return;
 			}
