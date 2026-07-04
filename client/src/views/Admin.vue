@@ -76,7 +76,24 @@
           </div>
 
           <!-- Neural RTI File Inputs -->
-          <div v-else class="space-y-2 text-left">
+          <div v-else class="space-y-4 text-left">
+            <!-- Documentation notice -->
+            <div class="flex gap-3 p-3.5 bg-blue-50 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-700/40 rounded-xl text-sm">
+              <svg class="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+              <div class="text-blue-700 dark:text-blue-300">
+                Neural RTI requires pre-generated compressed files from the training pipeline. See the documentation for details:
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                  <a href="/docs/guide/neural-rti.html" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold hover:underline">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                    Getting Started Guide
+                  </a>
+                  <a href="/docs/technical/neural-rti.html" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold hover:underline">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                    Technical Reference
+                  </a>
+                </div>
+              </div>
+            </div>
             <!-- Desktop Labels Row -->
             <div class="hidden md:grid grid-cols-2 gap-4">
               <label class="font-medium text-slate-700 dark:text-slate-200">Latent Map Image (.png, .jpg, .jpeg)</label>
