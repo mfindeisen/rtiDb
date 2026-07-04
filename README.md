@@ -22,13 +22,13 @@ The project is divided into a decoupled **Client** and **Server** architecture, 
 
 ### 3. Core Processing & Tiling
 
-The processing pipeline supports two format architectures for web-friendly delivery:
-- **Classic JPEG Image Pyramids**: Uses the custom C++ compiler (`webGLRtiMaker` located in `server/lib/webGLRTIMaker-src/`). It parses `.rti`, `.ptm`, and `.hsh` binary formats, extracts the base diffuse layers and mathematical coefficients into standard image formats (JPEG/PNG), and slices them into hierarchical deep-zoom quadtree folders (e.g. `1_1.jpg`, `1_2.jpg`) along with an `info.xml` manifest.
-- **Tiled Pyramidal TIFF (Cloud-Optimized GeoTIFF-like)**: Uses the Go-based [rtiprep](https://github.com/mfindeisen/rtiprep) utility. It packages the datasets into a single tiled pyramidal TIFF file with coefficients packed directly in the bands, which the client loads dynamically via HTTP Range Requests (saving massive bandwidth by only loading visible tile bytes).
+The processing pipeline uses the Go-based [rtiprep](https://github.com/mfindeisen/rtiprep) utility to prepare datasets in two different modes:
+- **Classic JPEG Image Pyramids**: Extracts the base diffuse layers and mathematical coefficients into standard image formats, slicing them into hierarchical deep-zoom quadtree folders (e.g. `1_1.jpg`, `1_2.jpg`) along with an `info.json` manifest.
+- **Tiled Pyramidal TIFF (Cloud-Optimized GeoTIFF-like)**: Packages the datasets into a single tiled pyramidal TIFF file with coefficients packed directly in the bands, which the client loads dynamically via HTTP Range Requests (saving massive bandwidth by only loading visible tile bytes).
 
 ## Setup & Deployment
 
-The easiest way to run the entire stack is via Docker. The provided `docker-compose.yml` automatically compiles the C++ binary in an Alpine Linux container, builds the Vue client, and starts the Node server.
+The easiest way to run the entire stack is via Docker. The provided `docker-compose.yml` automatically compiles the `rtiprep` Go tool from source in a multi-stage builder container, builds the Vue client, and starts the Node server.
 
 ```bash
 # Build and start the containers in the background
@@ -46,7 +46,7 @@ A unified documentation portal built with VitePress is located under `client/doc
 1. **rtiDb:** Database server setup, configuration, and API schema.
 2. **[modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer):** WebGL shader mathematics, quadtree LOD rendering, and component integration.
 3. **[rtiprep](https://github.com/mfindeisen/rtiprep):** CLI usage in Go for pyramid tiling and TIFF packaging.
-4. **[neural_rti](https://github.com/mfindeisen/neural_rti):** Python training and evaluation pipeline for AI-based compression.
+4. **[neural_rti](https://github.com/mfindeisen/neural_rti):** Python training and evaluation pipeline for neural network/machine learning based compression.
 
 To build the documentation portal locally:
 ```bash
@@ -59,4 +59,5 @@ During Docker deployment, the documentation is automatically built and served at
 ## Acknowledgements
 
 - **Viewer Engine**: The frontend relies on [mfindeisen/modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer).
-- **Processing Engine**: The C++ code in `server/lib/webGLRTIMaker-src/` is `webGLRtiMaker`, originally authored by **Gianpaolo Palma** (Copyright © 2015). We also acknowledge the adaptations found in [jcupitt/webRTIViewer](https://github.com/jcupitt/webRTIViewer). We are extremely grateful for this foundational work in decoding and tiling RTI structures.
+- **Processing Engine**: The Go processing utility is [rtiprep](https://github.com/mfindeisen/rtiprep). We acknowledge the foundational work in decoding and tiling RTI structures from earlier tools like `webRTIViewer` by jcupitt.
+
