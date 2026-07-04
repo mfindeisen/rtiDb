@@ -1,30 +1,28 @@
-# Stage 1: Build C++ Binary
-FROM alpine:3.19 AS cpp-builder
-RUN apk add --no-cache qt5-qtbase-dev g++ make
+# Stage 1: Build rtiprep Go Binary
+FROM golang:1.22-alpine AS go-builder
 WORKDIR /build
-# Copy only the C++ source first
-COPY lib/webGLRTIMaker-src .
-RUN rm -rf release debug *.o Makefile* && qmake-qt5 webGLRtiMaker.pro && make
+# Copy Go project source from rtiprep sibling folder
+COPY rtiprep/go.mod rtiprep/go.sum ./
+RUN go mod download
+COPY rtiprep/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o rtiprep .
 
 # Stage 2: Node.js Server
 FROM node:20-alpine
 WORKDIR /app
 
-# Install runtime dependencies: python/make/g++ for sqlite3, qt5-qtbase for C++ binary
-RUN apk add --no-cache python3 make g++ qt5-qtbase qt5-qtbase-x11
+# Install runtime dependencies for Node.js modules like sqlite3
+RUN apk add --no-cache python3 make g++
 
 # Install pnpm and dependencies
-COPY package.json pnpm-lock.yaml* ./
+COPY rtiDb/server/package.json rtiDb/server/pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile || pnpm install
 
-COPY . .
+COPY rtiDb/server .
 
-# Copy compiled C++ binary from stage 1
-COPY --from=cpp-builder /build/webGLRtiMaker /app/lib/webGLRTIMaker-src/webGLRtiMaker
-RUN chmod +x /app/lib/webGLRTIMaker-src/webGLRtiMaker
-
-# rtiprep Go binary (must be compiled for linux/amd64 and placed at server/lib/rtiprep/rtiprep)
-RUN if [ -f /app/lib/rtiprep/rtiprep ]; then chmod +x /app/lib/rtiprep/rtiprep; fi
+# Copy compiled Go binary from Stage 1
+COPY --from=go-builder /build/rtiprep /app/lib/rtiprep/rtiprep
+RUN chmod +x /app/lib/rtiprep/rtiprep
 
 # Expose port
 EXPOSE 3000
