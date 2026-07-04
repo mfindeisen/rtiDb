@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
-    <nav class="sticky top-0 z-50 flex justify-between items-center px-8 py-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200 dark:border-white/10 transition-colors duration-300">
+    <nav class="sticky top-0 z-[100] flex justify-between items-center px-8 py-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200 dark:border-white/10 transition-colors duration-300">
       <router-link to="/">
         <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
           RTI Database
