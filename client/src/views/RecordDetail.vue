@@ -228,7 +228,7 @@
         </span>
       </div>
 
-      <div v-if="record.status === 'done'" class="mt-6 flex justify-center bg-slate-100 dark:bg-black/40 rounded-xl border border-slate-200 dark:border-white/10 h-[calc(100vh-320px)] min-h-[450px] w-full overflow-hidden">
+      <div v-if="record.status === 'done'" class="mt-6 flex justify-center bg-slate-100 dark:bg-black/40 rounded-xl border border-slate-200 dark:border-white/10 h-[calc(100vh-220px)] min-h-[750px] w-full overflow-hidden">
         <!-- Viewer Content Wrapper -->
         <div class="flex-grow h-full overflow-hidden">
           <!-- GeoTIFF Mode: always use modern viewer with the TIFF URL -->
