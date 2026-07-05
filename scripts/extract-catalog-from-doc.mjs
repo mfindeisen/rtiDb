@@ -252,9 +252,9 @@ function main() {
   const payload = extractCatalogFromDocx(docxPath);
 
   if (writeJson) {
-    const outPath = join(__dirname, 'sample-catalog-from-doc.json');
+    const outPath = join(__dirname, 'sample-catalog-extracted.json');
     const body = {
-      _comment: 'Auto-extracted from for dear Matthias .docx (Example column only)',
+      _comment: 'Auto-extracted from local .docx (Example column only). Gitignored — never commit this file.',
       ...payload,
     };
     writeFileSync(outPath, `${JSON.stringify(body, null, 2)}\n`);

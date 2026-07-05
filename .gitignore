@@ -46,6 +46,9 @@ server/lib/webGLRTIMaker-src/webGLRtiMaker
 deploy.sh
 deploy.ps1
 
+# Extracted catalog data from local .docx (may contain real institution data)
+scripts/sample-catalog-extracted.json
+
 # Binaries
 server/lib/rtiprep/
 
