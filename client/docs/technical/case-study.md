@@ -6,7 +6,7 @@ This case study analyzes the performance, compression efficiency, and visual ren
 
 ## 1. Executive Summary
 
-The training run was executed at full resolution (`--resize 0`), processing the **4096x3072** resolution image. The pipeline successfully optimized a **4-dimensional latent grid** at every pixel location along with a **shared Decoder MLP** to model the continuous hemispherical reflectance function.
+The training run was executed at full resolution (`--resize 0`), processing the **4096x3072** resolution demo image. The pipeline successfully optimized a **4-dimensional latent grid** at every pixel location along with a **shared Decoder MLP** to model the continuous hemispherical reflectance function.
 
 The run achieved **exceptional fidelity and generalization**, showing no signs of overfitting to the training light directions. Additionally, it achieved a substantial **6x compression ratio** of the raw coefficient files.
 
@@ -14,10 +14,10 @@ The run achieved **exceptional fidelity and generalization**, showing no signs o
 
 ## 2. Dataset Profile: `DEMO-2024-SEAL-001`
 
-The test subject is a high-resolution RTI dataset of a historical artifact (likely a clay sealing).
+The test subject is a fictional demo RTI dataset of a clay sealing (not a real catalog object).
 
 * **Format (Original):** Hemispherical Harmonics (HSH, Type 1)
-* **Resolution:** 4096 x 3072 pixels (~45.4 Megapixels)
+* **Resolution:** 4096 x 3072 pixels (~12.6 Megapixels)
 * **Original File Size (HSH):** **18.5 MB** (demo figure)
 * **Active Area:** Padded to 8192 x 8192 for quadtree tiling.
 
