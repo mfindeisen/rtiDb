@@ -1,4 +1,12 @@
 {
+  "name": "rtidb",
+  "private": true,
+  "scripts": {
+    "submodules": "git submodule update --init --recursive",
+    "sync:viewer": "node scripts/sync-viewer.mjs",
+    "build:rtiprep": "node scripts/build-rtiprep.mjs",
+    "prepare:deps": "pnpm run submodules && pnpm run sync:viewer && pnpm run build:rtiprep"
+  },
   "dependencies": {
     "@lucide/vue": "^1.22.0"
   },
