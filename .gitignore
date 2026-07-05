@@ -26,10 +26,13 @@ pnpm-debug.log*
 server/uploads/
 server/data/
 
-# Test datasets
+# Test datasets (local only, under generated viewer output)
 client/public/modern-viewer/webrti/
 client/public/modern-viewer/mock/
 client/public/modern-viewer/test-record/
+
+# Built from deps/modernRtiViewer (pnpm run sync:viewer)
+client/public/modern-viewer/
 
 # C++ build artifacts
 server/lib/webGLRTIMaker-src/Makefile.*

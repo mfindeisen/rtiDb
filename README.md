@@ -28,17 +28,44 @@ The processing pipeline uses the Go-based [rtiprep](https://github.com/mfindeise
 
 ## Setup & Deployment
 
-The easiest way to run the entire stack is via Docker. The provided `docker-compose.yml` automatically compiles the `rtiprep` Go tool from source in a multi-stage builder container, builds the Vue client, and starts the Node server.
+The easiest way to run the entire stack is via Docker. Clone with submodules, then build:
 
 ```bash
-# Build and start the containers in the background
+git clone --recurse-submodules https://github.com/mfindeisen/rtiDb.git
+cd rtiDb
 docker compose up -d --build
+```
 
-# The Client will be available at http://localhost:8080
-# The Server API will be available at http://localhost:3000
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+The Docker build compiles `rtiprep` and `modernRtiViewer` from the `deps/` submodules automatically — no manual copying required.
+
+```bash
+# The Client will be available at http://localhost:8090
+# The Server API is proxied via the client at /api/
 ```
 
 *Note: Persistent data (the SQLite database and the generated image tiles) are mounted to Docker volumes (`server_data` and `server_uploads`), ensuring they survive container restarts.*
+
+### Local development (without Docker)
+
+```bash
+git submodule update --init --recursive
+pnpm run prepare:deps          # build viewer + rtiprep binary
+cd client && pnpm install && pnpm run dev
+cd ../server && pnpm install && pnpm run dev
+```
+
+To pull fresh versions of the submodules:
+
+```bash
+git submodule update --remote deps/rtiprep deps/modernRtiViewer
+pnpm run prepare:deps
+```
 
 ## Documentation Portal
 

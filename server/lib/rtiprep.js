@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const binPath = path.resolve(__dirname, './rtiprep/rtiprep');
+const binName = process.platform === 'win32' ? 'rtiprep.exe' : 'rtiprep';
+const binPath = path.resolve(__dirname, './rtiprep', binName);
 
 /**
  * Run rtiprep (Go binary) on an RTI file to produce standard quadtree tiles.

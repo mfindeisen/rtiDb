@@ -1,0 +1,6 @@
+[submodule "deps/rtiprep"]
+	path = deps/rtiprep
+	url = https://github.com/mfindeisen/rtiprep.git
+[submodule "deps/modernRtiViewer"]
+	path = deps/modernRtiViewer
+	url = https://github.com/mfindeisen/modernRtiViewer.git

@@ -1,0 +1,8 @@
+**/node_modules
+server/uploads
+server/data
+client/dist
+client/public/docs
+client/public/modern-viewer
+.git
+**/.git

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "sync:viewer": "node ../scripts/sync-viewer.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:docs": "vitepress build docs",

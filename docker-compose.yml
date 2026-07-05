@@ -3,8 +3,8 @@ version: '3.8'
 services:
   server:
     build:
-      context: ..
-      dockerfile: rtiDb/server/Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     container_name: rtidb-server
     restart: unless-stopped
     expose:
@@ -21,8 +21,8 @@ services:
 
   client:
     build:
-      context: ./client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: client/Dockerfile
     container_name: rtidb-client
     restart: unless-stopped
     ports:
