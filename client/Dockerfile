@@ -13,8 +13,6 @@ RUN pnpm run build && pnpm run build:docs
 
 # Setup NGINX
 FROM nginx:alpine
-RUN apk add --no-cache openssl && \
-    openssl passwd -apr1 -salt rtidb "rtidb2026!" | { read hash; echo "admin:$hash"; } > /etc/nginx/.htpasswd
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
