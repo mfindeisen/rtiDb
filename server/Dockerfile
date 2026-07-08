@@ -1,4 +1,4 @@
-# Stage 1: Build rtiprep Go Binary
+# Stage 1: Build Go rtiprep binary
 FROM golang:1.22-alpine AS go-builder
 WORKDIR /build
 COPY deps/rtiprep/go.mod deps/rtiprep/go.sum ./
@@ -8,28 +8,28 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o rtiprep .
 
 # Stage 2: Node.js Server (Debian slim — onnxruntime-node needs glibc, not Alpine musl)
 FROM node:20-bookworm-slim
-WORKDIR /app
+WORKDIR /repo
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++ unzip ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm and dependencies
-COPY server/package.json server/pnpm-lock.yaml* server/.npmrc* ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile || pnpm install
+RUN npm install -g pnpm
 
-COPY server .
+COPY pnpm-workspace.yaml package.json ./
+COPY packages/shared packages/shared
+COPY server/package.json server/pnpm-lock.yaml* server/.npmrc* server/
 
-# Pre-download CLIP weights into the image (no runtime download needed)
-ENV TRANSFORMERS_CACHE=/app/.clip-model-cache
-RUN node --input-type=module -e "import { warmupClipModel } from './lib/imageEmbeddings.js'; await warmupClipModel(); console.log('CLIP model cached');"
+RUN pnpm install --filter server... --frozen-lockfile || pnpm install --filter server...
 
-# Copy compiled Go binary from Stage 1
-COPY --from=go-builder /build/rtiprep /app/lib/rtiprep/rtiprep
-RUN chmod +x /app/lib/rtiprep/rtiprep
+COPY server server
 
-# Expose port
+ENV TRANSFORMERS_CACHE=/repo/server/.clip-model-cache
+RUN cd server && pnpm exec tsx --input-type=module -e "import { warmupClipModel } from './lib/imageEmbeddings.js'; await warmupClipModel(); console.log('CLIP model cached');"
+
+COPY --from=go-builder /build/rtiprep /repo/server/lib/rtiprep/rtiprep
+RUN chmod +x /repo/server/lib/rtiprep/rtiprep
+
+WORKDIR /repo/server
 EXPOSE 3000
-
-# Start server
 CMD ["pnpm", "run", "start"]
