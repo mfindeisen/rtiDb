@@ -31,7 +31,7 @@
   <span v-else class="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{{ field.displayValue }}</span>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { MapPin } from '@lucide/vue';
 
 defineProps({

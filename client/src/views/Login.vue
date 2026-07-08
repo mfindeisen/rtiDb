@@ -24,7 +24,7 @@
               autocapitalize="none"
               spellcheck="false"
               required
-              placeholder="admin"
+              placeholder="username"
               class="form-input"
               :disabled="isLoading"
             />
@@ -53,10 +53,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { postLoginPath } from '../lib/auth.js';
+import { postLoginPath } from '@/composables/useAuth';
+import { login } from '@/api/auth';
+import { ApiError } from '@/api/client';
 
 const router = useRouter();
 const route = useRoute();
@@ -70,23 +72,20 @@ const handleLogin = async () => {
   error.value = '';
 
   try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.value, password: password.value }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok && data.token) {
-      localStorage.setItem('adminToken', data.token);
-      router.push(postLoginPath(route.query.redirect));
-    } else {
-      error.value = data.error || 'Login failed';
-    }
+    await login(username.value, password.value);
+    router.push(postLoginPath(route.query.redirect));
   } catch (err) {
     console.error('Login error', err);
-    error.value = 'Failed to connect to server';
+    if (err instanceof ApiError) {
+      try {
+        const data = JSON.parse(err.body) as { error?: string };
+        error.value = data.error || 'Login failed';
+      } catch {
+        error.value = err.body || 'Login failed';
+      }
+    } else {
+      error.value = 'Failed to connect to server';
+    }
   } finally {
     isLoading.value = false;
   }

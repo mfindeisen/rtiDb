@@ -75,11 +75,14 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { Circle, CircleDot, Square } from '@lucide/vue';
-import { authHeaders, canAnnotate as checkCanAnnotate } from '../lib/auth.js';
-import { formatCatalogDateTime } from '../lib/metadataFields.js';
+import { canAnnotate as checkCanAnnotate } from '@/composables/useAuth';
+import { formatCatalogDateTime } from '@rtidb/shared';
+import type { RecordAnnotation } from '@rtidb/shared/api/annotations';
+import * as annotationsApi from '@/api/annotations';
+import { ApiError } from '@/api/client';
 
 const props = defineProps({
   recordId: { type: [Number, String], required: true },
@@ -108,33 +111,27 @@ async function fetchAnnotations() {
   loading.value = true;
   error.value = '';
   try {
-    const res = await fetch(`/api/records/${recordKey()}/annotations`, { headers: authHeaders() });
-    if (res.status === 401 || res.status === 403) {
+    annotations.value = await annotationsApi.listAnnotations(recordKey());
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
       canAnnotate.value = false;
       return;
     }
-    if (!res.ok) throw new Error('Failed to load annotations');
-    annotations.value = await res.json();
-  } catch (err) {
-    error.value = err.message;
+    error.value = err instanceof Error ? err.message : 'Failed to load annotations';
   } finally {
     loading.value = false;
     emit('loaded');
   }
 }
 
-async function remove(id) {
+async function remove(id: number) {
   if (!window.confirm('Delete this annotation?')) return;
   try {
-    const res = await fetch(`/api/records/${recordKey()}/annotations/${id}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to delete');
+    await annotationsApi.deleteAnnotation(recordKey(), id);
     annotations.value = annotations.value.filter((a) => a.id !== id);
     emit('updated');
   } catch (err) {
-    error.value = err.message;
+    error.value = err instanceof Error ? err.message : 'Failed to delete';
   }
 }
 

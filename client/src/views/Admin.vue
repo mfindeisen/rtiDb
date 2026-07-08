@@ -320,57 +320,13 @@
               </div>
             </div>
 
-            <div v-if="autoAnnotateState[rec.id]" class="mt-3 p-3 rounded-lg border text-sm" :class="autoAnnotatePanelClass(rec.id)">
-              <div v-if="autoAnnotateState[rec.id].running" class="space-y-3">
-                <div class="flex items-center gap-3">
-                  <div class="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin shrink-0" />
-                  <div class="flex-1 min-w-0">
-                    <p class="font-semibold text-violet-900 dark:text-violet-100">{{ autoAnnotateState[rec.id].message }}</p>
-                    <p v-if="autoAnnotateState[rec.id].startedAt" class="text-xs opacity-75 mt-0.5">
-                      Elapsed: {{ getAutoAnnotateElapsed(rec.id) }}
-                    </p>
-                  </div>
-                  <span class="text-xs font-bold font-mono tabular-nums text-violet-700 dark:text-violet-300 shrink-0">
-                    {{ autoAnnotateProgress(rec.id) }}%
-                  </span>
-                </div>
-
-                <div class="w-full h-2.5 bg-slate-200/80 dark:bg-black/30 rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-700 ease-out"
-                    :class="autoAnnotateState[rec.id].phase === 'detecting' ? 'animate-pulse' : ''"
-                    :style="{ width: `${autoAnnotateProgress(rec.id)}%` }"
-                  />
-                </div>
-
-                <div class="flex flex-wrap gap-1.5">
-                  <span
-                    v-for="step in autoAnnotateSteps(rec.id)"
-                    :key="step.id"
-                    class="text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors"
-                    :class="step.active
-                      ? 'bg-violet-200/80 dark:bg-violet-500/25 border-violet-300 dark:border-violet-500/50 text-violet-800 dark:text-violet-200'
-                      : step.done
-                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-400'"
-                  >
-                    {{ step.label }}
-                  </span>
-                </div>
-              </div>
-
-              <template v-else>
-                <p>{{ autoAnnotateState[rec.id].message }}</p>
-                <button
-                  v-if="autoAnnotateState[rec.id]?.canRetry"
-                  type="button"
-                  class="btn-secondary mt-2 !py-1.5 !px-3 text-xs"
-                  @click="runAutoAnnotate(rec, true)"
-                >
-                  Replace AI annotations &amp; re-run
-                </button>
-              </template>
-            </div>
+            <AutoAnnotateProgressPanel
+              v-if="autoAnnotateState[rec.id]"
+              :record-id="rec.id"
+              :state="autoAnnotateState[rec.id]"
+              :now="now"
+              @retry="runAutoAnnotate(rec, true)"
+            />
 
             <div v-if="rec.status === 'done'" class="mt-2 text-right">
               <router-link :to="recordPath(rec)" class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">View Record →</router-link>
@@ -386,128 +342,13 @@
       </TabsContent>
 
       <TabsContent v-if="userRole === 'admin'" value="users">
-      <FancyCard class="text-left">
-        <CardHeader class="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>User Accounts</CardTitle>
-            <CardDescription>Create and manage access credentials and permission roles.</CardDescription>
-          </div>
-          <Button @click="openAddUser">Add User</Button>
-        </CardHeader>
-        <CardContent class="space-y-6">
-
-        <div v-if="showUserForm" class="surface-panel p-6 space-y-4">
-          <h3 class="text-lg font-bold">
-            {{ editingUserId ? 'Edit User Credentials' : 'Create New User Account' }}
-          </h3>
-          <form @submit.prevent="saveUser" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label>Username</Label>
-                <Input v-model="userForm.username" required placeholder="e.g. johndoe" />
-              </div>
-              <div class="space-y-2">
-                <Label>Password {{ editingUserId ? '(leave blank to keep current)' : '' }}</Label>
-                <Input v-model="userForm.password" type="password" :required="!editingUserId" placeholder="••••••••" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label>Role</Label>
-                <Select v-model="userForm.role">
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="editor">Editor (Custom Permissions)</SelectItem>
-                    <SelectItem value="researcher">Researcher (Private notes &amp; collaboration)</SelectItem>
-                    <SelectItem value="admin">Administrator (All Permissions)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div v-if="userForm.role === 'editor'" class="space-y-2">
-                <Label>Granted Permissions</Label>
-                <div class="space-y-2">
-                  <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox v-model="permUploadRti" />
-                    <span>Upload RTI scans & rerun failed jobs</span>
-                  </label>
-                  <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox v-model="permEditRecord" />
-                    <span>Edit records details / publish status</span>
-                  </label>
-                  <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox v-model="permDeleteRecord" />
-                    <span>Delete records</span>
-                  </label>
-                </div>
-              </div>
-
-              <div v-else-if="userForm.role === 'researcher'" class="space-y-2">
-                <Label>Researcher access</Label>
-                <p class="text-xs text-muted-foreground leading-relaxed">
-                  Can sign in to add private notes, annotations (coming soon), and scholarly comments on catalog records. No upload or admin access.
-                </p>
-              </div>
-            </div>
-
-            <Alert v-if="userFormError" variant="destructive">
-              <AlertDescription>{{ userFormError }}</AlertDescription>
-            </Alert>
-
-            <div class="flex gap-2 justify-end">
-              <Button type="submit">{{ editingUserId ? 'Save Changes' : 'Create User' }}</Button>
-              <Button type="button" variant="outline" @click="closeUserForm">Cancel</Button>
-            </div>
-          </form>
-        </div>
-
-        <div class="rounded-xl border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead class="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="u in usersList" :key="u.id">
-                <TableCell class="font-semibold">{{ u.username }}</TableCell>
-                <TableCell>
-                  <Badge :variant="u.role === 'admin' ? 'default' : u.role === 'researcher' ? 'outline' : 'secondary'">{{ u.role }}</Badge>
-                </TableCell>
-                <TableCell>
-                  <span v-if="u.role === 'admin'" class="text-xs text-muted-foreground">All permissions</span>
-                  <span v-else-if="u.role === 'researcher'" class="text-xs text-muted-foreground">Private notes &amp; collaboration</span>
-                  <span v-else-if="u.permissions.length === 0" class="text-xs text-muted-foreground">None (read-only)</span>
-                  <div v-else class="flex flex-wrap gap-1">
-                    <Badge v-for="p in u.permissions" :key="p" variant="outline" class="text-xs">{{ p }}</Badge>
-                  </div>
-                </TableCell>
-                <TableCell class="text-right">
-                  <div class="flex gap-1 justify-end">
-                    <Button variant="ghost" size="icon" @click="editUser(u)" title="Edit User">
-                      <Pencil class="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" @click="deleteUser(u)" title="Delete User">
-                      <Trash2 class="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-        </CardContent>
-      </FancyCard>
+        <UserManagementPanel ref="userManagementRef" @unauthorized="logout" />
       </TabsContent>
     </Tabs>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Pencil, Trash2, ArrowLeft, Image as ImageIcon, Calendar as CalendarIcon, Map, Layers, RefreshCw, ExternalLink, FolderOpen, Users, FilePlus, Upload, Sparkles } from '@lucide/vue';
@@ -516,55 +357,53 @@ import InfoCallout from '../components/InfoCallout.vue';
 import FilePicker from '../components/FilePicker.vue';
 import SegmentPills from '../components/SegmentPills.vue';
 import MetadataForm from '../components/MetadataForm.vue';
-import { recordPath } from '../lib/recordPath.js';
-import { normalizeMetadata, emptyMetadata } from '../lib/metadataFields.js';
+import { recordPath } from '@/lib/recordPath';
+import { normalizeMetadata, emptyMetadata } from '@rtidb/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { ApiError } from '@/api/client';
+import { subscribeProgress } from '@/api/progress';
+import {
+  listRecords,
+  createRecord as apiCreateRecord,
+  updateRecord,
+  deleteRecord as apiDeleteRecord,
+  publishRecord,
+  rerunProcessing,
+  startAutoAnnotate,
+  getAutoAnnotateJob,
+  uploadNewRecord,
+  uploadToRecord,
+} from '@/api/records';
+import { parseTokenPayload, logout as authLogout, hasPermission } from '@/composables/useAuth';
+import { pollJob } from '@/composables/useJobPoll';
+import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
+import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
 
 const router = useRouter();
 
-// --- Auth helpers ---
-const getToken = () => localStorage.getItem('adminToken');
+const tokenPayload = parseTokenPayload();
+const userRole = ref(tokenPayload?.role || 'editor');
+const userManagementRef = ref(null);
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${getToken()}`
-});
-
-// Parse role & permissions out of the stored JWT payload
-function parseTokenPayload() {
-  const token = getToken();
-  if (!token) return {};
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch {
-    return {};
+function handleUnauthorized(err: unknown): boolean {
+  if (err instanceof ApiError && err.status === 401) {
+    logout();
+    return true;
   }
+  return false;
 }
-
-const userRole = ref(parseTokenPayload().role || 'editor');
-const userPermissions = ref(parseTokenPayload().permissions || []);
-
-const hasPermission = (perm) => {
-  if (userRole.value === 'admin') return true;
-  return userPermissions.value.includes(perm);
-};
 
 // --- Tab state (only relevant for admins) ---
 const activeTab = ref('records');
 
 const logout = () => {
-  localStorage.removeItem('adminToken');
+  authLogout();
   router.push('/login');
 };
 
@@ -676,84 +515,37 @@ function phaseLabel(phase, status, position) {
   return 'Processing…';
 }
 
-const AUTO_ANNOTATE_PROGRESS = {
-  queued: 12,
-  prepare: 18,
-  loading: 38,
-  detecting: 68,
-  metadata: 86,
-  done: 100,
-};
-
-function autoAnnotateProgress(recordId) {
-  const s = autoAnnotateState.value[recordId];
-  if (!s) return 0;
-  if (!s.running) return s.error ? 100 : 100;
-  if (s.status === 'queued') return AUTO_ANNOTATE_PROGRESS.queued;
-  return AUTO_ANNOTATE_PROGRESS[s.phase] ?? 25;
-}
-
-function autoAnnotateSteps(recordId) {
-  const s = autoAnnotateState.value[recordId];
-  const status = s?.status;
-  const phase = s?.phase || '';
-  const running = !!s?.running;
-
-  const queuedDone = status !== 'queued' && running;
-  const loadingActive = phase === 'loading' || phase === 'prepare';
-  const loadingDone = ['detecting', 'metadata', 'done'].includes(phase) || !running;
-  const detectingActive = phase === 'detecting';
-  const detectingDone = ['metadata', 'done'].includes(phase) || !running;
-  const savingActive = phase === 'metadata' || phase === 'done';
-  const savingDone = !running && !s?.error && s?.message;
-
-  return [
-    { id: 'queue', label: 'Queued', active: status === 'queued', done: queuedDone },
-    { id: 'model', label: 'Load model', active: loadingActive, done: loadingDone && !loadingActive },
-    { id: 'detect', label: 'Detect', active: detectingActive, done: detectingDone && !detectingActive },
-    { id: 'save', label: 'Save', active: savingActive && running, done: !!savingDone },
-  ];
-}
-
-function autoAnnotatePanelClass(recordId) {
-  const s = autoAnnotateState.value[recordId];
-  if (!s) return '';
-  if (s.running) {
-    return 'border-violet-300 dark:border-violet-500/40 bg-violet-50/60 dark:bg-violet-500/10 text-violet-900 dark:text-violet-100';
-  }
-  if (s.error) {
-    return 'border-red-200 dark:border-red-500/30 bg-red-50/50 dark:bg-red-500/10 text-red-700 dark:text-red-300';
-  }
-  return 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200';
-}
-
-function getAutoAnnotateElapsed(recordId) {
-  const started = autoAnnotateState.value[recordId]?.startedAt;
-  if (!started) return '—';
-  const sec = Math.floor((now.value - started) / 1000);
-  if (sec < 60) return `${sec}s`;
-  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-}
-
 async function pollAutoAnnotateJob(recordId, jobId) {
-  while (autoAnnotateState.value[recordId]?.running) {
-    const res = await fetch(`${API}/api/records/${recordId}/auto-annotate/jobs/${jobId}`, {
-      headers: authHeaders(),
-    });
-    if (res.status === 401) return logout();
-    if (!res.ok) throw new Error('Lost track of auto-annotation job');
-    const data = await res.json();
-
-    if (data.status === 'queued' || data.status === 'processing') {
-      autoAnnotateState.value[recordId] = {
-        ...autoAnnotateState.value[recordId],
-        running: true,
-        status: data.status,
-        phase: data.phase || autoAnnotateState.value[recordId]?.phase,
-        position: data.position || 0,
-        message: phaseLabel(data.phase, data.status, data.position),
-      };
-    }
+  try {
+    const data = await pollJob(
+      jobId,
+      {
+        fetchJob: async (id) => {
+          try {
+            return await getAutoAnnotateJob(recordId, id);
+          } catch (err) {
+            if (handleUnauthorized(err)) return null;
+            throw err;
+          }
+        },
+        getStatus: (job) => job.status,
+        getPhase: (job) => job.phase,
+        stepsForPhase: () => [],
+        intervalMs: 900,
+      },
+      (job) => {
+        if (job.status === 'queued' || job.status === 'processing') {
+          autoAnnotateState.value[recordId] = {
+            ...autoAnnotateState.value[recordId],
+            running: true,
+            status: job.status,
+            phase: job.phase || autoAnnotateState.value[recordId]?.phase,
+            position: job.position || 0,
+            message: phaseLabel(job.phase, job.status, job.position),
+          };
+        }
+      },
+    );
 
     if (data.status === 'done') {
       const methods = (data.methods || []).join(', ') || 'none';
@@ -781,10 +573,10 @@ async function pollAutoAnnotateJob(recordId, jobId) {
         canRetry: true,
         startedAt: autoAnnotateState.value[recordId]?.startedAt,
       };
-      return;
     }
-
-    await autoAnnotateSleep(900);
+  } catch (err) {
+    if (handleUnauthorized(err)) return;
+    throw err;
   }
 }
 
@@ -806,26 +598,24 @@ async function runAutoAnnotate(rec, replace = false) {
   };
 
   try {
-    const res = await fetch(`${API}/api/records/${rec.id}/auto-annotate`, {
-      method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ replace }),
-    });
-    if (res.status === 401) return logout();
-    if (res.status === 429) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Rate limit exceeded');
-    }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Could not start auto-annotation');
-    }
-    const data = await res.json();
+    const data = await startAutoAnnotate(rec.id, replace);
     await pollAutoAnnotateJob(rec.id, data.jobId);
   } catch (err) {
+    if (handleUnauthorized(err)) return;
+    let message = 'Auto-annotation failed';
+    if (err instanceof ApiError) {
+      try {
+        const body = JSON.parse(err.body) as { error?: string };
+        message = body.error || err.body || message;
+      } catch {
+        message = err.body || message;
+      }
+    } else if (err instanceof Error) {
+      message = err.message;
+    }
     autoAnnotateState.value[rec.id] = {
       running: false,
-      message: err.message || 'Auto-annotation failed',
+      message,
       error: true,
       canRetry: true,
     };
@@ -866,21 +656,11 @@ const createRecord = async () => {
   createError.value = '';
   createSuccess.value = '';
   try {
-    const res = await fetch('/api/records', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({
-        name: createName.value,
-        description: createDescription.value,
-        direction: createDirection.value,
-      }),
+    const data = await apiCreateRecord({
+      name: createName.value,
+      description: createDescription.value,
+      direction: createDirection.value,
     });
-    if (res.status === 401) return logout();
-    if (!res.ok) {
-      createError.value = await res.text() || 'Failed to create record.';
-      return;
-    }
-    const data = await res.json();
     createSuccess.value = `Record #${data.id} created. You can add metadata and upload RTI when ready.`;
     createName.value = '';
     createDescription.value = '';
@@ -891,7 +671,8 @@ const createRecord = async () => {
       if (rec) startUploadForRecord(rec);
     }
   } catch (err) {
-    createError.value = err.message || 'Network error.';
+    if (handleUnauthorized(err)) return;
+    createError.value = err instanceof ApiError ? err.body : (err instanceof Error ? err.message : 'Network error.');
   } finally {
     isCreating.value = false;
   }
@@ -919,48 +700,36 @@ const formatUploadETA = (seconds) => {
 
 
 
-let eventSource = null;
+let unsubscribeProgress = null;
 
-const setupSSE = () => {
-  if (eventSource) return;
-  eventSource = new EventSource('/api/progress');
-  
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-
-      // Update List Progress State
-      const targetRecord = records.value.find(r => r.id === data.id);
-      if (targetRecord) {
-        if (data.message) {
-          targetRecord.message = data.message;
-        }
-        if (data.progress === -1) {
-          targetRecord.status = 'error';
-        } else {
-          targetRecord.status = data.progress >= 100 ? 'done' : 'processing';
-          targetRecord.progress = data.progress;
-          if (data.progress >= 100 && targetRecord.status !== 'done') {
-            fetchRecords(); // Refresh to get folder url once done
-          }
+const setupProgress = () => {
+  if (unsubscribeProgress) return;
+  unsubscribeProgress = subscribeProgress((data) => {
+    const targetRecord = records.value.find(r => r.id === data.id);
+    if (targetRecord) {
+      if (data.message) {
+        targetRecord.message = data.message;
+      }
+      if (data.progress === -1) {
+        targetRecord.status = 'error';
+      } else {
+        targetRecord.status = data.progress >= 100 ? 'done' : 'processing';
+        targetRecord.progress = data.progress;
+        if (data.progress >= 100 && targetRecord.status !== 'done') {
+          fetchRecords();
         }
       }
-
-    } catch(e) {
-      console.error("SSE parse error", e);
     }
-  };
+  });
 };
 
 const fetchRecords = async () => {
   try {
-    const res = await fetch('/api/records');
-    if (res.ok) {
-      records.value = await res.json();
-    }
+    records.value = await listRecords();
   } catch (err) {
-    console.error("Failed to load records", err);
+    if (!handleUnauthorized(err)) {
+      console.error("Failed to load records", err);
+    }
   } finally {
     loadingRecords.value = false;
   }
@@ -993,14 +762,12 @@ const getETA = (rec) => {
 
 onMounted(() => {
   fetchRecords();
-  setupSSE();
+  setupProgress();
   timer = setInterval(() => { now.value = Date.now(); }, 1000);
 });
 
 onUnmounted(() => {
-  if (eventSource) {
-    eventSource.close();
-  }
+  unsubscribeProgress?.();
   if (timer) clearInterval(timer);
   clearAutoAnnotatePoll();
 });
@@ -1052,61 +819,39 @@ const uploadFile = async () => {
     formData.append('latentMap', latentMapFile);
     formData.append('weights', weightsFile);
   } else {
-    formData.append('quality', quality.value);
-    formData.append('tileSize', tileSize.value);
+    formData.append('quality', String(quality.value));
+    formData.append('tileSize', String(tileSize.value));
     formData.append('format', format.value);
     formData.append('outputType', outputType.value);
     formData.append('file', file);
   }
 
-  const uploadUrl = targetId ? `/api/records/${targetId}/upload` : '/api/upload';
+  const totalBytes = isNeural
+    ? latentMapFile.size + weightsFile.size
+    : file.size;
+
+  const onUploadProgress = (percentComplete) => {
+    uploadProgress.value = percentComplete;
+    const loaded = (percentComplete / 100) * totalBytes;
+    const elapsedMs = Date.now() - uploadStartTime.value;
+    if (elapsedMs > 0) {
+      const speed = loaded / (elapsedMs / 1000);
+      uploadSpeed.value = formatSpeed(speed);
+      if (speed > 0) {
+        const remainingBytes = totalBytes - loaded;
+        uploadETA.value = formatUploadETA(remainingBytes / speed);
+      } else {
+        uploadETA.value = 'Calculating...';
+      }
+    }
+  };
 
   try {
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', uploadUrl);
-      xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('adminToken')}`);
-      
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
-          uploadProgress.value = percentComplete;
-
-          const elapsedMs = Date.now() - uploadStartTime.value;
-          if (elapsedMs > 0) {
-            const speed = event.loaded / (elapsedMs / 1000);
-            uploadSpeed.value = formatSpeed(speed);
-            
-            if (speed > 0) {
-              const remainingBytes = event.total - event.loaded;
-              const etaSec = remainingBytes / speed;
-              uploadETA.value = formatUploadETA(etaSec);
-            } else {
-              uploadETA.value = 'Calculating...';
-            }
-          }
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status === 401) {
-          logout();
-          reject(new Error("Unauthorized"));
-          return;
-        }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(xhr.responseText || `Upload failed (Status ${xhr.status})`));
-        }
-      };
-
-      xhr.onerror = () => {
-        reject(new Error("Upload failed (Network error)"));
-      };
-
-      xhr.send(formData);
-    });
+    if (targetId) {
+      await uploadToRecord(Number(targetId), formData, onUploadProgress);
+    } else {
+      await uploadNewRecord(formData, onUploadProgress);
+    }
 
     isUploading.value = false;
     resetForm();
@@ -1114,9 +859,8 @@ const uploadFile = async () => {
 
     await fetchRecords();
   } catch (err) {
-    if (err.message !== "Unauthorized") {
-      error.value = err.message;
-    }
+    if (handleUnauthorized(err)) return;
+    error.value = err instanceof Error ? err.message : 'Upload failed';
     isUploading.value = false;
   }
 };
@@ -1154,53 +898,35 @@ const cancelEdit = () => {
 
 const saveEdit = async (id) => {
   try {
-    const res = await fetch(`/api/records/${id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      },
-      body: JSON.stringify({
-        name: editName.value,
-        description: editDescription.value,
-        direction: editDirection.value,
-        metadata: editMetadata.value,
-      })
+    const data = await updateRecord(id, {
+      name: editName.value,
+      description: editDescription.value,
+      direction: editDirection.value,
+      metadata: editMetadata.value,
     });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      const data = await res.json();
-      const rec = records.value.find(r => r.id === id);
-      if (rec) {
-        rec.name = editName.value;
-        rec.description = editDescription.value;
-        rec.direction = editDirection.value;
-        rec.metadata = data.metadata || editMetadata.value;
-      }
-      editingId.value = null;
+    const rec = records.value.find(r => r.id === id);
+    if (rec) {
+      rec.name = editName.value;
+      rec.description = editDescription.value;
+      rec.direction = editDirection.value;
+      rec.metadata = data.metadata || editMetadata.value;
     }
+    editingId.value = null;
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     console.error("Failed to edit record", err);
   }
 };
 
 const deleteRecord = async (id) => {
   if (!window.confirm("Are you sure you want to completely delete this record and its massive folder from the server? This cannot be undone.")) return;
-  
+
   try {
-    const res = await fetch(`/api/records/${id}`, { 
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      }
-    });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      records.value = records.value.filter(r => r.id !== id);
-    } else {
-      alert("Failed to delete record.");
-    }
+    await apiDeleteRecord(id);
+    records.value = records.value.filter(r => r.id !== id);
   } catch (err) {
+    if (handleUnauthorized(err)) return;
+    alert(err instanceof ApiError ? err.body : "Failed to delete record.");
     console.error("Failed to delete record", err);
   }
 };
@@ -1208,168 +934,33 @@ const deleteRecord = async (id) => {
 const togglePublish = async (rec) => {
   const newPublishedState = !rec.isPublished;
   try {
-    const res = await fetch(`/api/records/${rec.id}/publish`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      },
-      body: JSON.stringify({ is_published: newPublishedState })
-    });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      rec.isPublished = newPublishedState ? 1 : 0;
-    }
+    await publishRecord(rec.id, newPublishedState);
+    rec.isPublished = newPublishedState ? 1 : 0;
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     console.error("Failed to toggle publish status", err);
   }
 };
 
 const rerunRecord = async (id) => {
   try {
-    const res = await fetch(`/api/records/${id}/rerun`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-      }
-    });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      const rec = records.value.find(r => r.id === id);
-      if (rec) {
-        rec.status = 'processing';
-        rec.progress = 0;
-        rec.message = 'Rerun requested...';
-      }
-    } else {
-      const text = await res.text();
-      alert("Failed to rerun record: " + text);
+    await rerunProcessing(id);
+    const rec = records.value.find(r => r.id === id);
+    if (rec) {
+      rec.status = 'processing';
+      rec.progress = 0;
+      rec.message = 'Rerun requested...';
     }
   } catch (err) {
+    if (handleUnauthorized(err)) return;
+    alert(err instanceof ApiError ? `Failed to rerun record: ${err.body}` : "Failed to rerun record.");
     console.error("Failed to rerun record", err);
   }
 };
 
-// --- User Management (Admin only) ---
-const usersList = ref([]);
-const showUserForm = ref(false);
-const editingUserId = ref(null);
-const userFormError = ref('');
-const userForm = ref({ username: '', password: '', role: 'editor', permissions: [] });
-
-const RESEARCHER_PERMISSIONS = ['private_notes', 'annotate', 'comment'];
-
-function togglePermission(perm, enabled) {
-  const next = userForm.value.permissions.filter((p) => p !== perm);
-  if (enabled) next.push(perm);
-  userForm.value.permissions = next;
-}
-
-const permUploadRti = computed({
-  get: () => userForm.value.permissions.includes('upload_rti'),
-  set: (v) => togglePermission('upload_rti', v),
-});
-const permEditRecord = computed({
-  get: () => userForm.value.permissions.includes('edit_record'),
-  set: (v) => togglePermission('edit_record', v),
-});
-const permDeleteRecord = computed({
-  get: () => userForm.value.permissions.includes('delete_record'),
-  set: (v) => togglePermission('delete_record', v),
-});
-
-const fetchUsers = async () => {
-  try {
-    const res = await fetch('/api/users', { headers: authHeaders() });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      usersList.value = await res.json();
-    }
-  } catch (err) {
-    console.error('Failed to load users', err);
-  }
-};
-
-const openAddUser = () => {
-  editingUserId.value = null;
-  userForm.value = { username: '', password: '', role: 'editor', permissions: [] };
-  userFormError.value = '';
-  showUserForm.value = true;
-};
-
-const editUser = (u) => {
-  editingUserId.value = u.id;
-  userForm.value = { username: u.username, password: '', role: u.role, permissions: [...u.permissions] };
-  userFormError.value = '';
-  showUserForm.value = true;
-};
-
-const closeUserForm = () => {
-  showUserForm.value = false;
-  editingUserId.value = null;
-  userFormError.value = '';
-};
-
-const saveUser = async () => {
-  userFormError.value = '';
-  try {
-    const body = {
-      username: userForm.value.username,
-      password: userForm.value.password,
-      role: userForm.value.role,
-      permissions:
-        userForm.value.role === 'editor'
-          ? userForm.value.permissions
-          : userForm.value.role === 'researcher'
-            ? RESEARCHER_PERMISSIONS
-            : [],
-    };
-
-    const url = editingUserId.value ? `/api/users/${editingUserId.value}` : '/api/users';
-    const method = editingUserId.value ? 'PUT' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(body),
-    });
-
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      await fetchUsers();
-      closeUserForm();
-    } else {
-      const msg = await res.text();
-      userFormError.value = msg || 'Failed to save user.';
-    }
-  } catch (err) {
-    userFormError.value = 'Network error. Please try again.';
-  }
-};
-
-const deleteUser = async (u) => {
-  if (!window.confirm(`Delete user "${u.username}"? This action cannot be undone.`)) return;
-  try {
-    const res = await fetch(`/api/users/${u.id}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    if (res.status === 401) return logout();
-    if (res.ok) {
-      usersList.value = usersList.value.filter(x => x.id !== u.id);
-    } else {
-      const msg = await res.text();
-      alert('Failed to delete user: ' + msg);
-    }
-  } catch (err) {
-    console.error('Failed to delete user', err);
-  }
-};
-
-// Fetch users list when tab is opened (admin only)
 const onTabChange = async (tab) => {
   if (tab === 'users' && userRole.value === 'admin') {
-    await fetchUsers();
+    await userManagementRef.value?.fetchUsers?.();
   }
 };
 </script>

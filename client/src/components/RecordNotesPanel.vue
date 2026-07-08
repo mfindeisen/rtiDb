@@ -67,45 +67,46 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { StickyNote } from '@lucide/vue';
-import { authHeaders, canCollaborate as checkCanCollaborate } from '../lib/auth.js';
-import { formatCatalogDateTime } from '../lib/metadataFields.js';
+import { canCollaborate as checkCanCollaborate } from '@/composables/useAuth';
+import { formatCatalogDateTime } from '@rtidb/shared';
+import type { RecordNote } from '@rtidb/shared/api/notes';
+import * as notesApi from '@/api/notes';
+import { ApiError } from '@/api/client';
 
-const props = defineProps({
-  recordId: { type: [Number, String], required: true },
-  recordSlug: { type: String, default: '' },
-  embedded: { type: Boolean, default: false },
-});
+const props = defineProps<{
+  recordId: number | string;
+  recordSlug?: string;
+  embedded?: boolean;
+}>();
 
 const canCollaborate = ref(checkCanCollaborate());
-const notes = ref([]);
+const notes = ref<RecordNote[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const formError = ref('');
 const newNoteBody = ref('');
-const editingId = ref(null);
+const editingId = ref<number | null>(null);
 const editBody = ref('');
 
 const recordKey = () => props.recordSlug || props.recordId;
 
-const formatNoteDate = (iso) => formatCatalogDateTime(iso);
+const formatNoteDate = (iso: string) => formatCatalogDateTime(iso);
 
 async function fetchNotes() {
   if (!canCollaborate.value) return;
   loading.value = true;
   formError.value = '';
   try {
-    const res = await fetch(`/api/records/${recordKey()}/notes`, { headers: authHeaders() });
-    if (res.status === 401 || res.status === 403) {
+    notes.value = await notesApi.listNotes(recordKey());
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
       canCollaborate.value = false;
       return;
     }
-    if (!res.ok) throw new Error('Failed to load notes');
-    notes.value = await res.json();
-  } catch (err) {
-    formError.value = err.message;
+    formError.value = err instanceof Error ? err.message : 'Failed to load notes';
   } finally {
     loading.value = false;
   }
@@ -116,26 +117,26 @@ async function saveNewNote() {
   saving.value = true;
   formError.value = '';
   try {
-    const res = await fetch(`/api/records/${recordKey()}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ body: newNoteBody.value.trim() }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to save note');
-    }
-    const created = await res.json();
+    const created = await notesApi.createNote(recordKey(), newNoteBody.value.trim());
     notes.value.unshift(created);
     newNoteBody.value = '';
   } catch (err) {
-    formError.value = err.message;
+    if (err instanceof ApiError) {
+      try {
+        const data = JSON.parse(err.body) as { error?: string };
+        formError.value = data.error || 'Failed to save note';
+      } catch {
+        formError.value = err.body || 'Failed to save note';
+      }
+    } else {
+      formError.value = err instanceof Error ? err.message : 'Failed to save note';
+    }
   } finally {
     saving.value = false;
   }
 }
 
-function startEdit(note) {
+function startEdit(note: RecordNote) {
   editingId.value = note.id;
   editBody.value = note.body;
 }
@@ -145,41 +146,31 @@ function cancelEdit() {
   editBody.value = '';
 }
 
-async function saveEdit(noteId) {
+async function saveEdit(noteId: number) {
   if (!editBody.value.trim()) return;
   saving.value = true;
   formError.value = '';
   try {
-    const res = await fetch(`/api/records/${recordKey()}/notes/${noteId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ body: editBody.value.trim() }),
-    });
-    if (!res.ok) throw new Error('Failed to update note');
-    const data = await res.json();
+    const data = await notesApi.updateNote(recordKey(), noteId, editBody.value.trim());
     const idx = notes.value.findIndex((n) => n.id === noteId);
     if (idx >= 0) {
       notes.value[idx] = { ...notes.value[idx], body: editBody.value.trim(), updatedAt: data.updatedAt };
     }
     cancelEdit();
   } catch (err) {
-    formError.value = err.message;
+    formError.value = err instanceof Error ? err.message : 'Failed to update note';
   } finally {
     saving.value = false;
   }
 }
 
-async function removeNote(noteId) {
+async function removeNote(noteId: number) {
   if (!window.confirm('Delete this note?')) return;
   try {
-    const res = await fetch(`/api/records/${recordKey()}/notes/${noteId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to delete note');
+    await notesApi.deleteNote(recordKey(), noteId);
     notes.value = notes.value.filter((n) => n.id !== noteId);
   } catch (err) {
-    formError.value = err.message;
+    formError.value = err instanceof Error ? err.message : 'Failed to delete note';
   }
 }
 

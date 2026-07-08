@@ -70,10 +70,10 @@
   </Teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import AnnotationColorPicker from './AnnotationColorPicker.vue';
-import { loadAnnotationColor, saveAnnotationColor, DEFAULT_ANNOTATION_COLOR } from '../lib/annotationColors.js';
+import { loadAnnotationColor, saveAnnotationColor, DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
 
 const props = defineProps({
   open: { type: Boolean, default: false },

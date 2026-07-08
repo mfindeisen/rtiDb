@@ -16,14 +16,28 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  modelValue: { type: String, required: true },
-  disabled: { type: Boolean, default: false },
-  /** Per-option: { value, label, icon?, disabled?, shortLabel? } */
-  options: { type: Array, required: true },
-  fullWidth: { type: Boolean, default: false },
+<script setup lang="ts">
+import type { Component } from 'vue';
+
+export interface SegmentOption {
+  value: string;
+  label: string;
+  icon?: Component;
+  disabled?: boolean;
+  shortLabel?: string;
+}
+
+withDefaults(defineProps<{
+  modelValue: string;
+  options: SegmentOption[];
+  disabled?: boolean;
+  fullWidth?: boolean;
+}>(), {
+  disabled: false,
+  fullWidth: false,
 });
 
-defineEmits(['update:modelValue']);
+defineEmits<{
+  'update:modelValue': [value: string];
+}>();
 </script>

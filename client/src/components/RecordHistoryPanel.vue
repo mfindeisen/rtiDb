@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-4">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
@@ -20,7 +20,7 @@
       </button>
     </div>
 
-    <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400 py-4">Loading revision history…</div>
+    <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400 py-4">Loading revision historyÔÇª</div>
     <div v-else-if="forbidden" class="text-xs text-slate-500 dark:text-slate-400 py-2">
       Version history is only available for published records unless you are signed in as an editor.
     </div>
@@ -32,7 +32,7 @@
         class="rounded-xl border border-blue-200/80 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/10 p-4 space-y-3"
       >
         <h5 class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-          Comparison: v{{ compareFrom }} → {{ compareToLabel }}
+          Comparison: v{{ compareFrom }} ÔåÆ {{ compareToLabel }}
         </h5>
         <div class="space-y-2 max-h-64 overflow-y-auto [scrollbar-gutter:stable]">
           <div
@@ -117,30 +117,31 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { History } from '@lucide/vue';
-import { authHeaders } from '../lib/auth.js';
-import { formatCatalogDateTime } from '../lib/metadataFields.js';
+import { formatCatalogDateTime } from '@rtidb/shared';
 import {
   revisionActionLabel,
   formatRevisionValue,
   flattenRevisionChanges,
-} from '../lib/recordRevisions.js';
+} from '@rtidb/shared/recordRevisions';
+import * as revisionsApi from '@/api/revisions';
+import { ApiError } from '@/api/client';
 
-const props = defineProps({
-  recordId: { type: [Number, String], required: true },
-  recordSlug: { type: String, default: '' },
-});
+const props = defineProps<{
+  recordId: number | string;
+  recordSlug?: string;
+}>();
 
 const loading = ref(true);
 const error = ref('');
 const forbidden = ref(false);
-const revisions = ref([]);
+const revisions = ref<import('@rtidb/shared/recordRevisions').SerializedRevision[]>([]);
 const currentRevision = ref(0);
-const selectedRevision = ref(null);
-const compareTarget = ref(null);
-const diffItems = ref([]);
+const selectedRevision = ref<number | null>(null);
+const compareTarget = ref<number | 'current' | null>(null);
+const diffItems = ref<import('@rtidb/shared/recordRevisions').RevisionChangeItem[]>([]);
 
 const recordKey = computed(() => props.recordSlug || props.recordId);
 const compareFrom = computed(() => selectedRevision.value);
@@ -151,42 +152,37 @@ const loadRevisions = async () => {
   error.value = '';
   forbidden.value = false;
   try {
-    const res = await fetch(`/api/records/${recordKey.value}/revisions`, { headers: authHeaders() });
-    if (res.status === 403) {
-      forbidden.value = true;
-      return;
-    }
-    if (!res.ok) throw new Error('Failed to load revisions');
-    const data = await res.json();
+    const data = await revisionsApi.listRevisions(recordKey.value);
     revisions.value = data.revisions || [];
     currentRevision.value = data.currentRevision || 0;
   } catch (err) {
-    error.value = err.message || 'Failed to load revisions';
+    if (err instanceof ApiError && err.status === 403) {
+      forbidden.value = true;
+      return;
+    }
+    error.value = err instanceof Error ? err.message : 'Failed to load revisions';
   } finally {
     loading.value = false;
   }
 };
 
-const loadComparison = async (from, to) => {
+const loadComparison = async (from: number, to: number | 'current') => {
   selectedRevision.value = from;
   compareTarget.value = to;
   diffItems.value = [];
   try {
-    const query = new URLSearchParams({ from: String(from), to: String(to) });
-    const res = await fetch(`/api/records/${recordKey.value}/revisions/compare?${query}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Comparison failed');
-    const data = await res.json();
+    const data = await revisionsApi.compareRevisions(recordKey.value, from, to);
     diffItems.value = flattenRevisionChanges(data.changes);
   } catch (err) {
-    error.value = err.message || 'Comparison failed';
+    error.value = err instanceof Error ? err.message : 'Comparison failed';
   }
 };
 
-const compareWithCurrent = (revisionNumber) => {
+const compareWithCurrent = (revisionNumber: number) => {
   loadComparison(revisionNumber, 'current');
 };
 
-const compareWithPrevious = (revisionNumber) => {
+const compareWithPrevious = (revisionNumber: number) => {
   if (revisionNumber <= 1) return;
   loadComparison(revisionNumber - 1, revisionNumber);
 };
