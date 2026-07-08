@@ -18,6 +18,7 @@ import { registerNoteRoutes } from './routes/notes.js';
 import { registerAnnotationRoutes } from './routes/annotations.js';
 import { registerRecordMutationRoutes } from './routes/recordMutations.js';
 import { registerUserRoutes } from './routes/users.js';
+import { registerOpenLimeRoutes } from './routes/openlime.js';
 import { errorHandler, notFoundHandler } from './lib/httpErrors.js';
 import type { ServerContext } from './types/index.js';
 
@@ -64,6 +65,7 @@ export function createApp(config: ServerConfig): Express {
   registerAnnotationRoutes(app, ctx);
   registerRecordMutationRoutes(app, ctx);
   registerUserRoutes(app, ctx);
+  registerOpenLimeRoutes(app, ctx);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
