@@ -1,13 +1,21 @@
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
 import { reactiveOmit } from "@vueuse/core";
 import { ProgressIndicator, ProgressRoot } from "reka-ui";
+import type { ProgressRootProps } from "reka-ui";
 import { cn } from "@/lib/utils";
 
 const props = defineProps({
-  modelValue: { type: [Number, null], required: false, default: 0 },
+  modelValue: { type: [Number, null] as PropType<number | null>, required: false, default: 0 },
   max: { type: Number, required: false },
-  getValueLabel: { type: Function, required: false },
-  getValueText: { type: Function, required: false },
+  getValueLabel: {
+    type: Function as PropType<(value: number, max: number) => string>,
+    required: false,
+  },
+  getValueText: {
+    type: Function as PropType<(value: number, max: number) => string>,
+    required: false,
+  },
   asChild: { type: Boolean, required: false },
   as: { type: null, required: false },
   class: {
@@ -17,7 +25,7 @@ const props = defineProps({
   },
 });
 
-const delegatedProps = reactiveOmit(props, "class");
+const delegatedProps = reactiveOmit(props, "class") as ProgressRootProps;
 </script>
 
 <template>

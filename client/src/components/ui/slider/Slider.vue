@@ -1,4 +1,5 @@
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
 import { reactiveOmit } from "@vueuse/core";
 import {
   SliderRange,
@@ -7,14 +8,18 @@ import {
   SliderTrack,
   useForwardPropsEmits,
 } from "reka-ui";
+import type { SliderRootProps } from "reka-ui";
 import { cn } from "@/lib/utils";
 
 const props = defineProps({
-  defaultValue: { type: Array, required: false },
-  modelValue: { type: [Array, null], required: false },
+  defaultValue: { type: Array as PropType<number[]>, required: false },
+  modelValue: { type: Array as PropType<number[]>, required: false },
   disabled: { type: Boolean, required: false },
-  orientation: { type: String, required: false },
-  dir: { type: String, required: false },
+  orientation: {
+    type: String as PropType<NonNullable<SliderRootProps["orientation"]>>,
+    required: false,
+  },
+  dir: { type: String as PropType<NonNullable<SliderRootProps["dir"]>>, required: false },
   inverted: { type: Boolean, required: false },
   min: { type: Number, required: false },
   max: { type: Number, required: false },
@@ -33,7 +38,7 @@ const props = defineProps({
 });
 const emits = defineEmits(["update:modelValue", "valueCommit"]);
 
-const delegatedProps = reactiveOmit(props, "class");
+const delegatedProps = reactiveOmit(props, "class") as SliderRootProps;
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>

@@ -1,4 +1,5 @@
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
 import { reactiveOmit } from "@vueuse/core";
 import {
   SelectContent,
@@ -6,6 +7,7 @@ import {
   SelectViewport,
   useForwardPropsEmits,
 } from "reka-ui";
+import type { SelectContentProps } from "reka-ui";
 import { cn } from "@/lib/utils";
 import { SelectScrollDownButton, SelectScrollUpButton } from ".";
 
@@ -15,7 +17,11 @@ defineOptions({
 
 const props = defineProps({
   forceMount: { type: Boolean, required: false },
-  position: { type: String, required: false, default: "item-aligned" },
+  position: {
+    type: String as PropType<"item-aligned" | "popper">,
+    required: false,
+    default: "item-aligned",
+  },
   bodyLock: { type: Boolean, required: false },
   memoDependencies: { type: Array, required: false },
   side: { type: null, required: false },
@@ -29,7 +35,7 @@ const props = defineProps({
   collisionPadding: { type: [Number, Object], required: false },
   arrowPadding: { type: Number, required: false },
   hideShiftedArrow: { type: Boolean, required: false },
-  sticky: { type: String, required: false },
+  sticky: { type: String as PropType<"partial" | "always">, required: false },
   hideWhenDetached: { type: Boolean, required: false },
   positionStrategy: { type: String, required: false },
   updatePositionStrategy: { type: String, required: false },
@@ -52,7 +58,7 @@ const emits = defineEmits([
   "pointerDownOutside",
 ]);
 
-const delegatedProps = reactiveOmit(props, "class");
+const delegatedProps = reactiveOmit(props, "class") as SelectContentProps;
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>
