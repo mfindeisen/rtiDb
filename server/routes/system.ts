@@ -1,8 +1,16 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import express from 'express';
 import swaggerUi from 'swagger-ui-express';
-import type { Express } from 'express';
+import type { Express, RequestHandler } from 'express';
 import { buildOpenApiSpec } from '../lib/openapi.js';
 import { getBaseUrl } from '../lib/records.js';
 import { SUPPORTED_EXPORT_FORMATS } from '../lib/export.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const defaultDocsDir = path.join(__dirname, '../../client/dist/docs');
 
 const SWAGGER_AUTH_BRIDGE = `
 (function trySwaggerAuth() {
@@ -32,16 +40,16 @@ export function registerHealthRoutes(app: Express) {
   });
 }
 
-export function registerDocsRoutes(app: Express) {
-  app.get('/api/openapi.json', (req, res) => {
+export function registerDocsRoutes(app: Express, sessionAuthMiddleware: RequestHandler) {
+  app.get('/api/openapi.json', sessionAuthMiddleware, (req, res) => {
     res.json(buildOpenApiSpec(req));
   });
 
-  app.get('/api/docs/auth-bridge.js', (_req, res) => {
+  app.get('/api/docs/auth-bridge.js', sessionAuthMiddleware, (_req, res) => {
     res.type('application/javascript').send(SWAGGER_AUTH_BRIDGE);
   });
 
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(null, {
+  app.use('/api/docs', sessionAuthMiddleware, swaggerUi.serve, swaggerUi.setup(null, {
     customSiteTitle: 'RTI Database API',
     customCss: '.swagger-ui .topbar { display: none }',
     customJs: '/api/docs/auth-bridge.js',
@@ -51,6 +59,11 @@ export function registerDocsRoutes(app: Express) {
       displayRequestDuration: true,
     },
   }));
+
+  const docsDir = process.env.DOCS_DIR || defaultDocsDir;
+  if (!fs.existsSync(docsDir)) return;
+
+  app.use('/docs', sessionAuthMiddleware, express.static(docsDir, { index: 'index.html' }));
 }
 
 export function registerDiscoveryRoutes(app: Express) {

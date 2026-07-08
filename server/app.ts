@@ -53,7 +53,7 @@ export function createApp(config: ServerConfig): Express {
   app.use('/static/uploads', express.static(uploadDir));
 
   registerHealthRoutes(app);
-  registerDocsRoutes(app);
+  registerDocsRoutes(app, auth.sessionAuthMiddleware);
   registerDiscoveryRoutes(app);
   registerProgressRoutes(app);
   registerAuthRoutes(app, ctx);
