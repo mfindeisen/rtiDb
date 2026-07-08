@@ -2,7 +2,7 @@
   <div ref="mapEl" class="w-full h-full min-h-[320px] rounded-xl overflow-hidden border border-slate-200 dark:border-white/10"></div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,19 +10,32 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-const props = defineProps({
-  markers: { type: Array, default: () => [] },
-  selectedId: { type: Number, default: null },
-  /** When false, marker updates do not recenter the map (avoids search ↔ fitBounds loops). */
-  autoFit: { type: Boolean, default: true },
+export interface MapMarker {
+  id: number;
+  lat: number | null;
+  lng: number | null;
+  name: string;
+}
+
+const props = withDefaults(defineProps<{
+  markers?: MapMarker[];
+  selectedId?: number | null;
+  autoFit?: boolean;
+}>(), {
+  markers: () => [],
+  selectedId: null,
+  autoFit: true,
 });
 
-const emit = defineEmits(['marker-click', 'bounds-change']);
+const emit = defineEmits<{
+  'marker-click': [id: number];
+  'bounds-change': [bounds: { west: number; south: number; east: number; north: number }];
+}>();
 
-const mapEl = ref(null);
-let map = null;
-let markerLayer = null;
-let boundsTimer = null;
+const mapEl = ref<HTMLElement | null>(null);
+let map: L.Map | null = null;
+let markerLayer: L.LayerGroup | null = null;
+let boundsTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressBoundsEvent = false;
 
 const defaultIcon = L.icon({
@@ -50,7 +63,9 @@ function renderMarkers() {
   if (!map || !markerLayer) return;
   markerLayer.clearLayers();
 
-  const valid = props.markers.filter((m) => m.lat != null && m.lng != null);
+  const valid = props.markers.filter((m): m is MapMarker & { lat: number; lng: number } =>
+    m.lat != null && m.lng != null,
+  );
   for (const m of valid) {
     const marker = L.marker([m.lat, m.lng], { icon: defaultIcon });
     marker.bindPopup(`<strong>${escapeHtml(m.name)}</strong>`);
@@ -65,7 +80,7 @@ function renderMarkers() {
   }
 }
 
-function escapeHtml(text) {
+function escapeHtml(text: string) {
   return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -74,6 +89,7 @@ function escapeHtml(text) {
 }
 
 onMounted(() => {
+  if (!mapEl.value) return;
   map = L.map(mapEl.value, { zoomControl: true }).setView([29.935, 52.892], 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -84,7 +100,7 @@ onMounted(() => {
   renderMarkers();
 
   map.on('moveend', () => {
-    clearTimeout(boundsTimer);
+    if (boundsTimer) clearTimeout(boundsTimer);
     boundsTimer = setTimeout(() => {
       if (suppressBoundsEvent) {
         suppressBoundsEvent = false;
@@ -97,7 +113,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearTimeout(boundsTimer);
+  if (boundsTimer) clearTimeout(boundsTimer);
   if (map) {
     map.remove();
     map = null;

@@ -41,8 +41,8 @@
               v-else-if="field.type === 'textarea'"
               v-model="model[field.key]"
               :rows="3"
-              :placeholder="field.placeholder || ''"
-              :disabled="disabled || field.readonly"
+              :placeholder="metadataFieldPlaceholder(field)"
+              :disabled="disabled || metadataFieldReadonly(field)"
               :dir="textDirection"
             />
 
@@ -50,8 +50,8 @@
               v-else-if="field.type === 'date'"
               :model-value="dateToIso(model[field.key])"
               type="date"
-              :placeholder="field.placeholder || ''"
-              :disabled="disabled || field.readonly"
+              :placeholder="metadataFieldPlaceholder(field)"
+              :disabled="disabled || metadataFieldReadonly(field)"
               @update:model-value="(v) => setDateField(field.key, v)"
             />
 
@@ -59,8 +59,8 @@
               v-else
               v-model="model[field.key]"
               :type="inputType(field)"
-              :placeholder="field.placeholder || ''"
-              :disabled="disabled || field.readonly"
+              :placeholder="metadataFieldPlaceholder(field)"
+              :disabled="disabled || metadataFieldReadonly(field)"
               :dir="textDirection"
             />
           </div>
@@ -70,8 +70,9 @@
   </div>
 </template>
 
-<script setup>
-import { METADATA_SECTIONS, dateToIso, formatCatalogDate } from '../lib/metadataFields.js';
+<script setup lang="ts">
+import { METADATA_SECTIONS, dateToIso, formatCatalogDate, metadataFieldPlaceholder, metadataFieldReadonly } from '@rtidb/shared';
+import type { MetadataFieldDef } from '@rtidb/shared';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,9 +100,8 @@ function setDateField(key, value) {
   model.value[key] = value ? formatCatalogDate(value) : '';
 }
 
-function inputType(field) {
+function inputType(field: MetadataFieldDef): string {
   if (field.type === 'url') return 'url';
-  if (field.type === 'number') return 'number';
   return 'text';
 }
 

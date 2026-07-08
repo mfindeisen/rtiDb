@@ -18,8 +18,8 @@
   </div>
 </template>
 
-<script setup>
-import { ANNOTATION_COLOR_PRESETS } from '../lib/annotationColors.js';
+<script setup lang="ts">
+import { ANNOTATION_COLOR_PRESETS } from '@/lib/annotationColors';
 
 defineProps({
   modelValue: { type: String, required: true },

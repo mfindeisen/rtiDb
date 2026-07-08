@@ -114,12 +114,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
 import { LayoutGrid, Table2 } from '@lucide/vue';
 import MetadataFieldValue from './MetadataFieldValue.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { METADATA_SECTIONS, normalizeMetadata, gpsMapsUrl, parseHexColor, formatCatalogDate, formatCatalogDateTime } from '../lib/metadataFields.js';
+import { METADATA_SECTIONS, normalizeMetadata, gpsMapsUrl, parseHexColor, formatCatalogDate, formatCatalogDateTime } from '@rtidb/shared';
 
 const VIEW_MODE_KEY = 'metadataViewMode';
 

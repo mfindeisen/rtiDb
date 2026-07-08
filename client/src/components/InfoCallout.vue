@@ -34,7 +34,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { Info, AlertTriangle, CheckCircle2, XCircle, X } from '@lucide/vue';
 

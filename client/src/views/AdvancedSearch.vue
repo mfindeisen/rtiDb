@@ -58,7 +58,7 @@
                 v-if="field.type === 'select'"
                 :value="filters[field.key] || ''"
                 class="form-input py-2 text-sm cursor-pointer"
-                @change="filters[field.key] = $event.target.value"
+                @change="filters[field.key] = ($event.target as HTMLSelectElement).value"
               >
                 <option value="">Any</option>
                 <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
@@ -78,7 +78,7 @@
           <button type="button" class="btn-primary !py-2.5 !px-5 w-full sm:w-auto" @click="runSearch">Search</button>
           <button type="button" class="btn-secondary !py-2.5 !px-4 text-sm w-full sm:w-auto" @click="clearFilters">Clear filters</button>
           <a
-            href="/api/export/records?format=csv&published=1"
+            :href="exportCsvUrl"
             class="btn-secondary inline-flex items-center justify-center gap-1.5 !py-2.5 !px-4 text-sm w-full sm:w-auto"
             download
           >
@@ -336,16 +336,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search as SearchIcon, Map as MapIcon, Image as ImageIcon, ScanLine as ScanIcon, Table, ArrowLeft } from '@lucide/vue';
-import { recordPath } from '../lib/recordPath.js';
+import { recordPath } from '@/lib/recordPath';
 import SearchMap from '../components/SearchMap.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import SegmentPills from '../components/SegmentPills.vue';
-import { SEARCH_FILTER_FIELDS } from '../lib/metadataFields.js';
-import { authHeaders } from '../lib/auth.js';
+import { SEARCH_FILTER_FIELDS } from '@rtidb/shared';
+import type { EnrichedRecord } from '@rtidb/shared/api/search';
+import { searchRecords, searchByImage, getImageSearchJob, bulkExportUrl } from '@/api/search';
+import { ApiError } from '@/api/client';
+import { pollJob } from '@/composables/useJobPoll';
 
 const router = useRouter();
 
@@ -409,7 +412,6 @@ const imageSearchError = ref('');
 const imageFromCache = ref(false);
 const imageCachedAt = ref('');
 const imageCatalogChanged = ref(false);
-let imagePollTimer = null;
 
 function formatCachedDate(iso) {
   if (!iso) return '';
@@ -464,16 +466,7 @@ const imageSearchSteps = computed(() => {
 });
 
 function clearImagePoll() {
-  if (imagePollTimer) {
-    clearTimeout(imagePollTimer);
-    imagePollTimer = null;
-  }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    imagePollTimer = setTimeout(resolve, ms);
-  });
+  imageLoading.value = false;
 }
 
 const activeFilterCount = computed(() =>
@@ -492,22 +485,25 @@ const resultsGridClass = computed(() => {
   return 'grid grid-cols-1';
 });
 
-function buildSearchUrl() {
-  const params = new URLSearchParams();
-  if (query.value.trim()) params.set('q', query.value.trim());
-  const activeFilters = {};
+function buildSearchParams(): Record<string, string> {
+  const params: Record<string, string> = {
+    page: String(page.value),
+    limit: '20',
+  };
+  if (query.value.trim()) params.q = query.value.trim();
+  const activeFilters: Record<string, string> = {};
   for (const [key, val] of Object.entries(filters)) {
     if (val?.trim()) activeFilters[key] = val.trim();
   }
-  if (Object.keys(activeFilters).length) params.set('filters', JSON.stringify(activeFilters));
+  if (Object.keys(activeFilters).length) params.filters = JSON.stringify(activeFilters);
   if (spatialFilter.value && mapBounds.value) {
     const { west, south, east, north } = mapBounds.value;
-    params.set('bbox', `${west},${south},${east},${north}`);
+    params.bbox = `${west},${south},${east},${north}`;
   }
-  params.set('page', String(page.value));
-  params.set('limit', '20');
-  return `/api/search?${params}`;
+  return params;
 }
+
+const exportCsvUrl = bulkExportUrl({ format: 'csv', published: '1' });
 
 async function runSearch() {
   const seq = ++searchSeq;
@@ -515,9 +511,7 @@ async function runSearch() {
   loading.value = true;
   error.value = '';
   try {
-    const res = await fetch(buildSearchUrl());
-    if (!res.ok) throw new Error('Search failed');
-    const data = await res.json();
+    const data = await searchRecords(buildSearchParams());
     if (seq !== searchSeq) return;
     results.value = data.results;
     total.value = data.total;
@@ -525,7 +519,7 @@ async function runSearch() {
     totalPages.value = data.totalPages;
   } catch (err) {
     if (seq !== searchSeq) return;
-    error.value = err.message;
+    error.value = err instanceof Error ? err.message : 'Search failed';
   } finally {
     if (seq === searchSeq) {
       loading.value = false;
@@ -603,25 +597,28 @@ function applyImageSearchPayload(data, { fromCache = false } = {}) {
   imageCatalogChanged.value = !!data.catalogChanged;
 }
 
-async function pollImageSearchJob(jobId) {
-  while (imageLoading.value) {
-    const res = await fetch(`/api/search/image/jobs/${jobId}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Lost track of search job');
-    const data = await res.json();
+async function pollImageSearchJob(jobId: string) {
+  const data = await pollJob(
+    jobId,
+    {
+      fetchJob: (id) => getImageSearchJob(id),
+      getStatus: (job) => job.status,
+      getPhase: (job) => job.phase,
+      stepsForPhase: () => [],
+      intervalMs: 600,
+    },
+    (job) => {
+      imageSearchStatus.value = job.status;
+      imageSearchPhase.value = job.phase || '';
+      imageQueuePosition.value = job.position || 0;
+    },
+  );
 
-    imageSearchStatus.value = data.status;
-    imageSearchPhase.value = data.phase || '';
-    imageQueuePosition.value = data.position || 0;
-
-    if (data.status === 'done') {
-      applyImageSearchPayload(data, { fromCache: false });
-      return;
-    }
-    if (data.status === 'error') {
-      throw new Error(data.error || 'Image search failed');
-    }
-    await sleep(600);
+  if (data.status === 'error') {
+    throw new Error(data.error || 'Image search failed');
   }
+
+  applyImageSearchPayload(data, { fromCache: false });
 }
 
 async function runImageSearch(forced = false) {
@@ -639,23 +636,8 @@ async function runImageSearch(forced = false) {
   imageQueuePosition.value = 0;
 
   try {
-    const form = new FormData();
-    form.append('image', imageFile.value);
-    const url = `/api/search/image?limit=12${forced ? '&force=1' : ''}`;
-    const res = await fetch(url, { method: 'POST', headers: authHeaders(), body: form });
-    if (res.status === 429) {
-      const data = await res.json().catch(() => ({}));
-      const mins = data.retryAfterSeconds ? Math.ceil(data.retryAfterSeconds / 60) : null;
-      throw new Error(
-        mins
-          ? `Rate limit reached (${data.limit || 10} CLIP searches per hour). Try again in about ${mins} minute${mins === 1 ? '' : 's'}.`
-          : (data.error || 'Image search rate limit exceeded')
-      );
-    }
-    if (!res.ok) throw new Error('Could not start image search');
-    const data = await res.json();
-
-    if (data.cached || data.status === 'done') {
+    const data = await searchByImage(imageFile.value, 12, forced);
+    if ('cached' in data && (data.cached || data.status === 'done')) {
       applyImageSearchPayload(data, { fromCache: true });
       return;
     }
@@ -666,7 +648,19 @@ async function runImageSearch(forced = false) {
   } catch (err) {
     imageResults.value = [];
     imageSearched.value = true;
-    imageSearchError.value = err.message || 'Image search failed';
+    if (err instanceof ApiError && err.status === 429) {
+      try {
+        const payload = JSON.parse(err.body) as { retryAfterSeconds?: number; limit?: number; error?: string };
+        const mins = payload.retryAfterSeconds ? Math.ceil(payload.retryAfterSeconds / 60) : null;
+        imageSearchError.value = mins
+          ? `Rate limit reached (${payload.limit || 10} CLIP searches per hour). Try again in about ${mins} minute${mins === 1 ? '' : 's'}.`
+          : (payload.error || 'Image search rate limit exceeded');
+      } catch {
+        imageSearchError.value = err.body || 'Image search rate limit exceeded';
+      }
+    } else {
+      imageSearchError.value = err instanceof Error ? err.message : 'Image search failed';
+    }
   } finally {
     imageLoading.value = false;
     imageSearchStatus.value = '';

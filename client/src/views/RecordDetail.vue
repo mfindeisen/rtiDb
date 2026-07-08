@@ -3,6 +3,7 @@
     <button
       type="button"
       class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-colors"
+      :class="{ 'max-lg:hidden': activeTab === 'viewer' && !showHistory }"
       @click="goBack"
     >
       <ArrowLeft class="w-5 h-5" /> Back
@@ -23,7 +24,10 @@
 
     <div v-else class="space-y-4">
       <!-- Record header -->
-      <div class="glass-card px-4 py-4 sm:px-6">
+      <div
+        class="glass-card px-4 py-4 sm:px-6"
+        :class="{ 'max-lg:hidden': activeTab === 'viewer' && !showHistory }"
+      >
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white break-words">
             {{ record.name }}
@@ -51,7 +55,7 @@
         </div>
       </div>
 
-      <div class="flex items-stretch gap-2 mb-4">
+      <div class="flex items-stretch gap-2 mb-4" :class="{ 'max-lg:mb-2': activeTab === 'viewer' && !showHistory }">
         <SegmentPills
           v-model="activeTab"
           full-width
@@ -124,11 +128,11 @@
       <!-- Tab: RTI + annotations -->
       <div v-show="!showHistory && activeTab === 'viewer'" class="flex flex-col gap-4">
           <template v-if="activeTab === 'viewer'">
-          <div class="flex flex-col lg:flex-row gap-4 items-stretch min-h-[max(49rem,calc(100svh-15rem))]">
+          <div class="flex flex-col lg:flex-row gap-4 items-stretch max-lg:h-[calc(100dvh-9rem)] lg:min-h-[max(49rem,calc(100svh-15rem))]">
             <!-- Help sidebar -->
             <div
               v-if="showGuide"
-              class="w-full lg:w-72 shrink-0 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-6 shadow-sm lg:max-h-[calc(100svh-15rem)] lg:overflow-y-auto"
+              class="w-full lg:w-72 shrink-0 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-6 shadow-sm max-lg:max-h-[35svh] max-lg:overflow-y-auto lg:max-h-[calc(100svh-15rem)] lg:overflow-y-auto"
             >
         <h3 class="font-bold text-slate-800 dark:text-white text-base border-b border-slate-200 dark:border-white/10 pb-2 flex items-center justify-between w-full">
           <span class="flex items-center gap-2">
@@ -273,7 +277,7 @@
         </div>
         </template>
 
-        <template v-else>
+        <template v-else-if="viewerMode === 'legacy'">
           <div class="space-y-3">
             <h4 class="font-semibold text-blue-600 dark:text-blue-400 uppercase text-[10px] tracking-wider">Legacy Viewer</h4>
             <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -359,38 +363,17 @@
                   </div>
                 </div>
 
-                <div ref="viewerHostRef" class="flex-1 min-h-[49rem] flex flex-col relative bg-slate-100 dark:bg-black/40">
-                  <template v-if="record.tiffUrl">
-                    <modern-rti-viewer
-                      ref="viewerRef"
-                      :url="record.tiffUrl"
-                      :annotation-enabled="canAnnotateViewer ? 'true' : 'false'"
-                      class="flex-1 w-full min-h-[49rem]"
-                      debug="true"
-                      @annotation-create="onAnnotationCreate"
-                      @annotation-click="onAnnotationClick"
-                      @rti-loaded="syncViewerAnnotations"
-                    />
-                  </template>
-                  <template v-else-if="viewerMode === 'modern'">
-                    <modern-rti-viewer
-                      ref="viewerRef"
-                      :url="record.folderUrl"
-                      :annotation-enabled="canAnnotateViewer ? 'true' : 'false'"
-                      class="flex-1 w-full min-h-[49rem]"
-                      debug="true"
-                      @annotation-create="onAnnotationCreate"
-                      @annotation-click="onAnnotationClick"
-                      @rti-loaded="syncViewerAnnotations"
-                    />
-                  </template>
-                  <template v-else>
-                    <iframe
-                      :src="`/viewer/viewer.html?url=${encodeURIComponent(record.folderUrl)}`"
-                      class="flex-1 w-full min-h-[49rem] border-0 bg-[#0f172a]"
-                      allowfullscreen
-                    />
-                  </template>
+                <div ref="viewerHostRef" class="flex-1 min-h-0 flex flex-col relative bg-slate-100 dark:bg-black/40 lg:min-h-[49rem]">
+                  <RtiViewerHost
+                    ref="viewerHostComponentRef"
+                    :record="record"
+                    :viewer-mode="viewerMode"
+                    :annotation-enabled="canAnnotateViewer"
+                    class="flex-1 min-h-0 flex flex-col"
+                    @annotation-create="onAnnotationCreate"
+                    @annotation-click="onAnnotationClick"
+                    @rti-loaded="onRtiLoaded"
+                  />
                 </div>
               </template>
 
@@ -471,8 +454,8 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowLeft,
@@ -503,11 +486,15 @@ import RecordAnnotationsPanel from '../components/RecordAnnotationsPanel.vue';
 import RecordHistoryPanel from '../components/RecordHistoryPanel.vue';
 import AnnotationNoteDialog from '../components/AnnotationNoteDialog.vue';
 import SegmentPills from '../components/SegmentPills.vue';
-import { authHeaders, canAnnotate } from '../lib/auth.js';
-import { setViewerAnnotations, restoreViewerView, resizeViewer, selectViewerAnnotation } from '../lib/viewerCommands.js';
-import { DEFAULT_ANNOTATION_COLOR } from '../lib/annotationColors.js';
-import { recordPath } from '../lib/recordPath.js';
-import { formatRecordDateTime, getRecordUpdatedAt } from '../lib/metadataFields.js';
+import RtiViewerHost from '../components/RtiViewerHost.vue';
+import { canAnnotate } from '@/composables/useAuth';
+import { useViewer } from '@/composables/useViewer';
+import { getRecord, exportRecordUrl } from '@/api/records';
+import { createAnnotation, updateAnnotation, deleteAnnotation } from '@/api/annotations';
+import { setViewerAnnotations, selectViewerAnnotation } from '@/lib/viewerCommands';
+import { DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
+import { recordPath } from '@/lib/recordPath';
+import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
 
 const route = useRoute();
 const router = useRouter();
@@ -525,10 +512,10 @@ const loading = ref(true);
 const error = ref('');
 const activeTab = ref('metadata');
 const showHistory = ref(false);
-const viewerMode = ref('modern');
-const showGuide = ref(false);
-const viewerRef = ref(null);
+const viewerMode = ref<'modern' | 'legacy'>('modern');
+const viewerHostComponentRef = ref(null);
 const viewerHostRef = ref(null);
+const viewerRef = computed(() => viewerHostComponentRef.value?.viewerRef ?? null);
 const annotationsPanelRef = ref(null);
 const pendingAnnotation = ref(null);
 const editingAnnotation = ref(null);
@@ -537,35 +524,31 @@ const annotationNoteOpen = ref(false);
 const annotationSaving = ref(false);
 const annotationDeleting = ref(false);
 
-let viewerResizeObserver = null;
-
-const triggerViewerResize = () => {
-  requestAnimationFrame(() => {
-    const el = getViewerElement();
-    if (el) {
-      resizeViewer(el);
-    } else {
-      window.dispatchEvent(new Event('resize'));
-    }
-  });
-};
-
-const attachViewerResizeObserver = (el) => {
-  viewerResizeObserver?.disconnect();
-  if (!el) return;
-  viewerResizeObserver = new ResizeObserver(() => {
-    if (activeTab.value === 'viewer') {
-      triggerViewerResize();
-    }
-  });
-  viewerResizeObserver.observe(el);
-};
-
 const showModernViewer = computed(() =>
   record.value?.status === 'done' && (record.value.tiffUrl || viewerMode.value === 'modern')
 );
 
 const canAnnotateViewer = computed(() => canAnnotate() && showModernViewer.value);
+
+const activeViewerTab = computed(() => activeTab.value === 'viewer');
+
+const syncViewerAnnotations = async () => {
+  await nextTick();
+  const panel = annotationsPanelRef.value;
+  const el = viewerRef.value;
+  if (!panel || !el) return;
+  const list = panel.annotations || [];
+  if (!list.length && panel.loading) return;
+  setViewerAnnotations(el, list);
+};
+
+const { showGuide, toggleGuide: toggleGuidePanel, triggerResize, onRtiLoaded, jumpToAnnotation } = useViewer({
+  viewerRef,
+  active: activeViewerTab,
+  onSyncAnnotations: syncViewerAnnotations,
+});
+
+const getViewerElement = () => viewerRef.value;
 
 const recordTabOptions = computed(() => [
   { value: 'metadata', label: 'Catalog & Metadata', shortLabel: 'Catalog', icon: FileText },
@@ -578,23 +561,8 @@ const recordTabOptions = computed(() => [
   },
 ]);
 
-const getViewerElement = () => viewerRef.value;
-
-const syncViewerAnnotations = async () => {
-  await nextTick();
-  const panel = annotationsPanelRef.value;
-  const el = getViewerElement();
-  if (!panel || !el) return;
-  const list = panel.annotations || [];
-  if (!list.length && panel.loading) return;
-  setViewerAnnotations(el, list);
-};
-
 const onJumpToAnnotation = (ann) => {
-  const el = getViewerElement();
-  if (el && ann?.rtiView) {
-    restoreViewerView(el, ann.rtiView);
-  }
+  jumpToAnnotation(ann);
 };
 
 const onAnnotationCreate = (event) => {
@@ -634,30 +602,14 @@ const saveAnnotationDialog = async ({ label, color }) => {
   annotationSaving.value = true;
   try {
     if (annotationDialogMode.value === 'edit' && editingAnnotation.value) {
-      const res = await fetch(`/api/records/${key}/annotations/${editingAnnotation.value.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ label: label || null, color }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update annotation');
-      }
+      await updateAnnotation(key, editingAnnotation.value.id, { label: label || null, color });
     } else if (pendingAnnotation.value) {
       const payload = {
         ...pendingAnnotation.value,
         color: color || pendingAnnotation.value.color || DEFAULT_ANNOTATION_COLOR,
         ...(label ? { label } : {}),
       };
-      const res = await fetch(`/api/records/${key}/annotations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to save annotation');
-      }
+      await createAnnotation(key, payload);
     }
     closeAnnotationDialog();
     await annotationsPanelRef.value?.refresh?.();
@@ -676,11 +628,7 @@ const deleteAnnotationDialog = async () => {
   const key = record.value.slug || record.value.id;
   annotationDeleting.value = true;
   try {
-    const res = await fetch(`/api/records/${key}/annotations/${editingAnnotation.value.id}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to delete annotation');
+    await deleteAnnotation(key, editingAnnotation.value.id);
     closeAnnotationDialog();
     await annotationsPanelRef.value?.refresh?.();
     syncViewerAnnotations();
@@ -712,14 +660,11 @@ watch(activeTab, (tab) => {
   localStorage.setItem('recordDetailTab', tab);
   if (tab === 'viewer') {
     nextTick(() => {
-      attachViewerResizeObserver(viewerHostRef.value);
-      triggerViewerResize();
+      triggerResize();
       syncViewerAnnotations();
     });
   }
 });
-
-watch(viewerHostRef, (el) => attachViewerResizeObserver(el));
 
 const recordCreatedAt = computed(() =>
   record.value?.date ? formatRecordDateTime(record.value.date) : ''
@@ -738,10 +683,10 @@ const exportFormats = [
   { id: 'iiif', label: 'IIIF', icon: Library, download: true },
 ];
 
-const exportUrl = (format) => `/api/records/${record.value?.slug || record.value?.id}/export?format=${format}`;
+const exportUrl = (format) => exportRecordUrl(record.value?.slug || record.value?.id, format);
 
 const toggleGuide = () => {
-  showGuide.value = !showGuide.value;
+  toggleGuidePanel();
   localStorage.setItem('showGuide', showGuide.value.toString());
 };
 
@@ -756,11 +701,8 @@ onMounted(async () => {
   }
 
   try {
-    const param = route.params.slug;
-    const res = await fetch(`/api/records/${param}`);
-    if (!res.ok) throw new Error('Failed to load record details');
-
-    record.value = await res.json();
+    const param = Array.isArray(route.params.slug) ? route.params.slug[0]! : route.params.slug;
+    record.value = await getRecord(param);
 
     if (record.value.slug && param !== record.value.slug) {
       router.replace(recordPath(record.value));
@@ -774,17 +716,12 @@ onMounted(async () => {
     loading.value = false;
     await nextTick();
     if (activeTab.value === 'viewer') {
-      attachViewerResizeObserver(viewerHostRef.value);
+      triggerResize();
       syncViewerAnnotations();
-      triggerViewerResize();
     }
   } catch (err) {
     error.value = err.message;
     loading.value = false;
   }
-});
-
-onBeforeUnmount(() => {
-  viewerResizeObserver?.disconnect();
 });
 </script>

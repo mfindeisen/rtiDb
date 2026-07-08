@@ -7,17 +7,18 @@
     "sync:viewer": "node ../scripts/sync-viewer.mjs",
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
     "build:docs": "vitepress build docs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@lucide/vue": "^1.23.0",
+    "@rtidb/shared": "workspace:*",
     "@tanstack/vue-table": "^8.21.3",
     "@vueuse/core": "^14.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
-    "lucide-vue-next": "^1.0.0",
     "reka-ui": "^2.10.1",
     "shadcn-vue": "^2.7.4",
     "tailwind-merge": "^3.6.0",
@@ -27,11 +28,13 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
-    "@types/node": "^26.1.0",
+    "@types/leaflet": "^1.9.21",
     "@vitejs/plugin-vue": "^6.0.7",
     "npm": "^11.18.0",
     "tailwindcss": "^4.3.2",
+    "typescript": "^5.9.3",
     "vite": "^8.1.1",
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vue-tsc": "^2.2.12"
   }
 }

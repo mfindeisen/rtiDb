@@ -198,10 +198,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { recordPath } from '../lib/recordPath.js';
-import { formatRecordDateTime, getRecordUpdatedAt } from '../lib/metadataFields.js';
+import { recordPath } from '@/lib/recordPath';
+import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
+import type { RecordRow } from '@rtidb/shared/api/records';
+import { listRecords } from '@/api/records';
 import {
   Search as SearchIcon,
   ScanSearch as ScanSearchIcon,
@@ -211,7 +213,7 @@ import {
   ChevronRight as ChevronRightIcon,
 } from '@lucide/vue';
 
-const records = ref([]);
+const records = ref<RecordRow[]>([]);
 const loading = ref(true);
 const error = ref('');
 const searchQuery = ref('');
@@ -220,12 +222,10 @@ const itemsPerPage = ref(10);
 
 onMounted(async () => {
   try {
-    const res = await fetch('/api/records');
-    if (!res.ok) throw new Error('Failed to fetch records');
-    const allRecords = await res.json();
+    const allRecords = await listRecords();
     records.value = allRecords.filter((r) => r.isPublished === 1);
   } catch (err) {
-    error.value = err.message;
+    error.value = err instanceof Error ? err.message : 'Failed to fetch records';
   } finally {
     loading.value = false;
   }
@@ -261,7 +261,7 @@ const visiblePages = computed(() => {
 
 const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
-const goToPage = (page) => { currentPage.value = page; };
+const goToPage = (page: number) => { currentPage.value = page; };
 
 watch([searchQuery, itemsPerPage], () => { currentPage.value = 1; });
 </script>
