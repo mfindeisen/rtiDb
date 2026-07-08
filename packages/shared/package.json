@@ -1,0 +1,32 @@
+{
+  "name": "@rtidb/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./metadataFields": "./src/metadataFields.ts",
+    "./permissions": "./src/permissions.ts",
+    "./auth": "./src/auth.ts",
+    "./authorization": "./src/authorization.ts",
+    "./annotationColors": "./src/annotationColors.ts",
+    "./annotations": "./src/annotations.ts",
+    "./recordRevisions": "./src/recordRevisions.ts",
+    "./api/records": "./src/api/records.ts",
+    "./api/search": "./src/api/search.ts",
+    "./api/notes": "./src/api/notes.ts",
+    "./api/users": "./src/api/users.ts",
+    "./api/annotations": "./src/api/annotations.ts",
+    "./api/jobs": "./src/api/jobs.ts",
+    "./api/auth": "./src/api/auth.ts",
+    "./api/revisions": "./src/api/revisions.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
