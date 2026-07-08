@@ -10,6 +10,13 @@
       "breakpoints": true
     },
     {
+      "idx": 1,
+      "version": "7",
+      "when": 1751725200000,
+      "tag": "0001_add_metadata",
+      "breakpoints": true
+    },
+    {
       "idx": 2,
       "version": "7",
       "when": 1751811600000,
@@ -21,6 +28,27 @@
       "version": "7",
       "when": 1783193000000,
       "tag": "0003_record_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783194000000,
+      "tag": "0004_record_annotations",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783195000000,
+      "tag": "0005_image_embedding",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783196000000,
+      "tag": "0006_image_search_cache",
       "breakpoints": true
     },
     {
