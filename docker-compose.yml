@@ -13,11 +13,11 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - JWT_SECRET=${JWT_SECRET:-fallback_secret_key_change_in_production}
-      - TRANSFORMERS_CACHE=/app/.clip-model-cache
+      - TRANSFORMERS_CACHE=/repo/server/.clip-model-cache
       - GOGC=20
     volumes:
-      - server_uploads:/app/uploads
-      - server_data:/app/data
+      - server_uploads:/repo/server/uploads
+      - server_data:/repo/server/data
 
   client:
     build:
