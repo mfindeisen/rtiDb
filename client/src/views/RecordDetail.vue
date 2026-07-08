@@ -286,6 +286,16 @@
           </div>
         </template>
 
+        <template v-else>
+          <div class="space-y-3">
+            <h4 class="font-semibold text-blue-600 dark:text-blue-400 uppercase text-[10px] tracking-wider">OpenLIME Viewer</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              <a href="https://github.com/cnr-isti-vclab/openlime" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">OpenLIME</a>
+              is the CNR ISTI web framework for relightable images. Use its built-in toolbar for light direction, zoom, and render modes. Annotations are only available in the <strong class="text-slate-700 dark:text-slate-300">Modern</strong> viewer.
+            </p>
+          </div>
+        </template>
+
         <div v-if="!record.tiffUrl" class="space-y-3 pt-3 border-t border-slate-200 dark:border-white/5">
           <h4 class="font-semibold text-blue-600 dark:text-blue-400 uppercase text-[10px] tracking-wider">Page Controls</h4>
           <div class="space-y-2.5 text-xs leading-normal">
@@ -296,10 +306,11 @@
               <p class="text-slate-500 dark:text-slate-400 mt-1">Toggle this panel on or off. Your preference is remembered in the browser.</p>
             </div>
             <div class="rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] p-3">
-              <div class="font-semibold text-slate-800 dark:text-slate-200">Modern / Legacy</div>
+              <div class="font-semibold text-slate-800 dark:text-slate-200">Modern / Legacy / OpenLIME</div>
               <p class="text-slate-500 dark:text-slate-400 mt-1">
                 <strong class="text-slate-700 dark:text-slate-300">Modern</strong> — WebGL viewer with all modes above.
                 <strong class="text-slate-700 dark:text-slate-300">Legacy</strong> — classic WebRTIViewer in an embedded frame (older interface, fewer tools).
+                <strong class="text-slate-700 dark:text-slate-300">OpenLIME</strong> — CNR ISTI reference viewer for side-by-side comparison (test).
               </p>
             </div>
           </div>
@@ -359,6 +370,18 @@
                       @click="viewerMode = 'legacy'"
                     >
                       Legacy
+                    </button>
+                    <button
+                      type="button"
+                      :class="[
+                        'px-4 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap',
+                        viewerMode === 'openlime'
+                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-300/30 dark:border-white/5'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                      ]"
+                      @click="viewerMode = 'openlime'"
+                    >
+                      OpenLIME
                     </button>
                   </div>
                 </div>
@@ -512,7 +535,7 @@ const loading = ref(true);
 const error = ref('');
 const activeTab = ref('metadata');
 const showHistory = ref(false);
-const viewerMode = ref<'modern' | 'legacy'>('modern');
+const viewerMode = ref<'modern' | 'legacy' | 'openlime'>('modern');
 const viewerHostComponentRef = ref(null);
 const viewerHostRef = ref(null);
 const viewerRef = computed(() => viewerHostComponentRef.value?.viewerRef ?? null);
