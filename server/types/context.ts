@@ -7,6 +7,8 @@ import type { Permission } from './permissions.js';
 export interface AuthContext {
   authMiddleware: RequestHandler;
   optionalAuthMiddleware: RequestHandler;
+  sessionAuthMiddleware: RequestHandler;
+  verifyAuthHandler: RequestHandler;
   requirePermission: (permission: Permission) => RequestHandler;
   requireAdmin: RequestHandler;
 }

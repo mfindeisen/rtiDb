@@ -17,6 +17,24 @@ export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
+export async function syncSessionCookie(): Promise<void> {
+  const token = getToken();
+  if (!token) return;
+  try {
+    await fetch('/api/auth/sync-session', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+  } catch {
+    // ignore sync failures; API calls still use Authorization header
+  }
+}
+
 export function parseTokenPayload(): JwtUser | null {
   const token = getToken();
   if (!token) return null;
@@ -33,6 +51,7 @@ export function isAuthenticated(): boolean {
 
 export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
+  void fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
 export function hasPermission(permission: Permission): boolean {

@@ -35,9 +35,6 @@ importers:
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
-      openlime:
-        specifier: 1.2.6
-        version: 1.2.6
       reka-ui:
         specifier: ^2.10.1
         version: 2.10.1(vue@3.5.39(typescript@5.9.3))
@@ -3830,9 +3827,6 @@ packages:
   open@8.4.2:
     resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
     engines: {node: '>=12'}
-
-  openlime@1.2.6:
-    resolution: {integrity: sha512-7pqjpQWDihwOcRzkZu4uzrO6T23QDRowazLMgfOss2IozCjpDJqR6oqQW8E1XgdJO4o/RxGI5jcjTsuXx+kqyQ==}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -8011,8 +8005,6 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
-
-  openlime@1.2.6: {}
 
   optionator@0.9.4:
     dependencies:

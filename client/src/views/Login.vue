@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { postLoginPath } from '@/composables/useAuth';
+import { postLoginPath, syncSessionCookie } from '@/composables/useAuth';
 import { login } from '@/api/auth';
 import { ApiError } from '@/api/client';
 
@@ -73,6 +73,7 @@ const handleLogin = async () => {
 
   try {
     await login(username.value, password.value);
+    await syncSessionCookie();
     router.push(postLoginPath(route.query.redirect));
   } catch (err) {
     console.error('Login error', err);

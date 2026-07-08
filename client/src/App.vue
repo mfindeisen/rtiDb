@@ -81,7 +81,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Sun, Moon, Menu, X } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
-import { canAccessAdmin, logout } from '@/composables/useAuth';
+import { canAccessAdmin, logout, isAuthenticated, syncSessionCookie } from '@/composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
@@ -109,6 +109,10 @@ onMounted(() => {
     isDark.value = false;
     document.documentElement.classList.remove('dark');
     localStorage.theme = 'light';
+  }
+
+  if (isAuthenticated()) {
+    void syncSessionCookie();
   }
 });
 
