@@ -1,12 +1,12 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import Gallery from './views/Gallery.vue';
 import AdvancedSearch from './views/AdvancedSearch.vue';
 import Admin from './views/Admin.vue';
 import Login from './views/Login.vue';
 import RecordDetail from './views/RecordDetail.vue';
-import { isAuthenticated, parseTokenPayload, postLoginPath } from './lib/auth.js';
+import { isAuthenticated, parseTokenPayload, postLoginPath } from '@/composables/useAuth';
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
   { path: '/', component: Gallery, meta: { requiresAuth: true } },
   { path: '/search', component: AdvancedSearch, meta: { requiresAuth: true } },
@@ -19,7 +19,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authed = isAuthenticated();
   const payload = parseTokenPayload();
 
