@@ -5,10 +5,15 @@
     "submodules": "git submodule update --init --recursive",
     "sync:viewer": "node scripts/sync-viewer.mjs",
     "build:rtiprep": "node scripts/build-rtiprep.mjs",
-    "prepare:deps": "pnpm run submodules && pnpm run sync:viewer && pnpm run build:rtiprep"
-  },
-  "dependencies": {
-    "@lucide/vue": "^1.22.0"
+    "prepare:deps": "pnpm run submodules && pnpm run sync:viewer && pnpm run build:rtiprep",
+    "dev:server": "pnpm --filter server dev",
+    "dev:client": "pnpm --filter client dev",
+    "dev": "pnpm run prepare:deps && pnpm --parallel --filter server --filter client dev",
+    "typecheck": "pnpm -r typecheck",
+    "typecheck:client": "pnpm --filter client typecheck",
+    "typecheck:server": "pnpm --filter server typecheck",
+    "typecheck:shared": "pnpm --filter @rtidb/shared typecheck",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10"
