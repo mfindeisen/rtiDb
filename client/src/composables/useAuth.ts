@@ -1,0 +1,77 @@
+import type { Permission } from '@rtidb/shared/permissions';
+import {
+  hasPermission as sharedHasPermission,
+  canAccessAdmin as sharedCanAccessAdmin,
+  userCanCollaborate as sharedCanCollaborate,
+  userCanAnnotate as sharedCanAnnotate,
+} from '@rtidb/shared/authorization';
+import type { JwtUser } from '@rtidb/shared/auth';
+
+const TOKEN_KEY = 'adminToken';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function parseTokenPayload(): JwtUser | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1]!)) as JwtUser;
+  } catch {
+    return null;
+  }
+}
+
+export function isAuthenticated(): boolean {
+  return !!parseTokenPayload();
+}
+
+export function logout(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export function hasPermission(permission: Permission): boolean {
+  return sharedHasPermission(parseTokenPayload(), permission);
+}
+
+export function canAccessAdmin(): boolean {
+  return sharedCanAccessAdmin(parseTokenPayload());
+}
+
+export function canCollaborate(): boolean {
+  return sharedCanCollaborate(parseTokenPayload());
+}
+
+export function canAnnotate(): boolean {
+  return sharedCanAnnotate(parseTokenPayload());
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function isResearcherRole(): boolean {
+  const payload = parseTokenPayload();
+  return payload?.role === 'researcher';
+}
+
+/** Default landing route after login (optional redirect from query). */
+export function postLoginPath(redirect: unknown): string {
+  const payload = parseTokenPayload();
+  if (!payload) return '/login';
+
+  const safeRedirect = typeof redirect === 'string' && redirect.startsWith('/') && redirect !== '/login'
+    ? redirect
+    : null;
+  if (safeRedirect) return safeRedirect;
+
+  if (payload.role === 'researcher') return '/';
+  if (canAccessAdmin()) return '/admin';
+  return '/';
+}

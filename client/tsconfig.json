@@ -1,9 +1,32 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "strict": false,
+    "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": ["./src/*"],
+      "@rtidb/shared": ["../packages/shared/src/index.ts"],
+      "@rtidb/shared/*": ["../packages/shared/src/*"]
+    },
+    "types": ["vite/client"]
   },
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "src/env.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"],
+  "vueCompilerOptions": {
+    "strictTemplates": false
+  }
 }
