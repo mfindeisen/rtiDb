@@ -158,12 +158,20 @@
             </div>
           </div>
 
-          <div v-if="uploadMode === 'standard'" class="pt-4 border-t border-slate-200 dark:border-white/10">
-            <h3 class="text-lg font-medium text-slate-800 dark:text-white mb-4">Advanced Settings</h3>
+          <div v-if="uploadMode === 'standard' && outputType === 'tiles'" class="pt-4 border-t border-slate-200 dark:border-white/10">
+            <h3 class="text-lg font-medium text-slate-800 dark:text-white mb-1">Advanced Settings</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Only applies to Tile Folder output (JPEG, PNG, or WebP tiles via rtiprep).</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="flex flex-col text-left">
                 <Label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Quality ({{ quality }}%)</Label>
-                <input type="range" v-model="quality" min="10" max="100" class="w-full mt-2 accent-blue-600" :disabled="isUploading" />
+                <input
+                  type="range"
+                  v-model="quality"
+                  min="10"
+                  max="100"
+                  class="w-full mt-2 accent-blue-600"
+                  :disabled="isUploading || format === 'png'"
+                />
               </div>
               <div class="flex flex-col text-left">
                 <Label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Tile Size</Label>
@@ -271,6 +279,7 @@
                   <div class="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 class="text-xl font-bold truncate text-slate-800 dark:text-white">{{ rec.name }}</h3>
                     <span v-if="rec.status === 'done'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">Ready</span>
+                    <RecordOutputBadge :record="rec" />
                     <span v-if="autoAnnotateState[rec.id]?.running" class="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 animate-pulse">AI running</span>
                     <span v-else-if="rec.status === 'draft'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">Draft</span>
                     <span v-else-if="rec.status === 'processing'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 animate-pulse">Processing</span>
@@ -363,7 +372,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError } from '@/api/client';
@@ -384,6 +392,7 @@ import { parseTokenPayload, logout as authLogout, hasPermission } from '@/compos
 import { pollJob } from '@/composables/useJobPoll';
 import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
 import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
+import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 
 const router = useRouter();
 
@@ -819,10 +828,12 @@ const uploadFile = async () => {
     formData.append('latentMap', latentMapFile);
     formData.append('weights', weightsFile);
   } else {
-    formData.append('quality', String(quality.value));
-    formData.append('tileSize', String(tileSize.value));
-    formData.append('format', format.value);
     formData.append('outputType', outputType.value);
+    if (outputType.value === 'tiles') {
+      formData.append('quality', String(quality.value));
+      formData.append('tileSize', String(tileSize.value));
+      formData.append('format', format.value);
+    }
     formData.append('file', file);
   }
 

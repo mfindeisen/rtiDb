@@ -19,7 +19,7 @@
 
     <template v-else>
       <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-        Draw shapes in the viewer — notes appear beside each mark. Click an annotation on the image or use Edit below.
+        Draw shapes in the viewer, notes appear beside each mark. Click an annotation on the image or use Edit below.
       </p>
 
       <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400">Loading annotations…</div>

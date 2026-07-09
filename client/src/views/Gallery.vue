@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-6xl mx-auto space-y-8">
+  <div class="max-w-[1600px] mx-auto space-y-8">
     <div class="text-center mb-12">
       <h2 class="page-title mb-4">RTI Gallery</h2>
     </div>
@@ -17,8 +17,8 @@
       <p class="text-slate-500 dark:text-slate-400 text-lg">No published scans found.</p>
     </div>
 
-    <div v-else class="glass-card flex flex-col space-y-4 !p-4 sm:!p-6">
-      <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+    <div v-else class="glass-card flex flex-col !p-0 overflow-hidden">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4 p-4 sm:p-6 pb-4 sm:pb-4">
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
           <div class="relative flex-1 md:max-w-xs">
             <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
@@ -38,19 +38,22 @@
           </router-link>
         </div>
 
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</label>
-          <select v-model.number="itemsPerPage" class="form-input py-1.5 px-3 cursor-pointer w-20">
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-          </select>
+        <div class="flex items-center gap-3">
+          <GalleryColumnPicker class="hidden md:block" @change="onColumnPrefsChange" />
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</label>
+            <select v-model.number="itemsPerPage" class="form-input py-1.5 px-3 cursor-pointer w-20">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <!-- Mobile card list -->
-      <div class="md:hidden space-y-3">
+      <div class="md:hidden space-y-3 px-4 sm:px-6 pb-4 sm:pb-6">
         <article
           v-for="rec in paginatedRecords"
           :key="rec.id"
@@ -64,7 +67,10 @@
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <h3 class="font-bold text-slate-800 dark:text-white leading-snug">{{ rec.name }}</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-bold text-slate-800 dark:text-white leading-snug">{{ rec.name }}</h3>
+              <RecordOutputBadge :record="rec" />
+            </div>
             <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mt-1" :dir="rec.direction">{{ rec.description }}</p>
             <p class="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">{{ formatRecordDateTime(rec.date) }}</p>
           </div>
@@ -75,14 +81,25 @@
       </div>
 
       <!-- Desktop table -->
-      <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50">
-        <table class="w-full text-left border-collapse">
+      <div class="hidden md:block overflow-x-auto border-t border-slate-200 dark:border-white/10">
+        <table class="w-full table-fixed text-left border-collapse">
+          <colgroup>
+            <col
+              v-for="col in visibleColumns"
+              :key="`col-${col.id}`"
+              :class="columnColClass(col)"
+            />
+          </colgroup>
           <thead>
             <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm border-b border-slate-200 dark:border-white/10">
-              <th class="p-4 font-semibold w-24">Preview</th>
-              <th class="p-4 font-semibold">Name & Description</th>
-              <th class="p-4 font-semibold w-52">Dates</th>
-              <th class="p-4 font-semibold w-24 text-center">Action</th>
+              <th
+                v-for="col in visibleColumns"
+                :key="col.id"
+                class="p-4 font-semibold"
+                :class="col.align === 'center' ? 'text-center' : ''"
+              >
+                {{ col.label }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -92,57 +109,102 @@
               class="border-b border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
               @click="$router.push(recordPath(rec))"
             >
-              <td class="p-4 align-middle">
-                <div class="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-md overflow-hidden relative shadow-sm border border-slate-300 dark:border-slate-700">
-                  <img
-                    v-if="rec.thumbnailUrl"
-                    :src="rec.thumbnailUrl"
-                    alt="Thumbnail"
-                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center text-slate-400">
-                    <ImageIcon class="w-6 h-6 opacity-30" />
-                  </div>
-                </div>
-              </td>
-              <td class="p-4 align-middle">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {{ rec.name }}
-                </h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-1" :dir="rec.direction">{{ rec.description }}</p>
-              </td>
-              <td class="p-4 align-middle text-sm text-slate-500 dark:text-slate-400">
-                <div class="space-y-1.5">
-                  <div>
-                    <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Date created
-                    </div>
-                    <div class="font-mono text-xs text-slate-600 dark:text-slate-300">
-                      {{ formatRecordDateTime(rec.date) }}
+              <td
+                v-for="col in visibleColumns"
+                :key="col.id"
+                class="p-4 align-middle"
+                :class="col.align === 'center' ? 'text-center' : ''"
+              >
+                <template v-if="col.kind === 'preview'">
+                  <div class="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-md overflow-hidden relative shadow-sm border border-slate-300 dark:border-slate-700">
+                    <img
+                      v-if="rec.thumbnailUrl"
+                      :src="rec.thumbnailUrl"
+                      alt="Thumbnail"
+                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div v-else class="w-full h-full flex items-center justify-center text-slate-400">
+                      <ImageIcon class="w-6 h-6 opacity-30" />
                     </div>
                   </div>
-                  <div v-if="getRecordUpdatedAt(rec)">
-                    <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Date updated
+                </template>
+
+                <template v-else-if="col.kind === 'nameDescription'">
+                  <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {{ rec.name }}
+                    </h3>
+                    <RecordOutputBadge :record="rec" />
+                  </div>
+                  <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-1" :dir="rec.direction">{{ rec.description }}</p>
+                </template>
+
+                <template v-else-if="col.kind === 'name'">
+                  <h3 class="text-base font-bold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {{ rec.name }}
+                  </h3>
+                </template>
+
+                <template v-else-if="col.kind === 'description'">
+                  <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2" :dir="rec.direction">{{ rec.description || '—' }}</p>
+                </template>
+
+                <template v-else-if="col.kind === 'outputType'">
+                  <RecordOutputBadge :record="rec" />
+                </template>
+
+                <template v-else-if="col.kind === 'dates'">
+                  <div class="space-y-1.5 text-sm text-slate-500 dark:text-slate-400">
+                    <div>
+                      <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        Date created
+                      </div>
+                      <div class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                        {{ formatRecordDateTime(rec.date) }}
+                      </div>
                     </div>
-                    <div class="font-mono text-xs text-slate-600 dark:text-slate-300">
-                      {{ getRecordUpdatedAt(rec) }}
+                    <div v-if="getRecordUpdatedAt(rec)">
+                      <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        Date updated
+                      </div>
+                      <div class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                        {{ getRecordUpdatedAt(rec) }}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
-              <td class="p-4 align-middle text-center">
-                <button
-                  type="button"
-                  class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 transition-colors shadow-sm"
-                  @click.stop="$router.push(recordPath(rec))"
-                >
-                  <EyeIcon class="w-5 h-5" />
-                </button>
+                </template>
+
+                <template v-else-if="col.kind === 'dateCreated'">
+                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                    {{ formatRecordDateTime(rec.date) }}
+                  </span>
+                </template>
+
+                <template v-else-if="col.kind === 'dateUpdated'">
+                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                    {{ getRecordUpdatedAt(rec) || '—' }}
+                  </span>
+                </template>
+
+                <template v-else-if="col.kind === 'metadata'">
+                  <span class="text-sm text-slate-600 dark:text-slate-300">
+                    {{ getMetadataValue(rec, col.metadataKey!) || '—' }}
+                  </span>
+                </template>
+
+                <template v-else-if="col.kind === 'action'">
+                  <button
+                    type="button"
+                    class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 transition-colors shadow-sm"
+                    @click.stop="$router.push(recordPath(rec))"
+                  >
+                    <EyeIcon class="w-5 h-5" />
+                  </button>
+                </template>
               </td>
             </tr>
             <tr v-if="paginatedRecords.length === 0">
-              <td colspan="4" class="p-8 text-center text-slate-500 dark:text-slate-400">
+              <td :colspan="visibleColumns.length" class="p-8 text-center text-slate-500 dark:text-slate-400">
                 No scans match your search.
               </td>
             </tr>
@@ -150,7 +212,7 @@
         </table>
       </div>
 
-      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 text-sm text-slate-600 dark:text-slate-400">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 sm:p-6 pt-4 border-t border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400">
         <div>
           Showing <span class="font-bold text-slate-800 dark:text-white">{{ filteredRecords.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1 }}</span> to
           <span class="font-bold text-slate-800 dark:text-white">{{ Math.min(currentPage * itemsPerPage, filteredRecords.length) }}</span> of
@@ -204,6 +266,15 @@ import { recordPath } from '@/lib/recordPath';
 import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
 import type { RecordRow } from '@rtidb/shared/api/records';
 import { listRecords } from '@/api/records';
+import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
+import GalleryColumnPicker from '@/components/GalleryColumnPicker.vue';
+import {
+  getMetadataValue,
+  loadGalleryColumnPrefs,
+  resolveVisibleColumns,
+  type GalleryColumnDef,
+  type GalleryColumnPrefs,
+} from '@/lib/galleryColumns';
 import {
   Search as SearchIcon,
   ScanSearch as ScanSearchIcon,
@@ -219,6 +290,8 @@ const error = ref('');
 const searchQuery = ref('');
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
+const columnPrefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
+const visibleColumns = computed(() => resolveVisibleColumns(columnPrefs.value));
 
 onMounted(async () => {
   try {
@@ -230,6 +303,18 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+function onColumnPrefsChange(prefs: GalleryColumnPrefs) {
+  columnPrefs.value = prefs;
+}
+
+function columnColClass(col: GalleryColumnDef): string {
+  if (col.kind === 'preview' || col.kind === 'action') return 'w-24';
+  if (col.kind === 'outputType') return 'w-36';
+  if (col.kind === 'dates' || col.kind === 'dateCreated' || col.kind === 'dateUpdated') return 'w-52';
+  if (col.kind === 'metadata') return 'w-44';
+  return '';
+}
 
 const filteredRecords = computed(() => {
   if (!searchQuery.value) return records.value;

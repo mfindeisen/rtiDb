@@ -32,7 +32,7 @@
         class="rounded-xl border border-blue-200/80 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/10 p-4 space-y-3"
       >
         <h5 class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-          Comparison: v{{ compareFrom }} ÔåÆ {{ compareToLabel }}
+          Comparison: v{{ compareFrom }} & {{ compareToLabel }}
         </h5>
         <div class="space-y-2 max-h-64 overflow-y-auto [scrollbar-gutter:stable]">
           <div

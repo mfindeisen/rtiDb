@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 
 const props = defineProps<{
-  record: { tiffUrl?: string | null; folderUrl?: string | null; status?: string } | null;
+  record: { tiffUrl?: string | null; folderUrl?: string | null; format?: string | null; status?: string } | null;
   viewerMode: 'modern' | 'legacy';
   annotationEnabled: boolean;
   debug?: boolean;
@@ -20,6 +20,7 @@ defineExpose({ viewerRef: modernViewerRef });
 
 const folderUrl = computed(() => props.record?.folderUrl || '');
 const viewerUrl = computed(() => props.record?.tiffUrl || folderUrl.value);
+const tileFormat = computed(() => props.record?.format || '');
 const useModern = computed(() => !!props.record?.tiffUrl || props.viewerMode === 'modern');
 const annotationAttr = computed(() => (props.annotationEnabled ? 'true' : 'false'));
 const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
@@ -30,6 +31,7 @@ const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
     <modern-rti-viewer
       ref="modernViewerRef"
       :url="viewerUrl"
+      :tile-format="tileFormat"
       :annotation-enabled="annotationAttr"
       class="flex-1 w-full min-h-[49rem]"
       :debug="debugEnabled ? 'true' : undefined"

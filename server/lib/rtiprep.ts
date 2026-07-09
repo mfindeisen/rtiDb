@@ -49,8 +49,15 @@ export async function processRTI(inputFile: string, options: ProcessRTIOptions =
   log(`Starting rtiprep (Tile mode)...`);
 
   return new Promise((resolve, reject) => {
-    const args = ['-q', quality.toString(), '-t', tileSize.toString(), '-o', outputDir, '-legacy', '-openlime'];
-    if (format === 'png') args.push('-p');
+    const normalizedFormat = format === 'jpeg' ? 'jpg' : format;
+    const args = [
+      '-q', quality.toString(),
+      '-t', tileSize.toString(),
+      '-o', outputDir,
+      '-legacy',
+      '-openlime',
+      '-format', normalizedFormat,
+    ];
     args.push(inputFile);
 
     const proc = spawn(binPath, args, { env: { ...process.env, GOGC: '20' } });
