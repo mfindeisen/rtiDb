@@ -51,7 +51,13 @@ export function createApp(config: ServerConfig): Express {
 
   app.use(cors());
   app.use(express.json());
-  app.use('/static/uploads', express.static(uploadDir));
+  app.use('/static/uploads', express.static(uploadDir, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.tif') || filePath.endsWith('.tiff')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    },
+  }));
 
   registerHealthRoutes(app);
   registerDocsRoutes(app, auth.sessionAuthMiddleware);

@@ -122,7 +122,6 @@ async function fetchComments() {
       canComment.value = false;
       return;
     }
-  } catch (err) {
     if (err instanceof ApiError) {
       try {
         const data = JSON.parse(err.body) as { error?: string };
