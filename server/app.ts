@@ -55,6 +55,7 @@ export function createApp(config: ServerConfig): Express {
     setHeaders(res, filePath) {
       if (filePath.endsWith('.tif') || filePath.endsWith('.tiff')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Accept-Ranges', 'bytes');
       }
     },
   }));

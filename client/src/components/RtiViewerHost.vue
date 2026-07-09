@@ -33,7 +33,7 @@ const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
       :url="viewerUrl"
       :tile-format="tileFormat"
       :annotation-enabled="annotationAttr"
-      class="flex-1 w-full min-h-[49rem]"
+      class="flex-1 w-full h-full min-h-0 lg:min-h-[49rem]"
       :debug="debugEnabled ? 'true' : undefined"
       @annotation-create="emit('annotationCreate', $event)"
       @annotation-click="emit('annotationClick', $event)"
@@ -43,7 +43,7 @@ const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
   <template v-else-if="viewerUrl">
     <iframe
       :src="`/viewer/viewer.html?url=${encodeURIComponent(viewerUrl)}`"
-      class="flex-1 w-full min-h-[49rem] border-0 bg-[#0f172a]"
+      class="flex-1 w-full h-full min-h-0 lg:min-h-[49rem] border-0 bg-[#0f172a]"
       allowfullscreen
     />
   </template>
