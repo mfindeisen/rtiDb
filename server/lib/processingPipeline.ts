@@ -170,13 +170,20 @@ export function buildUploadSettings(body: Record<string, unknown>): UploadSettin
   const { quality, tileSize, format, outputType, uploadMode } = body;
   const isNeural = uploadMode === 'neural';
   const isGeoTiff = isNeural || outputType === 'geotiff';
+  const normalizedFormat = normalizeTileFormat(String(format || 'jpg'));
   const options: ProcessingOptions = {
     quality: parseInt(String(quality), 10) || 90,
     tileSize: parseInt(String(tileSize), 10) || 256,
-    format: String(format || 'jpg'),
+    format: normalizedFormat,
   };
   const resolvedOutputType = isNeural ? 'neural' : (isGeoTiff ? 'geotiff' : 'tiles');
   return { isNeural, isGeoTiff, options, resolvedOutputType };
+}
+
+function normalizeTileFormat(format: string): string {
+  const value = format.toLowerCase().trim();
+  if (value === 'png' || value === 'webp') return value;
+  return 'jpg';
 }
 
 export function buildRtiMetadata(

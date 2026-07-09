@@ -16,6 +16,7 @@ import { registerRecordReadRoutes } from './routes/recordsRead.js';
 import { registerRevisionRoutes } from './routes/revisions.js';
 import { registerNoteRoutes } from './routes/notes.js';
 import { registerAnnotationRoutes } from './routes/annotations.js';
+import { registerCommentRoutes } from './routes/comments.js';
 import { registerRecordMutationRoutes } from './routes/recordMutations.js';
 import { registerUserRoutes } from './routes/users.js';
 import { errorHandler, notFoundHandler } from './lib/httpErrors.js';
@@ -62,6 +63,7 @@ export function createApp(config: ServerConfig): Express {
   registerRevisionRoutes(app, ctx);
   registerNoteRoutes(app, ctx);
   registerAnnotationRoutes(app, ctx);
+  registerCommentRoutes(app, ctx);
   registerRecordMutationRoutes(app, ctx);
   registerUserRoutes(app, ctx);
 

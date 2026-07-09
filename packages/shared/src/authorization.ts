@@ -31,6 +31,12 @@ export function userCanAnnotate(user: JwtUser | null | undefined): boolean {
   return Array.isArray(user.permissions) && user.permissions.includes('annotate');
 }
 
+export function userCanComment(user: JwtUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  return Array.isArray(user.permissions) && user.permissions.includes('comment');
+}
+
 export function requireUser(user: JwtUser | undefined): JwtUser {
   if (!user) {
     throw new Error('Unauthorized');

@@ -57,6 +57,16 @@ export const recordRevisions = sqliteTable('record_revisions', {
   createdAt: text('created_at').notNull(),
 });
 
+export const recordComments = sqliteTable('record_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  recordId: integer('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  parentId: integer('parent_id'),
+  body: text('body').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const recordAnnotations = sqliteTable('record_annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   recordId: integer('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),

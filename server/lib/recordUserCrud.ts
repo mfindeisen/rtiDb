@@ -45,3 +45,35 @@ export function findUserOwnedAnnotation(
     ))
     .get();
 }
+
+export function findUserOwnedComment(
+  db: AppDb,
+  schema: AppSchema,
+  commentId: number,
+  recordId: number,
+  userId: number,
+) {
+  return db.select({ id: schema.recordComments.id })
+    .from(schema.recordComments)
+    .where(and(
+      eq(schema.recordComments.id, commentId),
+      eq(schema.recordComments.recordId, recordId),
+      eq(schema.recordComments.userId, userId),
+    ))
+    .get();
+}
+
+export function findRecordComment(
+  db: AppDb,
+  schema: AppSchema,
+  commentId: number,
+  recordId: number,
+) {
+  return db.select({ id: schema.recordComments.id, parentId: schema.recordComments.parentId })
+    .from(schema.recordComments)
+    .where(and(
+      eq(schema.recordComments.id, commentId),
+      eq(schema.recordComments.recordId, recordId),
+    ))
+    .get();
+}

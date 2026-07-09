@@ -17,6 +17,7 @@
     "./api/notes": "./src/api/notes.ts",
     "./api/users": "./src/api/users.ts",
     "./api/annotations": "./src/api/annotations.ts",
+    "./api/comments": "./src/api/comments.ts",
     "./api/jobs": "./src/api/jobs.ts",
     "./api/auth": "./src/api/auth.ts",
     "./api/revisions": "./src/api/revisions.ts"

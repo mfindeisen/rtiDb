@@ -31,6 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white break-words">
             {{ record.name }}
+            <RecordOutputBadge v-if="record" :record="record" class="ml-2 align-middle" />
             <span
               v-if="record.revisionNumber"
               class="ml-2 align-middle text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10"
@@ -123,6 +124,17 @@
             :metadata="record.metadata"
             :text-direction="record.direction || 'ltr'"
           />
+      </div>
+
+      <!-- Tab: Discussion -->
+      <div
+        v-show="!showHistory && activeTab === 'discussion'"
+        class="glass-card p-4 sm:p-6 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto [scrollbar-gutter:stable]"
+      >
+        <RecordCommentsPanel
+          :record-id="record.id"
+          :record-slug="record.slug || ''"
+        />
       </div>
 
       <!-- Tab: RTI + annotations -->
@@ -479,9 +491,11 @@ import {
   Navigation,
   ImageDown,
   History,
+  MessageSquare,
 } from '@lucide/vue';
 import MetadataDisplay from '../components/MetadataDisplay.vue';
 import RecordNotesPanel from '../components/RecordNotesPanel.vue';
+import RecordCommentsPanel from '../components/RecordCommentsPanel.vue';
 import RecordAnnotationsPanel from '../components/RecordAnnotationsPanel.vue';
 import RecordHistoryPanel from '../components/RecordHistoryPanel.vue';
 import AnnotationNoteDialog from '../components/AnnotationNoteDialog.vue';
@@ -495,6 +509,7 @@ import { setViewerAnnotations, selectViewerAnnotation } from '@/lib/viewerComman
 import { DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
 import { recordPath } from '@/lib/recordPath';
 import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
+import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -559,6 +574,7 @@ const recordTabOptions = computed(() => [
     icon: Image,
     disabled: record.value?.status !== 'done',
   },
+  { value: 'discussion', label: 'Scholarly Discussion', shortLabel: 'Discussion', icon: MessageSquare },
 ]);
 
 const onJumpToAnnotation = (ann) => {

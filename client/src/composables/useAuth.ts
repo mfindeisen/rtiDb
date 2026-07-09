@@ -4,6 +4,7 @@ import {
   canAccessAdmin as sharedCanAccessAdmin,
   userCanCollaborate as sharedCanCollaborate,
   userCanAnnotate as sharedCanAnnotate,
+  userCanComment as sharedCanComment,
 } from '@rtidb/shared/authorization';
 import type { JwtUser } from '@rtidb/shared/auth';
 
@@ -68,6 +69,14 @@ export function canCollaborate(): boolean {
 
 export function canAnnotate(): boolean {
   return sharedCanAnnotate(parseTokenPayload());
+}
+
+export function canComment(): boolean {
+  return sharedCanComment(parseTokenPayload());
+}
+
+export function currentUserId(): number | null {
+  return parseTokenPayload()?.id ?? null;
 }
 
 export function authHeaders(): Record<string, string> {
