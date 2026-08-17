@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseCorsOrigins } from './lib/cors.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ export interface ServerConfig {
   imageSearchRateLimit: number;
   imageSearchRateWindowMs: number;
   keepOriginalRti: boolean;
+  corsOrigins: string[];
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -64,6 +66,11 @@ export function loadConfig(): ServerConfig {
     imageSearchRateLimit: Number(process.env.IMAGE_SEARCH_RATE_LIMIT) || 20,
     imageSearchRateWindowMs: Number(process.env.IMAGE_SEARCH_RATE_WINDOW_MS) || 60 * 60 * 1000,
     keepOriginalRti: process.env.KEEP_ORIGINAL_RTI !== '0',
+    corsOrigins: parseCorsOrigins(
+      process.env.CORS_ORIGINS,
+      isProduction,
+      process.env.PUBLIC_BASE_URL?.replace(/\/$/, '') || null,
+    ),
   };
 }
 

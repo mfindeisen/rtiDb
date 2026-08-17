@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db, { schema } from './db.js';
 import type { ServerConfig } from './config.js';
+import { buildCorsOptions } from './lib/cors.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createUploadMiddleware } from './lib/uploads.js';
 import { registerProgressRoutes } from './lib/progress.js';
@@ -67,14 +68,14 @@ export function createApp(config: ServerConfig): Express {
     getLatestProcessingJob: (recordId) => processingQueue.getLatestForRecord(recordId),
   };
 
-  app.use(cors());
+  app.use(cors(buildCorsOptions(config)));
   app.use(express.json());
   app.use('/static/uploads', auth.optionalAuthMiddleware, createProtectedUploadsStatic(uploadDir, db, schema));
 
   registerHealthRoutes(app);
   registerDocsRoutes(app, auth.sessionAuthMiddleware);
   registerDiscoveryRoutes(app);
-  registerProgressRoutes(app, auth.authMiddleware);
+  registerProgressRoutes(app, auth.authMiddleware, auth.requirePermission('upload_rti'));
   registerAuthRoutes(app, ctx);
   registerSearchRoutes(app, ctx);
   registerRecordReadRoutes(app, ctx);
