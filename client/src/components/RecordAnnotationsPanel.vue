@@ -104,7 +104,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { Circle, CircleDot, Square } from '@lucide/vue';
-import { canAnnotate as checkCanAnnotate, currentUserId } from '@/composables/useAuth';
+import { canAnnotate as checkCanAnnotate, currentUserId, getCurrentUser } from '@/composables/useAuth';
+import { userCanViewRecord } from '@rtidb/shared/authorization';
 import { formatCatalogDateTime } from '@rtidb/shared';
 import { ANNOTATION_VISIBILITY_LABELS, type AnnotationVisibility } from '@rtidb/shared/annotations';
 import type { RecordAnnotation } from '@rtidb/shared/api/annotations';
@@ -122,7 +123,9 @@ const props = defineProps({
 const emit = defineEmits(['jump-to-view', 'updated', 'loaded', 'edit']);
 
 const canAnnotate = ref(checkCanAnnotate());
-const canView = computed(() => canAnnotate.value || props.recordPublished);
+const canView = computed(() =>
+  userCanViewRecord(getCurrentUser(), { isPublished: props.recordPublished ? 1 : 0 }),
+);
 const annotations = ref<RecordAnnotation[]>([]);
 const loading = ref(false);
 const error = ref('');

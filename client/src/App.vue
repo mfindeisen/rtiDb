@@ -95,9 +95,9 @@ watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false;
 });
 
-const handleLogout = () => {
+const handleLogout = async () => {
   mobileMenuOpen.value = false;
-  logout();
+  await logout();
   router.push('/login');
 };
 

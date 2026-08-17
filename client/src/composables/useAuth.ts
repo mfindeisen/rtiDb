@@ -36,14 +36,26 @@ export function setCurrentUser(user: JwtUser | null): void {
 }
 
 async function fetchCurrentUser(): Promise<JwtUser | null> {
-  try {
-    const res = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { user: JwtUser };
-    return data.user;
-  } catch {
-    return null;
+  let lastNetworkError = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' });
+      if (res.status === 401 || res.status === 403) return null;
+      if (!res.ok) {
+        lastNetworkError = true;
+        continue;
+      }
+      const data = (await res.json()) as { user: JwtUser };
+      return data.user;
+    } catch {
+      lastNetworkError = true;
+    }
   }
+  if (lastNetworkError) {
+    console.warn('Could not reach /api/auth/me; leaving session unchanged');
+    return currentUser;
+  }
+  return null;
 }
 
 export function initAuth(): Promise<void> {
@@ -64,10 +76,14 @@ export function isAuthenticated(): boolean {
   return currentUser !== null;
 }
 
-export function logout(): void {
+export async function logout(): Promise<void> {
   currentUser = null;
   clearLegacyToken();
-  void fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' }).catch(() => {});
+  try {
+    await fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' });
+  } catch {
+    // Local session is already cleared; ignore network failures.
+  }
 }
 
 export function hasPermission(permission: Permission): boolean {

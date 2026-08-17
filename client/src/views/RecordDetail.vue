@@ -343,7 +343,7 @@
                       v-if="record.tiffUrl"
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30"
                     >
-                      <Map class="w-3.5 h-3.5" /> GeoTIFF
+                      <Map class="w-3.5 h-3.5" /> {{ record.outputType === 'neural' ? 'Neural GeoTIFF' : 'GeoTIFF' }}
                     </span>
                   </div>
 
@@ -503,7 +503,8 @@ import RecordHistoryPanel from '../components/RecordHistoryPanel.vue';
 import AnnotationNoteDialog from '../components/AnnotationNoteDialog.vue';
 import SegmentPills from '../components/SegmentPills.vue';
 import RtiViewerHost from '../components/RtiViewerHost.vue';
-import { canAnnotate } from '@/composables/useAuth';
+import { canAnnotate, getCurrentUser } from '@/composables/useAuth';
+import { userCanViewRecord } from '@rtidb/shared/authorization';
 import { useViewer } from '@/composables/useViewer';
 import { getRecord, exportRecordUrl } from '@/api/records';
 import { createAnnotation, updateAnnotation, deleteAnnotation } from '@/api/annotations';
@@ -547,7 +548,7 @@ const showModernViewer = computed(() =>
 
 const canAnnotateViewer = computed(() => canAnnotate() && showModernViewer.value);
 const showAnnotationsSection = computed(() =>
-  showModernViewer.value && (canAnnotate() || record.value?.isPublished === 1),
+  showModernViewer.value && userCanViewRecord(getCurrentUser(), { isPublished: record.value?.isPublished }),
 );
 
 const activeViewerTab = computed(() => activeTab.value === 'viewer');

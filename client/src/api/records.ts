@@ -7,11 +7,14 @@ import type {
 } from '@rtidb/shared/api/records';
 import type { AutoAnnotateJob, ProcessingEnqueueResponse, ProcessingJob } from '@rtidb/shared/api/jobs';
 import type { CatalogMetadata } from '@rtidb/shared';
+import type { SearchResults } from '@rtidb/shared/api/search';
 import { ApiError, apiUrl, request } from './client';
 
 export async function listRecords(params?: Record<string, string>): Promise<RecordRow[]> {
   const query = params ? `?${new URLSearchParams(params)}` : '';
-  return request<RecordRow[]>(`/api/records${query}`);
+  const data = await request<RecordRow[] | SearchResults>(`/api/records${query}`);
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data?.results) ? data.results : [];
 }
 
 export async function getRecord(id: number | string): Promise<RecordDetail> {

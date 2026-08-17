@@ -22,7 +22,7 @@ export function parseApiErrorBody(err: unknown): string {
 
 export function handleUnauthorized(status: number): boolean {
   if (status === 401) {
-    logout();
+    void logout();
     window.location.href = '/login';
     return true;
   }

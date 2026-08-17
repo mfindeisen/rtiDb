@@ -109,12 +109,12 @@
             </InfoCallout>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="flex flex-col">
-                <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200 md:hidden">Latent Map Image (.png, .jpg, .jpeg)</Label>
-                <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200 hidden md:block">Latent Map Image (.png, .jpg, .jpeg)</Label>
+                <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200 md:hidden">Latent Map Image (.png)</Label>
+                <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200 hidden md:block">Latent Map Image (.png)</Label>
                 <FilePicker
                   ref="latentMapInputRef"
                   :file-name="selectedLatentMapName"
-                  accept="image/png,image/jpeg,image/jpg"
+                  accept="image/png,.png"
                   required
                   :disabled="isUploading"
                   @change="onLatentMapChange"
@@ -403,7 +403,7 @@ const userManagementRef = ref(null);
 
 function handleUnauthorized(err: unknown): boolean {
   if (err instanceof ApiError && err.status === 401) {
-    logout();
+    void logout();
     return true;
   }
   return false;
@@ -412,8 +412,8 @@ function handleUnauthorized(err: unknown): boolean {
 // --- Tab state (only relevant for admins) ---
 const activeTab = ref('records');
 
-const logout = () => {
-  authLogout();
+const logout = async () => {
+  await authLogout();
   router.push('/login');
 };
 
@@ -723,10 +723,11 @@ const setupProgress = () => {
       if (data.progress === -1) {
         targetRecord.status = 'error';
       } else {
-        targetRecord.status = data.progress >= 100 ? 'done' : 'processing';
+        const finished = data.progress >= 100;
+        targetRecord.status = finished ? 'done' : 'processing';
         targetRecord.progress = data.progress;
-        if (data.progress >= 100 && targetRecord.status !== 'done') {
-          fetchRecords();
+        if (finished) {
+          void fetchRecords();
         }
       }
     }
@@ -757,7 +758,7 @@ function applyProcessingJob(job: ProcessingJob) {
     rec.status = 'processing';
     return;
   }
-  if (job.status === 'done' && rec.status !== 'done') {
+  if (job.status === 'done') {
     rec.status = 'done';
     rec.progress = 100;
     void fetchRecords();
@@ -837,6 +838,10 @@ const uploadFile = async () => {
     weightsFile = weightsInputRef.value?.inputRef?.files?.[0] ?? null;
     if (!latentMapFile || !weightsFile) {
       error.value = 'Both latent map image and weights JSON files are required.';
+      return;
+    }
+    if (!latentMapFile.name.toLowerCase().endsWith('.png')) {
+      error.value = 'Neural latent maps must be PNG. JPEG drops the 4th channel.';
       return;
     }
   } else {
