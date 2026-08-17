@@ -139,7 +139,7 @@
 
       <!-- Tab: RTI + annotations -->
       <div v-show="!showHistory && activeTab === 'viewer'" class="flex flex-col gap-4">
-          <template v-if="activeTab === 'viewer'">
+          <template v-if="viewerMounted">
           <div class="flex flex-col lg:flex-row gap-4 items-stretch max-lg:h-[calc(100dvh-9rem)] lg:min-h-[max(49rem,calc(100svh-15rem))]">
             <!-- Help sidebar -->
             <div
@@ -203,6 +203,24 @@
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
               The circular overlay shows the current light direction. The yellow dot marks the light position. You can also drag inside the compass to adjust lighting without using the main canvas.
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-3 pt-3 border-t border-slate-200 dark:border-white/5">
+          <h4 class="font-semibold text-blue-600 dark:text-blue-400 uppercase text-[10px] tracking-wider">Keyboard</h4>
+          <div class="rounded-lg border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] p-3">
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Click the viewer first. <span class="font-semibold text-slate-700 dark:text-slate-200">H</span> pan,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">L</span> light,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">W</span> white balance,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">A</span> annotate,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">1–5</span> render modes,
+              arrows nudge light,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">+</span>/<span class="font-semibold text-slate-700 dark:text-slate-200">-</span> zoom,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">F</span> fit,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">S</span> snapshot,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">Esc</span> back to pan.
             </p>
           </div>
         </div>
@@ -529,6 +547,7 @@ const goBack = () => {
 const loading = ref(true);
 const error = ref('');
 const activeTab = ref('metadata');
+const viewerMounted = ref(false);
 const showHistory = ref(false);
 const viewerMode = ref<'modern' | 'legacy'>('modern');
 const viewerHostComponentRef = ref(null);
@@ -686,6 +705,7 @@ watch(activeTab, (tab) => {
   showHistory.value = false;
   localStorage.setItem('recordDetailTab', tab);
   if (tab === 'viewer') {
+    viewerMounted.value = true;
     nextTick(() => {
       triggerResize();
       syncViewerAnnotations();

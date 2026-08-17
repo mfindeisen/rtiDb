@@ -45,3 +45,35 @@ export function selectViewerAnnotation(
 ): void {
   viewerCommand(viewerEl, 'select-annotation', { id: id ?? null });
 }
+
+export function setViewerLight(
+  viewerEl: ViewerElement | null | undefined,
+  light: { x: number; y: number; z?: number },
+): void {
+  viewerCommand(viewerEl, 'set-light', light);
+}
+
+export function setViewerRenderMode(
+  viewerEl: ViewerElement | null | undefined,
+  mode: number,
+): void {
+  viewerCommand(viewerEl, 'set-render-mode', { mode });
+}
+
+export function setViewerInteractionMode(
+  viewerEl: ViewerElement | null | undefined,
+  mode: 'pan' | 'light' | 'annotate' | 'whitebalance',
+): void {
+  viewerCommand(viewerEl, 'set-interaction-mode', { mode });
+}
+
+export function fitViewer(viewerEl: ViewerElement | null | undefined): void {
+  viewerCommand(viewerEl, 'fit');
+}
+
+export function exportViewer(
+  viewerEl: ViewerElement | null | undefined,
+  options: { download?: boolean } = {},
+): void {
+  viewerCommand(viewerEl, 'export', options);
+}

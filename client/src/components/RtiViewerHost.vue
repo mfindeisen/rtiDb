@@ -26,7 +26,7 @@ const viewerUrl = computed(() => props.record?.tiffUrl || folderUrl.value);
 const tileFormat = computed(() => props.record?.format || '');
 const useModern = computed(() => !!props.record?.tiffUrl || props.viewerMode === 'modern');
 const annotationAttr = computed(() => (props.annotationEnabled ? 'true' : 'false'));
-const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
+const debugEnabled = computed(() => props.debug === true);
 const shareUrl = computed(() => {
   if (typeof window === 'undefined') return '';
   return `${window.location.origin}${route.fullPath.split('#')[0]}`;
