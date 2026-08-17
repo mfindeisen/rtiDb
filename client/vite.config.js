@@ -3,6 +3,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
+const apiProxy = process.env.VITE_DEV_API_PROXY || 'http://localhost:3000'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -16,9 +18,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/static': 'http://localhost:3000',
-      '/docs': 'http://localhost:3000',
+      '/api': apiProxy,
+      '/static': apiProxy,
+      '/docs': apiProxy,
     },
   },
 })

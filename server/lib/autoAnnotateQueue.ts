@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import fs from 'fs/promises';
-import { proposeAutoAnnotations, type AutoAnnotatePhase } from './autoAnnotate.js';
+import type { AutoAnnotatePhase } from './autoAnnotate.js';
 import { validateAnnotationBody } from './annotations.js';
 import { resolveThumbnailPath } from './recordEmbeddings.js';
 import { formatCatalogDateTime } from './metadataFields.js';
@@ -107,6 +107,7 @@ const queue = createJobQueue<AutoAnnotateJob, QueueItem, PublicAutoAnnotateJob>(
           .run();
       }
 
+      const { proposeAutoAnnotations } = await import('./autoAnnotate.js');
       const proposal = await proposeAutoAnnotations(
         thumbPath,
         item.record.metadata,

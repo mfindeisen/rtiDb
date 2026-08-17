@@ -25,6 +25,7 @@ pnpm-debug.log*
 # rtiDb specific
 server/uploads/
 server/data/
+server/.e2e-data/
 
 # Test datasets (local only, under generated viewer output)
 client/public/modern-viewer/webrti/
@@ -57,5 +58,8 @@ client/public/docs/
 
 # Local AI Agent configuration
 .agents/
+
+# Playwright
+client/test-results/
 
 

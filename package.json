@@ -13,7 +13,8 @@
     "typecheck:client": "pnpm --filter client typecheck",
     "typecheck:server": "pnpm --filter server typecheck",
     "typecheck:shared": "pnpm --filter @rtidb/shared typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm run sync:viewer && pnpm --filter client test:e2e"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10"

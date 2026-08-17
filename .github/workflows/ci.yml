@@ -39,3 +39,9 @@ jobs:
 
       - name: Viewer unit tests
         run: pnpm --filter modernrtiviewer test -- --run
+
+      - name: Install Playwright browsers
+        run: pnpm --filter client exec playwright install --with-deps chromium
+
+      - name: Client E2E tests
+        run: pnpm test:e2e
