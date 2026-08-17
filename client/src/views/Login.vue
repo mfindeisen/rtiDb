@@ -78,8 +78,13 @@ const handleLogin = async () => {
     console.error('Login error', err);
     if (err instanceof ApiError) {
       try {
-        const data = JSON.parse(err.body) as { error?: string };
-        error.value = data.error || 'Login failed';
+        const data = JSON.parse(err.body) as { error?: string; retryAfterSeconds?: number };
+        if (err.status === 429) {
+          const wait = data.retryAfterSeconds ? ` Try again in ${data.retryAfterSeconds}s.` : '';
+          error.value = (data.error || 'Too many login attempts.') + wait;
+        } else {
+          error.value = data.error || 'Login failed';
+        }
       } catch {
         error.value = err.body || 'Login failed';
       }

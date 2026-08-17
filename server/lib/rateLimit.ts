@@ -18,6 +18,48 @@ export interface RateLimitResult {
   windowMs: number;
 }
 
+function inspectRateLimit(
+  key: string,
+  now: number,
+  max: number,
+  windowMs: number,
+): { hits: number[]; result: RateLimitResult | null } {
+  const hits = pruneOldHits(hitsByKey.get(key) || [], now, windowMs);
+  if (hits.length >= max) {
+    const oldest = hits[0]!;
+    return {
+      hits,
+      result: {
+        allowed: false,
+        remaining: 0,
+        retryAfterMs: Math.max(0, windowMs - (now - oldest)),
+        limit: max,
+        windowMs,
+      },
+    };
+  }
+  return { hits, result: null };
+}
+
+export function peekRateLimit(
+  key: string,
+  {
+    max = DEFAULT_MAX,
+    windowMs = DEFAULT_WINDOW_MS,
+  }: { max?: number; windowMs?: number } = {},
+): RateLimitResult {
+  const now = Date.now();
+  const { hits, result } = inspectRateLimit(key, now, max, windowMs);
+  if (result) return result;
+  return {
+    allowed: true,
+    remaining: max - hits.length,
+    retryAfterMs: 0,
+    limit: max,
+    windowMs,
+  };
+}
+
 /** Fixed-window rate limiter (in-memory, per process). */
 export function consumeRateLimit(
   key: string,
@@ -27,17 +69,10 @@ export function consumeRateLimit(
   }: { max?: number; windowMs?: number } = {},
 ): RateLimitResult {
   const now = Date.now();
-  const hits = pruneOldHits(hitsByKey.get(key) || [], now, windowMs);
-
-  if (hits.length >= max) {
-    const oldest = hits[0];
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterMs: Math.max(0, windowMs - (now - oldest)),
-      limit: max,
-      windowMs,
-    };
+  const { hits, result } = inspectRateLimit(key, now, max, windowMs);
+  if (result) {
+    hitsByKey.set(key, hits);
+    return result;
   }
 
   hits.push(now);
@@ -56,11 +91,23 @@ export function imageSearchRateLimitKey(user: JwtUser | undefined) {
   return `image-search:${user?.id ?? user?.username ?? 'anonymous'}`;
 }
 
+export function loginRateLimitKey(req: { ip?: string; socket?: { remoteAddress?: string } }) {
+  return `login:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+}
+
 export function getImageSearchRateLimit() {
   const config = getConfig();
   return {
     max: config.imageSearchRateLimit,
     windowMs: config.imageSearchRateWindowMs,
+  };
+}
+
+export function getLoginRateLimit() {
+  const config = getConfig();
+  return {
+    max: config.loginRateLimit,
+    windowMs: config.loginRateWindowMs,
   };
 }
 

@@ -31,6 +31,9 @@ const __dirname = path.dirname(__filename);
 
 export function createApp(config: ServerConfig): Express {
   const app = express();
+  if (config.trustProxy !== false) {
+    app.set('trust proxy', config.trustProxy);
+  }
   const { uploadDir, uploadFields, imageSearchUpload } = createUploadMiddleware(__dirname, config.maxRtiUploadBytes);
   const auth = createAuthMiddleware(config.jwtSecret);
   const recordHelpers = createRecordHelpers({ db, schema });

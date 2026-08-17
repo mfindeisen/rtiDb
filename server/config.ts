@@ -26,6 +26,9 @@ export interface ServerConfig {
   keepOriginalRti: boolean;
   corsOrigins: string[];
   maxRtiUploadBytes: number;
+  trustProxy: boolean | number;
+  loginRateLimit: number;
+  loginRateWindowMs: number;
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -34,6 +37,21 @@ function requireInProduction(value: string | undefined, name: string, isProducti
     throw new Error(`${name} must be set in production`);
   }
   return devDefault;
+}
+
+/** Express `trust proxy`: false, true, or hop count. Production defaults to 1 hop (typical reverse proxy). */
+export function parseTrustProxy(value: string | undefined, isProduction: boolean): boolean | number {
+  if (value == null || value.trim() === '') {
+    return isProduction ? 1 : false;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '0' || normalized === 'false' || normalized === 'no') return false;
+  if (normalized === 'true' || normalized === 'yes') return true;
+  const hops = Number(normalized);
+  if (Number.isInteger(hops) && hops >= 0) {
+    return hops === 0 ? false : hops;
+  }
+  return isProduction ? 1 : false;
 }
 
 export function loadConfig(): ServerConfig {
@@ -73,6 +91,9 @@ export function loadConfig(): ServerConfig {
       process.env.PUBLIC_BASE_URL?.replace(/\/$/, '') || null,
     ),
     maxRtiUploadBytes: Number(process.env.MAX_RTI_UPLOAD_BYTES) || 2 * 1024 * 1024 * 1024,
+    trustProxy: parseTrustProxy(process.env.TRUST_PROXY, isProduction),
+    loginRateLimit: Number(process.env.LOGIN_RATE_LIMIT) || 10,
+    loginRateWindowMs: Number(process.env.LOGIN_RATE_WINDOW_MS) || 15 * 60 * 1000,
   };
 }
 
