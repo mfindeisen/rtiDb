@@ -1,4 +1,4 @@
-import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +9,8 @@ import { createUploadMiddleware } from './lib/uploads.js';
 import { registerProgressRoutes } from './lib/progress.js';
 import { createRecordHelpers } from './lib/recordHelpers.js';
 import { createProcessingPipeline } from './lib/processingPipeline.js';
+import { createProcessingQueue } from './lib/processingQueue.js';
+import { createProtectedUploadsStatic } from './lib/protectedStatic.js';
 import { registerHealthRoutes, registerDocsRoutes, registerDiscoveryRoutes } from './routes/system.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerSearchRoutes } from './routes/search.js';
@@ -34,8 +36,23 @@ export function createApp(config: ServerConfig): Express {
     db,
     schema,
     uploadDir,
+    keepOriginalRti: config.keepOriginalRti,
     snapshotRecordAfterSystem: recordHelpers.snapshotRecordAfterSystem,
   });
+
+  const processingQueue = createProcessingQueue(async (item) => {
+    await runProcessingPipeline(
+      item.recordId,
+      item.originalFilePath,
+      item.weightsPath,
+      item.options,
+      item.outputType,
+    );
+  });
+
+  const enqueueProcessing: ServerContext['enqueueProcessing'] = (item) => {
+    processingQueue.enqueue(item);
+  };
 
   const ctx: ServerContext = {
     db,
@@ -47,23 +64,17 @@ export function createApp(config: ServerConfig): Express {
     ...auth,
     ...recordHelpers,
     runProcessingPipeline,
+    enqueueProcessing,
   };
 
   app.use(cors());
   app.use(express.json());
-  app.use('/static/uploads', express.static(uploadDir, {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('.tif') || filePath.endsWith('.tiff')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        res.setHeader('Accept-Ranges', 'bytes');
-      }
-    },
-  }));
+  app.use('/static/uploads', auth.optionalAuthMiddleware, createProtectedUploadsStatic(uploadDir, db, schema));
 
   registerHealthRoutes(app);
   registerDocsRoutes(app, auth.sessionAuthMiddleware);
   registerDiscoveryRoutes(app);
-  registerProgressRoutes(app);
+  registerProgressRoutes(app, auth.authMiddleware);
   registerAuthRoutes(app, ctx);
   registerSearchRoutes(app, ctx);
   registerRecordReadRoutes(app, ctx);

@@ -295,8 +295,7 @@ const visibleColumns = computed(() => resolveVisibleColumns(columnPrefs.value));
 
 onMounted(async () => {
   try {
-    const allRecords = await listRecords();
-    records.value = allRecords.filter((r) => r.isPublished === 1);
+    records.value = await listRecords({ published: '1' });
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to fetch records';
   } finally {

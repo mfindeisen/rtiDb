@@ -10,9 +10,11 @@ services:
     expose:
       - "3000"
     environment:
+      - NODE_ENV=production
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-      - JWT_SECRET=${JWT_SECRET:-fallback_secret_key_change_in_production}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - KEEP_ORIGINAL_RTI=${KEEP_ORIGINAL_RTI:-1}
       - TRANSFORMERS_CACHE=/repo/server/.clip-model-cache
       - GOGC=20
     volumes:

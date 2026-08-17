@@ -15,6 +15,7 @@ export interface AuthContext {
 
 export interface RecordHelpersContext {
   fetchRecordOr404: (req: Request, res: Response) => DbRecord | null;
+  fetchAccessibleRecordOr404: (req: Request, res: Response) => DbRecord | null;
   snapshotRecordAfter: (recordId: number, action: string, req: Request, comment?: string | null) => void;
   snapshotRecordAfterSystem: (recordId: number, action: string, comment?: string | null) => void;
 }
@@ -39,6 +40,13 @@ export interface ServerContext extends AuthContext, RecordHelpersContext {
     options: ProcessingOptions,
     outputType: string,
   ) => Promise<void>;
+  enqueueProcessing: (item: {
+    recordId: number;
+    originalFilePath: string;
+    weightsPath: string | null;
+    options: ProcessingOptions;
+    outputType: string;
+  }) => void;
 }
 
 export type RouteRegistrar = (app: Express, ctx: ServerContext) => void;

@@ -10,6 +10,7 @@ import { metadataOnlyPayload, SUPPORTED_EXPORT_FORMATS } from '../lib/export.js'
 import { resolveRecordFromParam, recordPublicPath } from '../lib/slug.js';
 import { getLatestRevision } from '../lib/recordRevisions.js';
 import { getFolderStats, sendExport } from '../lib/recordHelpers.js';
+import { ensureRecordViewAccess } from '../lib/recordAccess.js';
 import { enqueueAutoAnnotate, getAutoAnnotateJob } from '../lib/autoAnnotateQueue.js';
 import { consumeRateLimit } from '../lib/rateLimit.js';
 import { routeParam } from '../lib/httpParams.js';
@@ -21,26 +22,26 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
     schema,
     uploadDir,
     fetchRecordOr404,
+    fetchAccessibleRecordOr404,
     authMiddleware,
+    optionalAuthMiddleware,
     requireAdmin,
   } = ctx;
 
-  app.get('/api/records/lookup/:identifier', (req, res) => {
+  app.get('/api/records/lookup/:identifier', optionalAuthMiddleware, (req, res) => {
     const record = resolveRecordFromParam(db, schema, req.params.identifier);
-    if (!record) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
+    if (!record || !ensureRecordViewAccess(req, res, record)) return;
     res.json(buildPublicRecord(record, req));
   });
 
-  app.get('/api/records/:id/metadata', (req, res) => {
-    const record = fetchRecordOr404(req, res);
+  app.get('/api/records/:id/metadata', optionalAuthMiddleware, (req, res) => {
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     res.json(metadataOnlyPayload(record));
   });
 
-  app.get('/api/records/:id/export', (req, res) => {
-    const record = fetchRecordOr404(req, res);
+  app.get('/api/records/:id/export', optionalAuthMiddleware, (req, res) => {
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const format = String(req.query.format || 'json').toLowerCase();
     try {
@@ -51,8 +52,8 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/records/:id/rti', (req, res) => {
-    const record = fetchRecordOr404(req, res);
+  app.get('/api/records/:id/rti', optionalAuthMiddleware, (req, res) => {
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
 
     const baseUrl = getBaseUrl(req);
@@ -76,8 +77,8 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
     res.json(payload);
   });
 
-  app.get('/api/records/:id', async (req, res) => {
-    const record = fetchRecordOr404(req, res);
+  app.get('/api/records/:id', optionalAuthMiddleware, async (req, res) => {
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
 
     let folderSize = 0;

@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import { sql, eq } from 'drizzle-orm';
 import type { Express } from 'express';
+import { userCanManageRecords } from '@rtidb/shared/authorization';
 import { normalizeMetadata } from '../lib/metadataFields.js';
 import { searchRecords, parseBboxParam, parseFiltersParam } from '../lib/search.js';
 import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.js';
@@ -13,9 +14,25 @@ import { listAllRecords } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
 
 export function registerSearchRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, uploadDir, imageSearchUpload, authMiddleware } = ctx;
+  const { db, schema, uploadDir, imageSearchUpload, authMiddleware, optionalAuthMiddleware } = ctx;
 
-  app.get('/api/records', (req, res) => {
+  function filterRecordsByPublish<T extends { isPublished?: number | null }>(
+    records: T[],
+    req: import('express').Request,
+  ): T[] {
+    const staff = userCanManageRecords(req.user);
+    const publishedParam = String(req.query.published ?? '');
+
+    if (publishedParam === 'all' && staff) {
+      return records;
+    }
+    if (publishedParam === '0' && staff) {
+      return records.filter((r) => r.isPublished !== 1);
+    }
+    return records.filter((r) => r.isPublished === 1);
+  }
+
+  app.get('/api/records', optionalAuthMiddleware, (req, res) => {
     try {
       const allRecords = listAllRecords(db, schema);
       const hasFilters =
@@ -25,6 +42,10 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         Object.keys(req.query).some((k) => !['published', 'page', 'limit'].includes(k));
 
       if (hasFilters) {
+        const staff = userCanManageRecords(req.user);
+        const publishedOnly = req.query.published === 'all' && staff
+          ? false
+          : req.query.published !== '0';
         const result = searchRecords(allRecords, {
           q: String(req.query.q || ''),
           filters: {
@@ -32,17 +53,14 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
             ...parseMetadataFiltersFromQuery(req.query),
           },
           bbox: parseBboxParam(String(req.query.bbox || '')),
-          publishedOnly: req.query.published !== '0',
+          publishedOnly,
           page: queryNumber(req.query.page),
           limit: queryNumber(req.query.limit),
         });
         return res.json(result);
       }
 
-      let records = allRecords;
-      if (req.query.published === '1') {
-        records = records.filter((r) => r.isPublished === 1);
-      }
+      const records = filterRecordsByPublish(allRecords, req);
       res.json(records.map((r) => ({ ...r, metadata: normalizeMetadata(r.metadata) })));
     } catch (err) {
       console.error('Records list error:', err);

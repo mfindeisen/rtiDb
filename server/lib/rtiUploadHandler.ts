@@ -40,7 +40,7 @@ export function validateRecordForUpload(record: DbRecord, res: Response): boolea
 }
 
 export async function handleRtiUpload(
-  ctx: Pick<ServerContext, 'db' | 'schema' | 'runProcessingPipeline' | 'snapshotRecordAfter'>,
+  ctx: Pick<ServerContext, 'db' | 'schema' | 'enqueueProcessing' | 'snapshotRecordAfter'>,
   req: Request,
   res: Response,
   target: RtiUploadTarget,
@@ -100,6 +100,12 @@ export async function handleRtiUpload(
   }
 
   ctx.snapshotRecordAfter(recordId, target.snapshotAction, req, target.snapshotComment);
-  void ctx.runProcessingPipeline(recordId, parsed.originalFilePath, parsed.weightsPath, options, resolvedOutputType);
+  ctx.enqueueProcessing({
+    recordId,
+    originalFilePath: parsed.originalFilePath,
+    weightsPath: parsed.weightsPath,
+    options,
+    outputType: resolvedOutputType,
+  });
   res.json({ success: true, id: recordId });
 }

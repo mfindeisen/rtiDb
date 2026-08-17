@@ -7,6 +7,7 @@ import {
   type SnapshotChanges,
   type SerializedRevision,
 } from '@rtidb/shared/recordRevisions';
+import { userCanViewRecord } from '@rtidb/shared/authorization';
 import type { AppDb, AppSchema, DbRecord, JwtUser } from '../types/index.js';
 
 export type { FieldChange, SnapshotChanges, SerializedRevision };
@@ -248,8 +249,5 @@ export function getRevisionDetail(
 }
 
 export function userCanViewRevisions(user: JwtUser | undefined, record: DbRecord): boolean {
-  if (record.isPublished === 1) return true;
-  if (!user) return false;
-  if (user.role === 'admin') return true;
-  return Array.isArray(user.permissions) && user.permissions.includes('edit_record');
+  return userCanViewRecord(user, record);
 }

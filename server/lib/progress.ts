@@ -13,8 +13,8 @@ export function broadcastProgress(id: number, progress: number, message: string)
   });
 }
 
-export function registerProgressRoutes(app: Express) {
-  app.get('/api/progress', (req: Request, res: Response) => {
+export function registerProgressRoutes(app: Express, authMiddleware: import('express').RequestHandler) {
+  app.get('/api/progress', authMiddleware, (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

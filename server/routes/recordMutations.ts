@@ -17,7 +17,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
     uploadFields,
     fetchRecordOr404,
     snapshotRecordAfter,
-    runProcessingPipeline,
+    enqueueProcessing,
     authMiddleware,
     requirePermission,
   } = ctx;
@@ -224,7 +224,13 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         format: record.format || 'jpg',
       };
 
-      void runProcessingPipeline(record.id, record.originalFilePath, record.weightsFilePath, options, record.outputType || 'tiles');
+      void enqueueProcessing({
+        recordId: record.id,
+        originalFilePath: record.originalFilePath,
+        weightsPath: record.weightsFilePath,
+        options,
+        outputType: record.outputType || 'tiles',
+      });
 
       res.json({ success: true });
     } catch (err) {

@@ -5,6 +5,7 @@ import type { Express, Request, Response } from 'express';
 import { createRecordRevision } from './recordRevisions.js';
 import { resolveRecordFromParam } from './slug.js';
 import { getExportContent } from './export.js';
+import { ensureRecordViewAccess } from './recordAccess.js';
 import type { AppDb, AppSchema, DbRecord, RecordHelpersContext } from '../types/index.js';
 
 export function createRecordHelpers({ db, schema }: { db: AppDb; schema: AppSchema }): RecordHelpersContext {
@@ -14,6 +15,13 @@ export function createRecordHelpers({ db, schema }: { db: AppDb; schema: AppSche
       res.status(404).json({ error: 'Record not found' });
       return null;
     }
+    return record;
+  }
+
+  function fetchAccessibleRecordOr404(req: Request, res: Response): DbRecord | null {
+    const record = fetchRecordOr404(req, res);
+    if (!record) return null;
+    if (!ensureRecordViewAccess(req, res, record)) return null;
     return record;
   }
 
@@ -45,7 +53,7 @@ export function createRecordHelpers({ db, schema }: { db: AppDb; schema: AppSche
     });
   }
 
-  return { fetchRecordOr404, snapshotRecordAfter, snapshotRecordAfterSystem };
+  return { fetchRecordOr404, fetchAccessibleRecordOr404, snapshotRecordAfter, snapshotRecordAfterSystem };
 }
 
 export async function getFolderStats(dirPath: string) {

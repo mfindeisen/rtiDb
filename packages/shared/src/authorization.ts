@@ -43,3 +43,22 @@ export function requireUser(user: JwtUser | undefined): JwtUser {
   }
   return user;
 }
+
+/** Published records are public; drafts require staff with edit_record (or admin/editor). */
+export function userCanViewRecord(
+  user: JwtUser | null | undefined,
+  record: { isPublished?: number | null },
+): boolean {
+  if (record.isPublished === 1) return true;
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'editor') return true;
+  return hasPermission(user, 'edit_record');
+}
+
+export function userCanManageRecords(user: JwtUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'editor') return true;
+  return hasPermission(user, 'edit_record')
+    || hasPermission(user, 'upload_rti')
+    || hasPermission(user, 'delete_record');
+}

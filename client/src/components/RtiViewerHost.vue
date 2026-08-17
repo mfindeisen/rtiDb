@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 const props = defineProps<{
-  record: { tiffUrl?: string | null; folderUrl?: string | null; format?: string | null; status?: string } | null;
+  record: { tiffUrl?: string | null; folderUrl?: string | null; format?: string | null; status?: string; slug?: string | null; id?: number } | null;
   viewerMode: 'modern' | 'legacy';
   annotationEnabled: boolean;
   debug?: boolean;
 }>();
+
+const route = useRoute();
 
 const emit = defineEmits<{
   annotationCreate: [event: CustomEvent];
@@ -24,6 +27,10 @@ const tileFormat = computed(() => props.record?.format || '');
 const useModern = computed(() => !!props.record?.tiffUrl || props.viewerMode === 'modern');
 const annotationAttr = computed(() => (props.annotationEnabled ? 'true' : 'false'));
 const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
+const shareUrl = computed(() => {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.origin}${route.fullPath.split('#')[0]}`;
+});
 </script>
 
 <template>
@@ -31,6 +38,7 @@ const debugEnabled = computed(() => props.debug ?? import.meta.env.DEV);
     <modern-rti-viewer
       ref="modernViewerRef"
       :url="viewerUrl"
+      :share-url="shareUrl"
       :tile-format="tileFormat"
       :annotation-enabled="annotationAttr"
       class="flex-1 w-full h-full min-h-0 lg:min-h-[49rem]"

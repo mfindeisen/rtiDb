@@ -25,6 +25,7 @@ export function bootstrapDatabase(config: ServerConfig): AppDb {
   runMigrations({ dataDir: config.dataDir });
 
   const sqlite = new Database(path.join(config.dataDir, 'database.sqlite'));
+  sqlite.pragma('foreign_keys = ON');
   dbInstance = drizzle(sqlite, { schema });
 
   backfillRecordSlugs(dbInstance, schema);

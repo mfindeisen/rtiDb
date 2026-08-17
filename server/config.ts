@@ -22,6 +22,7 @@ export interface ServerConfig {
   autoAnnotateThreshold: number;
   imageSearchRateLimit: number;
   imageSearchRateWindowMs: number;
+  keepOriginalRti: boolean;
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -62,6 +63,7 @@ export function loadConfig(): ServerConfig {
     autoAnnotateThreshold: Number(process.env.AUTO_ANNOTATE_THRESHOLD) || 0.08,
     imageSearchRateLimit: Number(process.env.IMAGE_SEARCH_RATE_LIMIT) || 20,
     imageSearchRateWindowMs: Number(process.env.IMAGE_SEARCH_RATE_WINDOW_MS) || 60 * 60 * 1000,
+    keepOriginalRti: process.env.KEEP_ORIGINAL_RTI !== '0',
   };
 }
 

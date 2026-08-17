@@ -6,27 +6,24 @@ import { processRTI, processRtiToTiff } from './rtiprep.js';
 import { normalizeMetadata, formatCatalogDate, type CatalogMetadata } from './metadataFields.js';
 import { updateRecordImageEmbedding } from './recordEmbeddings.js';
 import { broadcastProgress } from './progress.js';
+import { archiveOriginalFiles } from './protectedStatic.js';
 import type { AppDb, AppSchema, ProcessingOptions, RecordMetadata } from '../types/index.js';
 
 interface ProcessingPipelineContext {
   db: AppDb;
   schema: AppSchema;
   uploadDir: string;
+  keepOriginalRti: boolean;
   snapshotRecordAfterSystem: (recordId: number, action: string, comment?: string | null) => void;
 }
 
-interface UploadedFile {
-  path: string;
-  originalname: string;
-}
-
-interface MulterFileMap {
-  file?: UploadedFile[];
-  latentMap?: UploadedFile[];
-  weights?: UploadedFile[];
-}
-
-export function createProcessingPipeline({ db, schema, uploadDir, snapshotRecordAfterSystem }: ProcessingPipelineContext) {
+export function createProcessingPipeline({
+  db,
+  schema,
+  uploadDir,
+  keepOriginalRti,
+  snapshotRecordAfterSystem,
+}: ProcessingPipelineContext) {
   async function runProcessingPipeline(
     recordId: number,
     originalFilePath: string,
@@ -89,19 +86,32 @@ export function createProcessingPipeline({ db, schema, uploadDir, snapshotRecord
         }
       }
 
-      try {
-        await fs.unlink(originalFilePath);
-        console.log(`Deleted original file: ${originalFilePath}`);
-        if (weightsPath) {
-          await fs.unlink(weightsPath);
-          console.log(`Deleted weights file: ${weightsPath}`);
-        }
+      if (keepOriginalRti) {
+        const archiveDir = path.join(uploadDir, 'archive', String(recordId));
+        const archived = await archiveOriginalFiles(originalFilePath, weightsPath, archiveDir);
         db.update(schema.records)
-          .set({ originalFilePath: null, weightsFilePath: null })
+          .set({
+            originalFilePath: archived.originalFilePath,
+            weightsFilePath: archived.weightsFilePath,
+          })
           .where(eq(schema.records.id, recordId))
           .run();
-      } catch (err) {
-        console.error('Error unlinking original files on success:', err);
+        console.log(`Archived originals for record ${recordId} under ${archiveDir}`);
+      } else {
+        try {
+          await fs.unlink(originalFilePath);
+          console.log(`Deleted original file: ${originalFilePath}`);
+          if (weightsPath) {
+            await fs.unlink(weightsPath);
+            console.log(`Deleted weights file: ${weightsPath}`);
+          }
+          db.update(schema.records)
+            .set({ originalFilePath: null, weightsFilePath: null })
+            .where(eq(schema.records.id, recordId))
+            .run();
+        } catch (err) {
+          console.error('Error unlinking original files on success:', err);
+        }
       }
 
       snapshotRecordAfterSystem(recordId, 'processing_completed', `RTI processing completed (${outputType})`);
@@ -111,10 +121,22 @@ export function createProcessingPipeline({ db, schema, uploadDir, snapshotRecord
       const message = error instanceof Error ? error.message : 'RTI processing failed';
       snapshotRecordAfterSystem(recordId, 'processing_failed', message);
       broadcastProgress(recordId, -1, '');
+      throw error;
     }
   }
 
   return { runProcessingPipeline };
+}
+
+interface UploadedFile {
+  path: string;
+  originalname: string;
+}
+
+interface MulterFileMap {
+  file?: UploadedFile[];
+  latentMap?: UploadedFile[];
+  weights?: UploadedFile[];
 }
 
 export interface ParsedUploadFiles {

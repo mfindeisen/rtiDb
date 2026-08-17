@@ -8,10 +8,10 @@ import { isAuthenticated, parseTokenPayload, postLoginPath } from '@/composables
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
-  { path: '/', component: Gallery, meta: { requiresAuth: true } },
+  { path: '/', component: Gallery, meta: { public: true } },
+  { path: '/record/:slug', component: RecordDetail, meta: { public: true } },
   { path: '/search', component: AdvancedSearch, meta: { requiresAuth: true } },
   { path: '/admin', component: Admin, meta: { requiresAuth: true } },
-  { path: '/record/:slug', component: RecordDetail, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
@@ -29,6 +29,11 @@ router.beforeEach((to, _from, next) => {
     } else {
       next();
     }
+    return;
+  }
+
+  if (to.meta.public) {
+    next();
     return;
   }
 

@@ -4,6 +4,8 @@ import {
   canAccessAdmin,
   userCanCollaborate,
   userCanAnnotate,
+  userCanViewRecord,
+  userCanManageRecords,
   RESEARCHER_DEFAULT_PERMISSIONS,
 } from './authorization.js';
 
@@ -31,5 +33,19 @@ describe('authorization', () => {
   it('allows editor admin panel access', () => {
     const editor = { id: 3, username: 'e', role: 'editor' as const, permissions: [] };
     expect(canAccessAdmin(editor)).toBe(true);
+  });
+
+  it('allows public access to published records only', () => {
+    const published = { isPublished: 1 };
+    const draft = { isPublished: 0 };
+    expect(userCanViewRecord(null, published)).toBe(true);
+    expect(userCanViewRecord(null, draft)).toBe(false);
+    expect(userCanViewRecord(
+      { id: 1, username: 'e', role: 'editor', permissions: [] },
+      draft,
+    )).toBe(true);
+    expect(userCanManageRecords(
+      { id: 2, username: 'r', role: 'researcher', permissions: RESEARCHER_DEFAULT_PERMISSIONS },
+    )).toBe(false);
   });
 });
