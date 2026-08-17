@@ -420,19 +420,20 @@
 
           <!-- Annotations & notes below viewer (full width) -->
           <div
-            v-if="showModernViewer"
+            v-if="showAnnotationsSection"
             class="glass-card !p-6 flex flex-col gap-4"
           >
             <div class="shrink-0 border-b border-slate-200 dark:border-white/10 pb-3">
               <h3 class="text-sm font-bold text-slate-800 dark:text-white">Annotations &amp; Notes</h3>
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Use the annotate tool, pick a shape, then draw on the image. Add a note in the dialog. Private to you.
+                Use the annotate tool, pick a shape, then draw on the image. Choose private, team, or published visibility.
               </p>
             </div>
                 <RecordAnnotationsPanel
                   ref="annotationsPanelRef"
                   :record-id="record.id"
                   :record-slug="record.slug || ''"
+                  :record-published="record.isPublished === 1"
                   :highlight-id="editingAnnotation?.id"
                   embedded
                   @jump-to-view="onJumpToAnnotation"
@@ -459,6 +460,7 @@
       :mode="annotationDialogMode"
       :initial-color="annotationDialogMode === 'edit' ? editingAnnotation?.color : pendingAnnotation?.color"
       :initial-label="editingAnnotation?.label || ''"
+      :initial-visibility="editingAnnotation?.visibility || 'private'"
       @save="saveAnnotationDialog"
       @cancel="closeAnnotationDialog"
       @delete="deleteAnnotationDialog"
@@ -544,6 +546,9 @@ const showModernViewer = computed(() =>
 );
 
 const canAnnotateViewer = computed(() => canAnnotate() && showModernViewer.value);
+const showAnnotationsSection = computed(() =>
+  showModernViewer.value && (canAnnotate() || record.value?.isPublished === 1),
+);
 
 const activeViewerTab = computed(() => activeTab.value === 'viewer');
 
@@ -612,17 +617,22 @@ const closeAnnotationDialog = () => {
   selectViewerAnnotation(getViewerElement(), null);
 };
 
-const saveAnnotationDialog = async ({ label, color }) => {
+const saveAnnotationDialog = async ({ label, color, visibility }) => {
   if (!record.value) return;
   const key = record.value.slug || record.value.id;
   annotationSaving.value = true;
   try {
     if (annotationDialogMode.value === 'edit' && editingAnnotation.value) {
-      await updateAnnotation(key, editingAnnotation.value.id, { label: label || null, color });
+      await updateAnnotation(key, editingAnnotation.value.id, {
+        label: label || null,
+        color,
+        visibility,
+      });
     } else if (pendingAnnotation.value) {
       const payload = {
         ...pendingAnnotation.value,
         color: color || pendingAnnotation.value.color || DEFAULT_ANNOTATION_COLOR,
+        visibility: visibility || 'private',
         ...(label ? { label } : {}),
       };
       await createAnnotation(key, payload);

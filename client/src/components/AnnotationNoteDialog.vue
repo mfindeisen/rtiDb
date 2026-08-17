@@ -22,6 +22,29 @@
 
         <AnnotationColorPicker v-model="selectedColor" />
 
+        <div v-if="mode === 'create' || mode === 'edit'" class="space-y-2">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Visibility</span>
+          <div class="flex flex-wrap gap-2">
+            <label
+              v-for="option in visibilityOptions"
+              :key="option.value"
+              class="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border cursor-pointer transition-colors"
+              :class="selectedVisibility === option.value
+                ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-800 dark:text-blue-200'
+                : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'"
+            >
+              <input
+                v-model="selectedVisibility"
+                type="radio"
+                class="sr-only"
+                :value="option.value"
+              />
+              <span class="font-semibold">{{ option.label }}</span>
+              <span class="text-slate-400">{{ option.hint }}</span>
+            </label>
+          </div>
+        </div>
+
         <div class="space-y-2">
           <label for="annotation-note-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Note (optional)</label>
           <textarea
@@ -74,6 +97,7 @@
 import { ref, watch, nextTick } from 'vue';
 import AnnotationColorPicker from './AnnotationColorPicker.vue';
 import { loadAnnotationColor, saveAnnotationColor, DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
+import { ANNOTATION_VISIBILITIES, ANNOTATION_VISIBILITY_LABELS, type AnnotationVisibility } from '@rtidb/shared/annotations';
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -82,18 +106,31 @@ const props = defineProps({
   mode: { type: String, default: 'create' },
   initialColor: { type: String, default: '' },
   initialLabel: { type: String, default: '' },
+  initialVisibility: { type: String, default: 'private' },
 });
 
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const noteText = ref('');
 const selectedColor = ref(loadAnnotationColor());
-const inputRef = ref(null);
+const selectedVisibility = ref<AnnotationVisibility>('private');
+const inputRef = ref<HTMLTextAreaElement | null>(null);
+
+const visibilityOptions = ANNOTATION_VISIBILITIES.map((value) => ({
+  value,
+  label: ANNOTATION_VISIBILITY_LABELS[value],
+  hint: value === 'private'
+    ? 'Only you'
+    : value === 'team'
+      ? 'Researchers'
+      : 'Everyone',
+}));
 
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
     noteText.value = props.initialLabel || '';
     selectedColor.value = props.initialColor || loadAnnotationColor();
+    selectedVisibility.value = (props.initialVisibility as AnnotationVisibility) || 'private';
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -103,6 +140,7 @@ function save() {
   emit('save', {
     label: noteText.value.trim(),
     color: selectedColor.value || DEFAULT_ANNOTATION_COLOR,
+    visibility: selectedVisibility.value,
   });
 }
 

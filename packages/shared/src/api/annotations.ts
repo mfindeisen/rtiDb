@@ -1,4 +1,4 @@
-import type { AnnotationGeometry } from '../annotations.js';
+import type { AnnotationGeometry, AnnotationVisibility } from '../annotations.js';
 
 export interface AnnotationRtiView {
   lightDir: { x: number; y: number; z: number };
@@ -16,6 +16,9 @@ export interface RecordAnnotation {
   color: string | null;
   rtiView: AnnotationRtiView;
   source?: string | null;
+  visibility: AnnotationVisibility;
+  userId: number;
+  username: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,9 +34,11 @@ export interface CreateAnnotationPayload {
   label?: string | null;
   color?: string;
   rtiView: AnnotationRtiView;
+  visibility?: AnnotationVisibility;
 }
 
 export interface UpdateAnnotationPayload {
   label?: string | null;
   color?: string;
+  visibility?: AnnotationVisibility;
 }

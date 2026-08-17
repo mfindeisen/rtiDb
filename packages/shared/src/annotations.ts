@@ -3,6 +3,22 @@
 export const ANNOTATION_TYPES = ['point', 'circle', 'rectangle'] as const;
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 
+export const ANNOTATION_VISIBILITIES = ['private', 'team', 'published'] as const;
+export type AnnotationVisibility = (typeof ANNOTATION_VISIBILITIES)[number];
+
+export const ANNOTATION_VISIBILITY_LABELS: Record<AnnotationVisibility, string> = {
+  private: 'Private',
+  team: 'Team',
+  published: 'Published',
+};
+
+export function parseAnnotationVisibility(value: unknown): AnnotationVisibility {
+  if (typeof value === 'string' && ANNOTATION_VISIBILITIES.includes(value as AnnotationVisibility)) {
+    return value as AnnotationVisibility;
+  }
+  return 'private';
+}
+
 export interface PointGeometry {
   position?: [number, number];
   center?: [number, number];

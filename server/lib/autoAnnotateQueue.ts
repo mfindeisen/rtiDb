@@ -132,6 +132,7 @@ const queue = createJobQueue<AutoAnnotateJob, QueueItem, PublicAutoAnnotateJob>(
           color: ann.color || AI_COLOR,
           rtiView: ann.rtiView,
           source: 'ai',
+          visibility: 'team',
           createdAt: now,
           updatedAt: now,
         }).run();
