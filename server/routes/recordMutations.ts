@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { Express } from 'express';
 import { normalizeMetadata, formatCatalogDate, formatCatalogDateTime } from '../lib/metadataFields.js';
 import { assignSlugForRecord } from '../lib/slug.js';
-import { handleRtiUpload, validateRecordForUpload } from '../lib/rtiUploadHandler.js';
+import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '../lib/rtiUploadHandler.js';
 import { sendError } from '../lib/httpErrors.js';
 import { sendDatabaseError } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
@@ -215,7 +215,9 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         return sendError(res, 400, 'Original file no longer exists on server disk.');
       }
 
-      db.update(schema.records).set({ status: 'processing', progress: 0 }).where(eq(schema.records.id, record.id)).run();
+      if (!claimRecordForRerun(db, schema, record.id)) {
+        return sendError(res, 409, 'Record is already being processed.');
+      }
       snapshotRecordAfter(record.id, 'reprocessed', req, 'Processing rerun started');
 
       const options = {

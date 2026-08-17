@@ -9,7 +9,7 @@ export interface UploadMiddlewareResult {
   imageSearchUpload: multer.Multer;
 }
 
-export function createUploadMiddleware(serverDir: string): UploadMiddlewareResult {
+export function createUploadMiddleware(serverDir: string, maxFileSizeBytes = 2 * 1024 * 1024 * 1024): UploadMiddlewareResult {
   const uploadDir = path.join(serverDir, 'uploads');
   const storage = multer.diskStorage({
     destination: async (_req, _file, cb) => {
@@ -21,7 +21,7 @@ export function createUploadMiddleware(serverDir: string): UploadMiddlewareResul
     },
   });
 
-  const upload = multer({ storage });
+  const upload = multer({ storage, limits: { fileSize: maxFileSizeBytes } });
   const uploadFields = upload.fields([
     { name: 'file', maxCount: 1 },
     { name: 'latentMap', maxCount: 1 },

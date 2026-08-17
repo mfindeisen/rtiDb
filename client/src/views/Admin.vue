@@ -385,11 +385,13 @@ import {
   rerunProcessing,
   startAutoAnnotate,
   getAutoAnnotateJob,
+  getRecordProcessing,
   uploadNewRecord,
   uploadToRecord,
 } from '@/api/records';
 import { getCurrentUser, logout as authLogout, hasPermission } from '@/composables/useAuth';
 import { pollJob } from '@/composables/useJobPoll';
+import type { ProcessingJob } from '@rtidb/shared/api/jobs';
 import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
 import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
@@ -733,7 +735,7 @@ const setupProgress = () => {
 
 const fetchRecords = async () => {
   try {
-    records.value = await listRecords();
+    records.value = await listRecords({ published: 'all' });
   } catch (err) {
     if (!handleUnauthorized(err)) {
       console.error("Failed to load records", err);
@@ -743,8 +745,48 @@ const fetchRecords = async () => {
   }
 };
 
+function applyProcessingJob(job: ProcessingJob) {
+  const rec = records.value.find((r) => r.id === job.recordId);
+  if (!rec) return;
+  if (job.status === 'queued') {
+    rec.status = 'processing';
+    rec.message = job.position > 1 ? `In queue — position ${job.position}` : 'Waiting for worker…';
+    return;
+  }
+  if (job.status === 'processing') {
+    rec.status = 'processing';
+    return;
+  }
+  if (job.status === 'done' && rec.status !== 'done') {
+    rec.status = 'done';
+    rec.progress = 100;
+    void fetchRecords();
+    return;
+  }
+  if (job.status === 'error') {
+    rec.status = 'error';
+    rec.message = job.error || rec.message;
+  }
+}
+
+async function pollProcessingFallback() {
+  const processingIds = records.value
+    .filter((r) => r.status === 'processing')
+    .map((r) => r.id);
+  if (processingIds.length === 0) return;
+
+  await Promise.all(processingIds.map(async (id) => {
+    try {
+      applyProcessingJob(await getRecordProcessing(id));
+    } catch (err) {
+      if (handleUnauthorized(err)) return;
+    }
+  }));
+}
+
 const now = ref(Date.now());
 let timer = null;
+let processingPollTimer = null;
 
 const formatTime = (ms) => {
   if (!ms || ms < 0 || ms === Infinity) return '--:--';
@@ -772,11 +814,13 @@ onMounted(() => {
   fetchRecords();
   setupProgress();
   timer = setInterval(() => { now.value = Date.now(); }, 1000);
+  processingPollTimer = setInterval(() => { void pollProcessingFallback(); }, 3000);
 });
 
 onUnmounted(() => {
   unsubscribeProgress?.();
   if (timer) clearInterval(timer);
+  if (processingPollTimer) clearInterval(processingPollTimer);
   clearAutoAnnotatePoll();
 });
 
@@ -868,6 +912,7 @@ const uploadFile = async () => {
     clearUploadTarget();
 
     await fetchRecords();
+    void pollProcessingFallback();
   } catch (err) {
     if (handleUnauthorized(err)) return;
     error.value = err instanceof Error ? err.message : 'Upload failed';
@@ -961,6 +1006,7 @@ const rerunRecord = async (id) => {
       rec.progress = 0;
       rec.message = 'Rerun requested...';
     }
+    void pollProcessingFallback();
   } catch (err) {
     if (handleUnauthorized(err)) return;
     alert(err instanceof ApiError ? `Failed to rerun record: ${err.body}` : "Failed to rerun record.");

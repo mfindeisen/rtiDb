@@ -37,7 +37,19 @@ export function errorHandler(err: unknown, _req: Request, res: Response, next: N
     return;
   }
 
+  if (isMulterLimitError(err)) {
+    sendError(res, 413, 'Uploaded file is too large');
+    return;
+  }
+
   console.error('Unhandled error:', err);
   const message = err instanceof Error ? err.message : 'Internal server error';
   sendError(res, 500, message);
+}
+
+function isMulterLimitError(err: unknown): boolean {
+  return typeof err === 'object'
+    && err !== null
+    && 'code' in err
+    && (err as { code: unknown }).code === 'LIMIT_FILE_SIZE';
 }

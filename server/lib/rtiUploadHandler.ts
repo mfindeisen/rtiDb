@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import type { CatalogMetadata } from '@rtidb/shared/metadataFields';
 import {
@@ -11,7 +11,7 @@ import { normalizeMetadata } from './metadataFields.js';
 import { assignSlugForRecord } from './slug.js';
 import { sendError } from './httpErrors.js';
 import type { ServerContext } from '../types/index.js';
-import type { DbRecord } from '../types/index.js';
+import type { AppDb, AppSchema, DbRecord } from '../types/index.js';
 
 export interface RtiUploadTarget {
   recordId?: number;
@@ -37,6 +37,50 @@ export function validateRecordForUpload(record: DbRecord, res: Response): boolea
     return false;
   }
   return true;
+}
+
+/** Atomically claim a record for upload so concurrent POSTs cannot enqueue duplicate jobs. */
+export function claimRecordForUpload(
+  db: AppDb,
+  schema: AppSchema,
+  recordId: number,
+  values: {
+    status?: string;
+    progress?: number | null;
+    message?: string | null;
+    outputType?: string | null;
+    originalFilePath?: string | null;
+    weightsFilePath?: string | null;
+    quality?: number | null;
+    tileSize?: number | null;
+    format?: string | null;
+    metadata?: CatalogMetadata;
+  },
+): boolean {
+  const result = db.update(schema.records)
+    .set(values)
+    .where(and(
+      eq(schema.records.id, recordId),
+      sql`${schema.records.status} NOT IN ('processing', 'done')`,
+      sql`NOT (${schema.records.status} = 'error' AND ${schema.records.originalFilePath} IS NOT NULL)`,
+    ))
+    .run();
+  return result.changes > 0;
+}
+
+export function claimRecordForRerun(
+  db: AppDb,
+  schema: AppSchema,
+  recordId: number,
+): boolean {
+  const result = db.update(schema.records)
+    .set({ status: 'processing', progress: 0 })
+    .where(and(
+      eq(schema.records.id, recordId),
+      eq(schema.records.status, 'error'),
+    ))
+    .run();
+  return result.changes > 0;
 }
 
 export async function handleRtiUpload(
@@ -85,7 +129,7 @@ export async function handleRtiUpload(
       ctx.db.select().from(ctx.schema.records).where(eq(ctx.schema.records.id, recordId)).get(),
     );
   } else {
-    ctx.db.update(ctx.schema.records).set({
+    const claimed = claimRecordForUpload(ctx.db, ctx.schema, recordId, {
       status: 'processing',
       progress: 0,
       message: null,
@@ -96,7 +140,11 @@ export async function handleRtiUpload(
       tileSize: options.tileSize,
       format: options.format,
       metadata,
-    }).where(eq(ctx.schema.records.id, recordId)).run();
+    });
+    if (!claimed) {
+      sendError(res, 409, 'Record is already being processed or already has RTI data.');
+      return;
+    }
   }
 
   ctx.snapshotRecordAfter(recordId, target.snapshotAction, req, target.snapshotComment);

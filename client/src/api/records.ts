@@ -5,7 +5,7 @@ import type {
   SuccessResponse,
   UpdateMetadataResponse,
 } from '@rtidb/shared/api/records';
-import type { AutoAnnotateJob } from '@rtidb/shared/api/jobs';
+import type { AutoAnnotateJob, ProcessingEnqueueResponse, ProcessingJob } from '@rtidb/shared/api/jobs';
 import type { CatalogMetadata } from '@rtidb/shared';
 import { ApiError, apiUrl, request } from './client';
 
@@ -51,8 +51,8 @@ export async function publishRecord(id: number, publish: boolean): Promise<Succe
   });
 }
 
-export async function rerunProcessing(id: number): Promise<SuccessResponse> {
-  return request<SuccessResponse>(`/api/records/${id}/rerun`, { method: 'POST' });
+export async function rerunProcessing(id: number): Promise<ProcessingEnqueueResponse> {
+  return request<ProcessingEnqueueResponse>(`/api/records/${id}/rerun`, { method: 'POST' });
 }
 
 export async function updateMetadata(
@@ -74,6 +74,14 @@ export async function startAutoAnnotate(id: number, replace = false): Promise<Au
 
 export async function getAutoAnnotateJob(recordId: number, jobId: string): Promise<AutoAnnotateJob> {
   return request<AutoAnnotateJob>(`/api/records/${recordId}/auto-annotate/jobs/${jobId}`);
+}
+
+export async function getProcessingJob(jobId: string): Promise<ProcessingJob> {
+  return request<ProcessingJob>(`/api/processing/jobs/${jobId}`);
+}
+
+export async function getRecordProcessing(id: number): Promise<ProcessingJob> {
+  return request<ProcessingJob>(`/api/records/${id}/processing`);
 }
 
 export function exportRecordUrl(id: number | string, format: string): string {
@@ -113,14 +121,14 @@ export function uploadWithProgress(
 export async function uploadNewRecord(
   formData: FormData,
   onProgress: (percent: number) => void,
-): Promise<unknown> {
-  return uploadWithProgress('/api/upload', formData, onProgress);
+): Promise<ProcessingEnqueueResponse> {
+  return uploadWithProgress('/api/upload', formData, onProgress) as Promise<ProcessingEnqueueResponse>;
 }
 
 export async function uploadToRecord(
   id: number,
   formData: FormData,
   onProgress: (percent: number) => void,
-): Promise<unknown> {
-  return uploadWithProgress(`/api/records/${id}/upload`, formData, onProgress);
+): Promise<ProcessingEnqueueResponse> {
+  return uploadWithProgress(`/api/records/${id}/upload`, formData, onProgress) as Promise<ProcessingEnqueueResponse>;
 }

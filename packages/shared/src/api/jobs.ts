@@ -43,3 +43,10 @@ export interface ProcessingJob {
   startedAt: string | null;
   finishedAt: string | null;
 }
+
+export interface ProcessingEnqueueResponse {
+  success: true;
+  id?: number;
+  jobId: string;
+  position: number;
+}

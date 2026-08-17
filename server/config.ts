@@ -25,6 +25,7 @@ export interface ServerConfig {
   imageSearchRateWindowMs: number;
   keepOriginalRti: boolean;
   corsOrigins: string[];
+  maxRtiUploadBytes: number;
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -71,6 +72,7 @@ export function loadConfig(): ServerConfig {
       isProduction,
       process.env.PUBLIC_BASE_URL?.replace(/\/$/, '') || null,
     ),
+    maxRtiUploadBytes: Number(process.env.MAX_RTI_UPLOAD_BYTES) || 2 * 1024 * 1024 * 1024,
   };
 }
 
