@@ -224,7 +224,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         format: record.format || 'jpg',
       };
 
-      void enqueueProcessing({
+      const job = enqueueProcessing({
         recordId: record.id,
         originalFilePath: record.originalFilePath,
         weightsPath: record.weightsFilePath,
@@ -232,7 +232,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         outputType: record.outputType || 'tiles',
       });
 
-      res.json({ success: true });
+      res.json({ success: true, jobId: job.jobId, position: job.position });
     } catch (err) {
       console.error('Rerun error:', err);
       sendDatabaseError(res, err, 'Rerun error');

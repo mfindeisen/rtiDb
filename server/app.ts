@@ -20,6 +20,7 @@ import { registerNoteRoutes } from './routes/notes.js';
 import { registerAnnotationRoutes } from './routes/annotations.js';
 import { registerCommentRoutes } from './routes/comments.js';
 import { registerRecordMutationRoutes } from './routes/recordMutations.js';
+import { registerProcessingJobRoutes } from './routes/processingJobs.js';
 import { registerUserRoutes } from './routes/users.js';
 import { errorHandler, notFoundHandler } from './lib/httpErrors.js';
 import type { ServerContext } from './types/index.js';
@@ -40,7 +41,7 @@ export function createApp(config: ServerConfig): Express {
     snapshotRecordAfterSystem: recordHelpers.snapshotRecordAfterSystem,
   });
 
-  const processingQueue = createProcessingQueue(async (item) => {
+  const processingQueue = createProcessingQueue(db, schema, async (item) => {
     await runProcessingPipeline(
       item.recordId,
       item.originalFilePath,
@@ -49,10 +50,7 @@ export function createApp(config: ServerConfig): Express {
       item.outputType,
     );
   });
-
-  const enqueueProcessing: ServerContext['enqueueProcessing'] = (item) => {
-    processingQueue.enqueue(item);
-  };
+  processingQueue.recoverOnStartup();
 
   const ctx: ServerContext = {
     db,
@@ -64,7 +62,9 @@ export function createApp(config: ServerConfig): Express {
     ...auth,
     ...recordHelpers,
     runProcessingPipeline,
-    enqueueProcessing,
+    enqueueProcessing: (item) => processingQueue.enqueue(item),
+    getProcessingJob: (jobId) => processingQueue.get(jobId),
+    getLatestProcessingJob: (recordId) => processingQueue.getLatestForRecord(recordId),
   };
 
   app.use(cors());
@@ -83,6 +83,7 @@ export function createApp(config: ServerConfig): Express {
   registerAnnotationRoutes(app, ctx);
   registerCommentRoutes(app, ctx);
   registerRecordMutationRoutes(app, ctx);
+  registerProcessingJobRoutes(app, ctx);
   registerUserRoutes(app, ctx);
 
   app.use(notFoundHandler);

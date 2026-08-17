@@ -1,3 +1,4 @@
+import type { ProcessingJob } from '@rtidb/shared/api/jobs';
 import type { Express, Request, RequestHandler, Response } from 'express';
 import type multer from 'multer';
 import type { ServerConfig } from '../config.js';
@@ -46,7 +47,9 @@ export interface ServerContext extends AuthContext, RecordHelpersContext {
     weightsPath: string | null;
     options: ProcessingOptions;
     outputType: string;
-  }) => void;
+  }) => ProcessingJob;
+  getProcessingJob: (jobId: string) => ProcessingJob | null;
+  getLatestProcessingJob: (recordId: number) => ProcessingJob | null;
 }
 
 export type RouteRegistrar = (app: Express, ctx: ServerContext) => void;

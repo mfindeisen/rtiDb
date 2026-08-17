@@ -30,3 +30,16 @@ export interface ImageSearchJob {
   startedAt: number | null;
   finishedAt: number | null;
 }
+
+export type ProcessingJobStatus = 'queued' | 'processing' | 'done' | 'error';
+
+export interface ProcessingJob {
+  jobId: string;
+  recordId: number;
+  status: ProcessingJobStatus;
+  position: number;
+  error: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}

@@ -13,6 +13,7 @@ export type DbRecordNote = InferSelectModel<typeof schema.recordNotes>;
 export type DbRecordRevision = InferSelectModel<typeof schema.recordRevisions>;
 export type DbRecordAnnotation = InferSelectModel<typeof schema.recordAnnotations>;
 export type DbImageSearchCache = InferSelectModel<typeof schema.imageSearchCache>;
+export type DbProcessingJob = InferSelectModel<typeof schema.processingJobs>;
 
 /** Catalog metadata JSON stored on records.metadata */
 export type RecordMetadata = Record<string, unknown>;

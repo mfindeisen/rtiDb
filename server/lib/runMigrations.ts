@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { ensureRecordsSchema, ensureAnnotationSchema, ensureCommentSchema, ensureFtsSchema } from './schemaRepair.js';
+import { ensureRecordsSchema, ensureAnnotationSchema, ensureCommentSchema, ensureFtsSchema, ensureProcessingJobsSchema } from './schemaRepair.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +23,7 @@ export function runMigrations({ dataDir = path.join(__dirname, '..', 'data') }: 
   ensureAnnotationSchema(sqlite);
   ensureCommentSchema(sqlite);
   ensureFtsSchema(sqlite);
+  ensureProcessingJobsSchema(sqlite);
 
   sqlite.close();
   return dbPath;

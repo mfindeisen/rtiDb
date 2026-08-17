@@ -100,12 +100,12 @@ export async function handleRtiUpload(
   }
 
   ctx.snapshotRecordAfter(recordId, target.snapshotAction, req, target.snapshotComment);
-  ctx.enqueueProcessing({
+  const job = ctx.enqueueProcessing({
     recordId,
     originalFilePath: parsed.originalFilePath,
     weightsPath: parsed.weightsPath,
     options,
     outputType: resolvedOutputType,
   });
-  res.json({ success: true, id: recordId });
+  res.json({ success: true, id: recordId, jobId: job.jobId, position: job.position });
 }

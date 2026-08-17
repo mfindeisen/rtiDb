@@ -124,3 +124,30 @@ export function ensureFtsSchema(sqlite: Database.Database) {
   console.log('Schema repair: created records_fts');
 }
 
+/** Persisted RTI processing queue jobs. */
+export function ensureProcessingJobsSchema(sqlite: Database.Database) {
+  const tableExists = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'processing_jobs'")
+    .get();
+  if (tableExists) return;
+
+  sqlite.exec(`
+    CREATE TABLE \`processing_jobs\` (
+      \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      \`record_id\` integer NOT NULL,
+      \`job_type\` text DEFAULT 'rti' NOT NULL,
+      \`status\` text DEFAULT 'queued' NOT NULL,
+      \`position\` integer DEFAULT 0 NOT NULL,
+      \`payload_json\` text NOT NULL,
+      \`error\` text,
+      \`created_at\` text NOT NULL,
+      \`started_at\` text,
+      \`finished_at\` text,
+      FOREIGN KEY (\`record_id\`) REFERENCES \`records\`(\`id\`) ON UPDATE no action ON DELETE cascade
+    );
+    CREATE INDEX \`processing_jobs_status_idx\` ON \`processing_jobs\` (\`status\`);
+    CREATE INDEX \`processing_jobs_record_idx\` ON \`processing_jobs\` (\`record_id\`);
+  `);
+  console.log('Schema repair: created processing_jobs table');
+}
+

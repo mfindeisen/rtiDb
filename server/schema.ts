@@ -79,6 +79,7 @@ export const recordAnnotations = sqliteTable('record_annotations', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   source: text('source').default('manual'),
+  visibility: text('visibility').notNull().default('private'),
 });
 
 export const imageSearchCache = sqliteTable('image_search_cache', {
@@ -93,3 +94,16 @@ export const imageSearchCache = sqliteTable('image_search_cache', {
 }, (table) => [
   primaryKey({ columns: [table.contentHash, table.resultLimit] }),
 ]);
+
+export const processingJobs = sqliteTable('processing_jobs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  recordId: integer('record_id').notNull().references(() => records.id, { onDelete: 'cascade' }),
+  jobType: text('job_type').notNull().default('rti'),
+  status: text('status').notNull().default('queued'),
+  position: integer('position').notNull().default(0),
+  payloadJson: text('payload_json').notNull(),
+  error: text('error'),
+  createdAt: text('created_at').notNull(),
+  startedAt: text('started_at'),
+  finishedAt: text('finished_at'),
+});
