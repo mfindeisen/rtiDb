@@ -1,5 +1,7 @@
 import { normalizeMetadata, parseGpsPosition, type CatalogMetadata } from './metadataFields.js';
-import type { DbRecord, RecordMetadata } from '../types/index.js';
+import { inArray, sql } from 'drizzle-orm';
+import type { AppDb, AppSchema, DbRecord, RecordMetadata } from '../types/index.js';
+import { listAllRecords, listRecordsByPublish } from './userResources.js';
 
 function getMetadata(record: DbRecord): CatalogMetadata {
   if (!record.metadata) return normalizeMetadata(null);
@@ -135,3 +137,64 @@ export function parseFiltersParam(filtersStr: unknown): Record<string, string> {
     return {};
   }
 }
+
+/** Build a safe FTS5 MATCH query; returns null when the input has no usable tokens. */
+export function buildFtsMatchQuery(q: string): string | null {
+  const tokens = q
+    .toLowerCase()
+    .split(/[\s,.;:/\\|"'`~!@#$%^&*()[\]{}<>?+=]+/)
+    .map((token) => token.replace(/[^a-z0-9_-]/gi, ''))
+    .filter((token) => token.length >= 2);
+  if (!tokens.length) return null;
+  return tokens.map((token) => `${token}*`).join(' AND ');
+}
+
+function sqliteClient(db: AppDb): import('better-sqlite3').Database | null {
+  const asAny = db as unknown as {
+    $client?: import('better-sqlite3').Database;
+    session?: { client?: import('better-sqlite3').Database };
+  };
+  return asAny.$client ?? asAny.session?.client ?? null;
+}
+
+export function loadSearchCandidates(
+  db: AppDb,
+  schema: AppSchema,
+  options: { publishedOnly?: boolean; q?: string } = {},
+): DbRecord[] {
+  const { publishedOnly = true, q = '' } = options;
+  const sqlite = sqliteClient(db);
+  const match = q.trim() ? buildFtsMatchQuery(q) : null;
+
+  if (sqlite && match) {
+    try {
+      const ftsReady = sqlite
+        .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'records_fts'")
+        .get();
+      if (ftsReady) {
+        const idRows = sqlite.prepare(`
+          SELECT r.id AS id
+          FROM records r
+          JOIN records_fts f ON f.rowid = r.id
+          WHERE f MATCH ?
+            ${publishedOnly ? 'AND r.is_published = 1' : ''}
+          ORDER BY r.id DESC
+        `).all(match) as Array<{ id: number }>;
+        const ids = idRows.map((row) => row.id);
+        if (!ids.length) return [];
+        return db.select()
+          .from(schema.records)
+          .where(inArray(schema.records.id, ids))
+          .orderBy(sql`${schema.records.id} DESC`)
+          .all();
+      }
+    } catch (err) {
+      console.warn('FTS search fallback:', err);
+    }
+  }
+
+  return publishedOnly
+    ? listRecordsByPublish(db, schema, 'published')
+    : listAllRecords(db, schema);
+}
+

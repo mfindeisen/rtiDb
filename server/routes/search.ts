@@ -1,40 +1,31 @@
 import fs from 'fs/promises';
-import { sql, eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { Express } from 'express';
 import { userCanManageRecords } from '@rtidb/shared/authorization';
 import { normalizeMetadata } from '../lib/metadataFields.js';
-import { searchRecords, parseBboxParam, parseFiltersParam } from '../lib/search.js';
+import { searchRecords, parseBboxParam, parseFiltersParam, loadSearchCandidates } from '../lib/search.js';
 import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.js';
 import { getCachedImageSearch, hashImageFile } from '../lib/imageSearchCache.js';
 import { consumeRateLimit, imageSearchRateLimitKey, IMAGE_SEARCH_RATE_LIMIT } from '../lib/rateLimit.js';
 import { parseMetadataFiltersFromQuery } from '../lib/records.js';
 import { sendExport } from '../lib/recordHelpers.js';
 import { queryNumber, routeParam } from '../lib/httpParams.js';
-import { listAllRecords } from '../lib/userResources.js';
+import { listRecordsByPublish } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
 
 export function registerSearchRoutes(app: Express, ctx: ServerContext) {
   const { db, schema, uploadDir, imageSearchUpload, authMiddleware, optionalAuthMiddleware } = ctx;
 
-  function filterRecordsByPublish<T extends { isPublished?: number | null }>(
-    records: T[],
-    req: import('express').Request,
-  ): T[] {
+  function publishedFilter(req: import('express').Request): 'all' | 'published' | 'unpublished' {
     const staff = userCanManageRecords(req.user);
     const publishedParam = String(req.query.published ?? '');
-
-    if (publishedParam === 'all' && staff) {
-      return records;
-    }
-    if (publishedParam === '0' && staff) {
-      return records.filter((r) => r.isPublished !== 1);
-    }
-    return records.filter((r) => r.isPublished === 1);
+    if (publishedParam === 'all' && staff) return 'all';
+    if (publishedParam === '0' && staff) return 'unpublished';
+    return 'published';
   }
 
   app.get('/api/records', optionalAuthMiddleware, (req, res) => {
     try {
-      const allRecords = listAllRecords(db, schema);
       const hasFilters =
         req.query.q ||
         req.query.filters ||
@@ -46,21 +37,25 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         const publishedOnly = req.query.published === 'all' && staff
           ? false
           : req.query.published !== '0';
-        const result = searchRecords(allRecords, {
+        const candidates = loadSearchCandidates(db, schema, {
+          publishedOnly,
+          q: String(req.query.q || ''),
+        });
+        const result = searchRecords(candidates, {
           q: String(req.query.q || ''),
           filters: {
             ...parseFiltersParam(String(req.query.filters || '')),
             ...parseMetadataFiltersFromQuery(req.query),
           },
           bbox: parseBboxParam(String(req.query.bbox || '')),
-          publishedOnly,
+          publishedOnly: false,
           page: queryNumber(req.query.page),
           limit: queryNumber(req.query.limit),
         });
         return res.json(result);
       }
 
-      const records = filterRecordsByPublish(allRecords, req);
+      const records = listRecordsByPublish(db, schema, publishedFilter(req));
       res.json(records.map((r) => ({ ...r, metadata: normalizeMetadata(r.metadata) })));
     } catch (err) {
       console.error('Records list error:', err);
@@ -78,7 +73,10 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         });
       }
 
-      const allRecords = listAllRecords(db, schema);
+      const allRecords = loadSearchCandidates(db, schema, {
+        publishedOnly: req.query.published !== '0',
+        q: String(req.query.q || ''),
+      });
       const result = searchRecords(allRecords, {
         q: String(req.query.q || ''),
         filters: {
@@ -86,7 +84,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
           ...parseMetadataFiltersFromQuery(req.query),
         },
         bbox: parseBboxParam(String(req.query.bbox || '')),
-        publishedOnly: req.query.published !== '0',
+        publishedOnly: false,
         page: 1,
         limit: 10000,
       });
@@ -101,7 +99,10 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
 
   app.get('/api/search', (req, res) => {
     try {
-      const records = listAllRecords(db, schema);
+      const records = loadSearchCandidates(db, schema, {
+        publishedOnly: req.query.published !== '0',
+        q: String(req.query.q || ''),
+      });
       const result = searchRecords(records, {
         q: String(req.query.q || ''),
         filters: {
@@ -109,7 +110,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
           ...parseMetadataFiltersFromQuery(req.query),
         },
         bbox: parseBboxParam(String(req.query.bbox || '')),
-        publishedOnly: req.query.published !== '0',
+        publishedOnly: false,
         page: queryNumber(req.query.page),
         limit: queryNumber(req.query.limit),
       });

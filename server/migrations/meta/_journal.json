@@ -71,6 +71,13 @@
       "when": 1783201000000,
       "tag": "0009_record_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786958400000,
+      "tag": "00010_records_fts",
+      "breakpoints": true
     }
   ]
 }

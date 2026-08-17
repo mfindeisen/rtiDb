@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import type { AppDb, AppSchema } from '../types/index.js';
+import type { AppDb, AppSchema, DbRecord } from '../types/index.js';
 import { hashPassword, parsePermissions } from './auth/password.js';
 import { sendError } from './httpErrors.js';
 import { RESEARCHER_DEFAULT_PERMISSIONS } from '@rtidb/shared/authorization';
@@ -7,6 +7,22 @@ import type { Permission } from '@rtidb/shared/permissions';
 
 export function listAllRecords(db: AppDb, schema: AppSchema) {
   return db.select().from(schema.records).orderBy(sql`${schema.records.id} DESC`).all();
+}
+
+export type PublishedFilter = 'all' | 'published' | 'unpublished';
+
+export function listRecordsByPublish(
+  db: AppDb,
+  schema: AppSchema,
+  published: PublishedFilter,
+): DbRecord[] {
+  if (published === 'all') return listAllRecords(db, schema);
+  const publishedValue = published === 'published' ? 1 : 0;
+  return db.select()
+    .from(schema.records)
+    .where(eq(schema.records.isPublished, publishedValue))
+    .orderBy(sql`${schema.records.id} DESC`)
+    .all();
 }
 
 export function parseResourceId(raw: string | string[] | undefined): number | null {

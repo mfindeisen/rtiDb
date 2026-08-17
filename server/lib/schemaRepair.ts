@@ -83,3 +83,44 @@ export function ensureAnnotationSchema(sqlite: Database.Database) {
     console.log('Schema repair: added record_annotations.source');
   }
 }
+
+/** Full-text search index over catalog records. */
+export function ensureFtsSchema(sqlite: Database.Database) {
+  sqlite.exec('CREATE INDEX IF NOT EXISTS `records_published_idx` ON `records` (`is_published`)');
+
+  const ftsExists = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'records_fts'")
+    .get();
+  if (ftsExists) return;
+
+  sqlite.exec(`
+    CREATE VIRTUAL TABLE records_fts USING fts5(
+      name,
+      description,
+      metadata,
+      content='records',
+      content_rowid='id'
+    );
+
+    CREATE TRIGGER records_fts_ai AFTER INSERT ON records BEGIN
+      INSERT INTO records_fts(rowid, name, description, metadata)
+      VALUES (new.id, new.name, new.description, new.metadata);
+    END;
+
+    CREATE TRIGGER records_fts_ad AFTER DELETE ON records BEGIN
+      INSERT INTO records_fts(records_fts, rowid, name, description, metadata)
+      VALUES('delete', old.id, old.name, old.description, old.metadata);
+    END;
+
+    CREATE TRIGGER records_fts_au AFTER UPDATE ON records BEGIN
+      INSERT INTO records_fts(records_fts, rowid, name, description, metadata)
+      VALUES('delete', old.id, old.name, old.description, old.metadata);
+      INSERT INTO records_fts(rowid, name, description, metadata)
+      VALUES (new.id, new.name, new.description, new.metadata);
+    END;
+
+    INSERT INTO records_fts(records_fts) VALUES('rebuild');
+  `);
+  console.log('Schema repair: created records_fts');
+}
+
