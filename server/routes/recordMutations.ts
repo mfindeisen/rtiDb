@@ -3,7 +3,8 @@ import fs from 'fs/promises';
 import { eq } from 'drizzle-orm';
 import type { Express } from 'express';
 import { normalizeMetadata, formatCatalogDate, formatCatalogDateTime } from '../lib/metadataFields.js';
-import { assignSlugForRecord } from '../lib/slug.js';
+import { assignSlugForRecord, refreshSlugIfAuto } from '../lib/slug.js';
+import { metadataWithPublishStatus } from '../lib/records.js';
 import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '../lib/rtiUploadHandler.js';
 import { sendError } from '../lib/httpErrors.js';
 import { sendDatabaseError } from '../lib/userResources.js';
@@ -106,6 +107,8 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
 
       if (!existing.slug) {
         assignSlugForRecord(db, schema, { ...existing, name, metadata: updatedMetadata });
+      } else {
+        refreshSlugIfAuto(db, schema, { ...existing, name, metadata: updatedMetadata, slug: existing.slug });
       }
 
       snapshotRecordAfter(existing.id, 'updated', req, 'Catalog metadata updated');
@@ -116,6 +119,32 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
+  app.patch('/api/records/:id/metadata', authMiddleware, requirePermission('edit_record'), (req, res) => {
+    const patch = req.body?.metadata ?? req.body;
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+      return sendError(res, 400, 'metadata object required');
+    }
+
+    try {
+      const existing = fetchRecordOr404(req, res);
+      if (!existing) return;
+
+      const now = formatCatalogDateTime(new Date().toISOString());
+      const updatedMetadata = normalizeMetadata({
+        ...normalizeMetadata(existing.metadata),
+        ...patch,
+        lastEdit: now,
+      });
+
+      db.update(schema.records).set({ metadata: updatedMetadata }).where(eq(schema.records.id, existing.id)).run();
+      refreshSlugIfAuto(db, schema, { ...existing, metadata: updatedMetadata });
+      snapshotRecordAfter(existing.id, 'updated', req, 'Catalog metadata patched');
+      res.json({ success: true, metadata: updatedMetadata });
+    } catch (err) {
+      sendDatabaseError(res, err, 'Update metadata error');
+    }
+  });
+
   app.put('/api/records/:id/publish', authMiddleware, requirePermission('edit_record'), (req, res) => {
     const { is_published } = req.body;
     if (typeof is_published !== 'boolean') return sendError(res, 400, 'is_published boolean required');
@@ -123,7 +152,15 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
     try {
       const record = fetchRecordOr404(req, res);
       if (!record) return;
-      db.update(schema.records).set({ isPublished: is_published ? 1 : 0 }).where(eq(schema.records.id, record.id)).run();
+      const now = formatCatalogDateTime(new Date().toISOString());
+      const metadata = {
+        ...metadataWithPublishStatus(record.metadata, is_published),
+        lastEdit: now,
+      };
+      db.update(schema.records).set({
+        isPublished: is_published ? 1 : 0,
+        metadata,
+      }).where(eq(schema.records.id, record.id)).run();
       snapshotRecordAfter(
         record.id,
         is_published ? 'published' : 'unpublished',
@@ -140,6 +177,9 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
     try {
       const record = fetchRecordOr404(req, res);
       if (!record) return;
+      if (record.status === 'processing') {
+        return sendError(res, 409, 'Cannot delete a record while it is being processed.');
+      }
 
       db.delete(schema.records).where(eq(schema.records.id, record.id)).run();
 

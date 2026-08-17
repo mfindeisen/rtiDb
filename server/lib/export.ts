@@ -7,8 +7,8 @@ import {
   recordCitationKey,
   recordCitationTitle,
   recordGps,
+  type RecordViewSource,
 } from './records.js';
-import type { DbRecord } from '../types/index.js';
 
 function escapeXml(str: unknown): string {
   return String(str ?? '')
@@ -28,11 +28,11 @@ function csvEscape(value: unknown): string {
   return s;
 }
 
-export function exportRecordsJson(records: DbRecord[], req: Request) {
+export function exportRecordsJson(records: RecordViewSource[], req: Request) {
   return records.map((r) => buildPublicRecord(r, req));
 }
 
-export function exportRecordsXml(records: DbRecord[], req: Request): string {
+export function exportRecordsXml(records: RecordViewSource[], req: Request): string {
   const items = records
     .map((r) => {
       const pub = buildPublicRecord(r, req);
@@ -60,7 +60,7 @@ ${metaEntries}
   return `<?xml version="1.0" encoding="UTF-8"?>\n<rtiCatalog exportedAt="${new Date().toISOString()}">\n${items}\n</rtiCatalog>`;
 }
 
-export function exportRecordsCsv(records: DbRecord[]): string {
+export function exportRecordsCsv(records: RecordViewSource[]): string {
   const columns = [
     'id',
     'name',
@@ -92,7 +92,7 @@ export function exportRecordsCsv(records: DbRecord[]): string {
   return `\uFEFF${header}\n${rows.join('\n')}`;
 }
 
-export function exportRecordBibtex(record: DbRecord, req: Request): string {
+export function exportRecordBibtex(record: RecordViewSource, req: Request): string {
   const pub = buildPublicRecord(record, req);
   const meta = pub.metadata;
   const key = recordCitationKey(record);
@@ -113,7 +113,7 @@ export function exportRecordBibtex(record: DbRecord, req: Request): string {
   return lines.join('\n');
 }
 
-export function exportRecordRis(record: DbRecord, req: Request): string {
+export function exportRecordRis(record: RecordViewSource, req: Request): string {
   const pub = buildPublicRecord(record, req);
   const meta = pub.metadata;
   const lines = [
@@ -172,7 +172,7 @@ interface IiifManifest {
   }[];
 }
 
-export function exportRecordIiifManifest(record: DbRecord, req: Request): IiifManifest {
+export function exportRecordIiifManifest(record: RecordViewSource, req: Request): IiifManifest {
   const baseUrl = getBaseUrl(req);
   const pub = buildPublicRecord(record, req);
   const assets = buildRtiAssets(record, baseUrl);
@@ -260,7 +260,7 @@ export interface ExportContent {
   filename: string;
 }
 
-export function getExportContent(records: DbRecord | DbRecord[], format: string, req: Request): ExportContent {
+export function getExportContent(records: RecordViewSource | RecordViewSource[], format: string, req: Request): ExportContent {
   const list = Array.isArray(records) ? records : [records];
   const single = list.length === 1 ? list[0]! : null;
 
@@ -317,7 +317,7 @@ export interface MetadataOnlyPayload {
   metadata: Partial<CatalogMetadata>;
 }
 
-export function metadataOnlyPayload(record: DbRecord): MetadataOnlyPayload {
+export function metadataOnlyPayload(record: RecordViewSource): MetadataOnlyPayload {
   const normalized = normalizeMetadata(record.metadata);
   return {
     id: record.id,

@@ -9,6 +9,15 @@ export interface UploadMiddlewareResult {
   imageSearchUpload: multer.Multer;
 }
 
+/** Keep a timestamped disk name free of path separators and control chars. */
+export function sanitizeUploadFilename(originalname: string, fallbackExt = ''): string {
+  const base = path.basename(String(originalname || '').replace(/\\/g, '/')).replace(/[\0\r\n]/g, '');
+  const ext = path.extname(base).slice(0, 16);
+  const stem = path.basename(base, ext).replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^[._]+/, '').slice(0, 80);
+  const safeExt = /^\.[a-zA-Z0-9]+$/.test(ext) ? ext.toLowerCase() : fallbackExt;
+  return `${stem || 'upload'}${safeExt}`;
+}
+
 export function createUploadMiddleware(serverDir: string, maxFileSizeBytes = 2 * 1024 * 1024 * 1024): UploadMiddlewareResult {
   const uploadDir = path.join(serverDir, 'uploads');
   const storage = multer.diskStorage({
@@ -17,7 +26,7 @@ export function createUploadMiddleware(serverDir: string, maxFileSizeBytes = 2 *
       cb(null, uploadDir);
     },
     filename: (_req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
+      cb(null, `${Date.now()}-${sanitizeUploadFilename(file.originalname)}`);
     },
   });
 
@@ -36,7 +45,8 @@ export function createUploadMiddleware(serverDir: string, maxFileSizeBytes = 2 *
         cb(null, tempDir);
       },
       filename: (_req, file, cb) => {
-        cb(null, `query-${Date.now()}${path.extname(file.originalname) || '.jpg'}`);
+        const safe = sanitizeUploadFilename(file.originalname, '.jpg');
+        cb(null, `query-${Date.now()}${path.extname(safe) || '.jpg'}`);
       },
     }),
     limits: { fileSize: 10 * 1024 * 1024 },

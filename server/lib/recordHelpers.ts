@@ -6,6 +6,7 @@ import { createRecordRevision } from './recordRevisions.js';
 import { resolveRecordFromParam } from './slug.js';
 import { getExportContent } from './export.js';
 import { ensureRecordViewAccess } from './recordAccess.js';
+import type { RecordViewSource } from './records.js';
 import type { AppDb, AppSchema, DbRecord, RecordHelpersContext } from '../types/index.js';
 
 export function createRecordHelpers({ db, schema }: { db: AppDb; schema: AppSchema }): RecordHelpersContext {
@@ -82,7 +83,7 @@ export async function getFolderStats(dirPath: string) {
   return { totalSize, fileCount };
 }
 
-export function sendExport(res: Response, records: DbRecord[], format: string, req: Request) {
+export function sendExport(res: Response, records: RecordViewSource[], format: string, req: Request) {
   const { contentType, body, filename } = getExportContent(records, format, req);
   const download = req.query.download !== '0';
   res.setHeader('Content-Type', contentType);

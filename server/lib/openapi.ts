@@ -70,7 +70,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
         get: {
           tags: ['Records'],
           summary: 'List or filter records',
-          description: 'Without filters returns all records. With query parameters uses the same logic as search (paginated). Use `published=1` for public catalog only.',
+          description: 'Always returns a paginated object `{ total, page, limit, totalPages, results }`. Use `published=1` for the public catalog.',
           parameters: [
             { name: 'published', in: 'query', schema: { type: 'string', enum: ['0', '1'] }, description: '1 = published only (default when filtering)' },
             { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Full-text search' },
@@ -83,7 +83,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
             ...metadataFilterParams,
           ],
           responses: {
-            200: { description: 'Record array or paginated search result' },
+            200: { description: 'Paginated record list' },
           },
         },
         post: {
@@ -190,6 +190,31 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
                 },
               },
             },
+            404: { description: 'Not found' },
+          },
+        },
+        patch: {
+          tags: ['Records'],
+          summary: 'Patch catalog metadata',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    metadata: { type: 'object', additionalProperties: { type: 'string' } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'Updated metadata' },
+            400: { description: 'Invalid body' },
+            401: { description: 'Unauthorized' },
             404: { description: 'Not found' },
           },
         },

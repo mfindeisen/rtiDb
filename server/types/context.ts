@@ -12,6 +12,7 @@ export interface AuthContext {
   verifyAuthHandler: RequestHandler;
   requirePermission: (permission: Permission) => RequestHandler;
   requireAdmin: RequestHandler;
+  requireManageRecords: RequestHandler;
 }
 
 export interface RecordHelpersContext {

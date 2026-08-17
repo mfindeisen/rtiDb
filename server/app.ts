@@ -78,7 +78,7 @@ export function createApp(config: ServerConfig): Express {
   registerHealthRoutes(app);
   registerDocsRoutes(app, auth.sessionAuthMiddleware);
   registerDiscoveryRoutes(app);
-  registerProgressRoutes(app, auth.authMiddleware, auth.requirePermission('upload_rti'));
+  registerProgressRoutes(app, auth.authMiddleware, auth.requireManageRecords);
   registerAuthRoutes(app, ctx);
   registerSearchRoutes(app, ctx);
   registerRecordReadRoutes(app, ctx);

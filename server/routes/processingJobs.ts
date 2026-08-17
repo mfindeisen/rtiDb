@@ -8,6 +8,7 @@ export function registerProcessingJobRoutes(
   {
     authMiddleware,
     requirePermission,
+    requireManageRecords,
     fetchRecordOr404,
     getProcessingJob,
     getLatestProcessingJob,
@@ -15,6 +16,7 @@ export function registerProcessingJobRoutes(
     ServerContext,
     | 'authMiddleware'
     | 'requirePermission'
+    | 'requireManageRecords'
     | 'fetchRecordOr404'
     | 'getProcessingJob'
     | 'getLatestProcessingJob'
@@ -29,7 +31,7 @@ export function registerProcessingJobRoutes(
     res.json(job);
   });
 
-  app.get('/api/records/:id/processing', authMiddleware, requirePermission('upload_rti'), (req, res) => {
+  app.get('/api/records/:id/processing', authMiddleware, requireManageRecords, (req, res) => {
     const record = fetchRecordOr404(req, res);
     if (!record) return;
 

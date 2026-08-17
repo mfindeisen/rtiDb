@@ -1,16 +1,35 @@
 import type { Request } from 'express';
 import type { ParsedQs } from 'qs';
 import { getConfig } from '../config.js';
-import { normalizeMetadata, getFilledMetadata, ALL_METADATA_KEYS, parseGpsPosition, type CatalogMetadata, type CatalogMetadataKey } from './metadataFields.js';
+import { normalizeMetadata, getFilledMetadata, ALL_METADATA_KEYS, parseGpsPosition, type CatalogMetadata, type CatalogMetadataKey, type StoredMetadata } from './metadataFields.js';
 import { recordPublicPath } from './slug.js';
 import type { DbRecord } from '../types/index.js';
 import type {
   PublicRecord,
   PublicRecordLinks,
   PublicRecordAssets,
+  RecordRow,
 } from '@rtidb/shared/api/records';
 
 export type { PublicRecord, PublicRecordLinks, PublicRecordAssets };
+
+/** Fields needed for public JSON/export — not filesystem paths or embeddings. */
+export type RecordViewSource = Pick<
+  DbRecord,
+  | 'id'
+  | 'slug'
+  | 'name'
+  | 'description'
+  | 'date'
+  | 'status'
+  | 'direction'
+  | 'isPublished'
+  | 'metadata'
+  | 'thumbnailUrl'
+  | 'tiffUrl'
+  | 'folderUrl'
+  | 'outputType'
+>;
 
 /** Friendly aliases for common filter query params (non-technical API consumers). */
 export const METADATA_FILTER_ALIASES = {
@@ -33,10 +52,17 @@ const RESERVED_QUERY_KEYS = new Set([
   'format',
 ]);
 
-export type NormalizedRecord = DbRecord & {
+export type NormalizedRecord = RecordViewSource & {
   metadata: CatalogMetadata;
   registrationNumber: string | null;
 };
+
+export function coerceFilterValue(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'boolean') return String(value);
+  return null;
+}
 
 export function parseMetadataFiltersFromQuery(query: ParsedQs = {}): Record<string, string> {
   const filters: Record<string, string> = {};
@@ -45,8 +71,11 @@ export function parseMetadataFiltersFromQuery(query: ParsedQs = {}): Record<stri
   if (filtersParam && typeof filtersParam === 'string') {
     try {
       const parsed = JSON.parse(filtersParam);
-      if (parsed && typeof parsed === 'object') {
-        Object.assign(filters, parsed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+          const coerced = coerceFilterValue(value);
+          if (coerced != null) filters[key] = coerced;
+        }
       }
     } catch {
       // ignore invalid JSON
@@ -57,14 +86,39 @@ export function parseMetadataFiltersFromQuery(query: ParsedQs = {}): Record<stri
     if (RESERVED_QUERY_KEYS.has(key) || value == null || value === '') continue;
     const metaKey = (METADATA_FILTER_ALIASES as Record<string, string>)[key] || key;
     if (ALL_METADATA_KEYS.includes(metaKey as CatalogMetadataKey) || (METADATA_FILTER_ALIASES as Record<string, string>)[key]) {
-      filters[metaKey] = String(value);
+      const coerced = coerceFilterValue(value);
+      if (coerced != null) filters[metaKey] = coerced;
     }
   }
 
   return filters;
 }
 
-export function normalizeRecordRow(record: DbRecord | null | undefined): NormalizedRecord | null {
+/** List/detail payload: keep admin-useful URLs, omit filesystem paths and embeddings. */
+export function toClientRecordRow(record: DbRecord): RecordRow {
+  return {
+    id: record.id,
+    slug: record.slug ?? null,
+    name: record.name,
+    description: record.description ?? null,
+    date: record.date,
+    status: record.status,
+    progress: record.progress ?? null,
+    message: record.message ?? null,
+    direction: record.direction ?? null,
+    outputType: record.outputType ?? null,
+    folderUrl: record.folderUrl ?? null,
+    tiffUrl: record.tiffUrl ?? null,
+    thumbnailUrl: record.thumbnailUrl ?? null,
+    isPublished: record.isPublished ?? 0,
+    quality: record.quality ?? null,
+    tileSize: record.tileSize ?? null,
+    format: record.format ?? null,
+    metadata: normalizeMetadata(record.metadata),
+  };
+}
+
+export function normalizeRecordRow(record: RecordViewSource | null | undefined): NormalizedRecord | null {
   if (!record) return null;
   const metadata = normalizeMetadata(record.metadata);
   return {
@@ -102,7 +156,7 @@ export function findRecordByIdentifier(records: DbRecord[], identifier: string |
   );
 }
 
-export function buildPublicRecord(record: DbRecord, req: Request): PublicRecord {
+export function buildPublicRecord(record: RecordViewSource, req: Request): PublicRecord {
   const normalized = normalizeRecordRow(record)!;
   const baseUrl = getBaseUrl(req);
   const apiKey = normalized.slug || normalized.id;
@@ -130,7 +184,7 @@ export function buildPublicRecord(record: DbRecord, req: Request): PublicRecord 
   };
 }
 
-export function buildRtiAssets(record: DbRecord, baseUrl: string): PublicRecordAssets {
+export function buildRtiAssets(record: RecordViewSource, baseUrl: string): PublicRecordAssets {
   const assets: PublicRecordAssets = {
     thumbnailUrl: record.thumbnailUrl || null,
     tiffUrl: record.tiffUrl || null,
@@ -160,14 +214,27 @@ export function getBaseUrl(req: Request): string {
   return `${proto}://${host}`;
 }
 
-export function recordCitationKey(record: DbRecord): string {
+export function metadataWithPublishStatus(
+  metadata: StoredMetadata | null | undefined,
+  isPublished: boolean,
+) {
+  const next = normalizeMetadata(metadata);
+  if (isPublished) {
+    next.recordStatus = 'Published';
+  } else if (next.recordStatus === 'Published') {
+    next.recordStatus = 'Draft';
+  }
+  return next;
+}
+
+export function recordCitationKey(record: RecordViewSource): string {
   const meta = normalizeMetadata(record.metadata);
   const reg = meta.primaryRegistrationNumber || meta.rtiFileName;
   if (reg) return reg.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `rti_record_${record.id}`;
 }
 
-export function recordCitationTitle(record: DbRecord): string {
+export function recordCitationTitle(record: RecordViewSource): string {
   const meta = normalizeMetadata(record.metadata);
   const motif = meta.primaryMotif;
   const site = meta.siteGeographicLocation || meta.discoveryLocation;
@@ -175,7 +242,7 @@ export function recordCitationTitle(record: DbRecord): string {
   return record.name;
 }
 
-export function recordGps(record: DbRecord) {
+export function recordGps(record: RecordViewSource) {
   const meta = normalizeMetadata(record.metadata);
   return parseGpsPosition(meta.gpsPosition);
 }

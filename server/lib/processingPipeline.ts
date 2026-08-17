@@ -131,6 +131,7 @@ export function createProcessingPipeline({
 interface UploadedFile {
   path: string;
   originalname: string;
+  mimetype?: string;
 }
 
 interface MulterFileMap {
@@ -156,12 +157,23 @@ export function isParsedUploadError(
   return 'error' in result;
 }
 
+export function isPngLatentMap(file: { originalname?: string; mimetype?: string }): boolean {
+  const name = String(file.originalname || '').toLowerCase();
+  const mime = String(file.mimetype || '').toLowerCase();
+  if (mime && mime !== 'image/png' && mime !== 'application/octet-stream') return false;
+  return name.endsWith('.png');
+}
+
 export function parseUploadFiles(req: Request, uploadMode: string): ParsedUploadFiles | ParsedUploadFilesError {
   const files = req.files as MulterFileMap | undefined;
   const isNeural = uploadMode === 'neural';
   if (isNeural) {
     if (!files?.latentMap || !files?.weights) {
       return { error: 'Both latentMap image and weights JSON files are required for Neural RTI.' };
+    }
+    const latent = files.latentMap[0]!;
+    if (!isPngLatentMap(latent)) {
+      return { error: 'Neural latent maps must be PNG (JPEG drops the 4th channel).' };
     }
     return {
       isNeural: true,

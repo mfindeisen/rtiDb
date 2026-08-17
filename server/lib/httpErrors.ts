@@ -43,8 +43,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, next: N
   }
 
   console.error('Unhandled error:', err);
-  const message = err instanceof Error ? err.message : 'Internal server error';
-  sendError(res, 500, message);
+  sendError(res, 500, 'Internal server error');
 }
 
 function isMulterLimitError(err: unknown): boolean {

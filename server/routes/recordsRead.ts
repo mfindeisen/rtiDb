@@ -1,10 +1,10 @@
 import path from 'path';
 import type { Express } from 'express';
-import { normalizeMetadata } from '../lib/metadataFields.js';
 import {
   buildPublicRecord,
   buildRtiAssets,
   getBaseUrl,
+  toClientRecordRow,
 } from '../lib/records.js';
 import { metadataOnlyPayload, SUPPORTED_EXPORT_FORMATS } from '../lib/export.js';
 import { resolveRecordFromParam, recordPublicPath } from '../lib/slug.js';
@@ -91,8 +91,7 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
       fileCount = stats.fileCount;
     }
     res.json({
-      ...record,
-      metadata: normalizeMetadata(record.metadata),
+      ...toClientRecordRow(record),
       folderSize,
       fileCount,
       revisionNumber: getLatestRevision(db, schema, record.id)?.revisionNumber ?? 0,

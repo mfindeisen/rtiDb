@@ -2,6 +2,8 @@ import { normalizeMetadata, parseGpsPosition, type CatalogMetadata } from './met
 import { inArray, sql } from 'drizzle-orm';
 import type { AppDb, AppSchema, DbRecord, RecordMetadata } from '../types/index.js';
 import { listAllRecords, listRecordsByPublish, type PublishedFilter } from './userResources.js';
+import { coerceFilterValue, toClientRecordRow } from './records.js';
+import type { EnrichedRecord, SearchResults } from '@rtidb/shared/api/search';
 
 function getMetadata(record: DbRecord): CatalogMetadata {
   if (!record.metadata) return normalizeMetadata(null);
@@ -22,8 +24,10 @@ function recordSearchText(record: DbRecord): string {
 }
 
 function matchesQuery(record: DbRecord, q: string): boolean {
-  if (!q?.trim()) return true;
-  return recordSearchText(record).includes(q.trim().toLowerCase());
+  const tokens = tokenizeSearchQuery(q);
+  if (!tokens.length) return true;
+  const hay = recordSearchText(record);
+  return tokens.every((token) => hay.includes(token));
 }
 
 function matchesFilters(record: DbRecord, filters: Record<string, string>): boolean {
@@ -31,9 +35,9 @@ function matchesFilters(record: DbRecord, filters: Record<string, string>): bool
   const meta = getMetadata(record);
 
   for (const [key, value] of Object.entries(filters)) {
-    if (!value?.trim()) continue;
+    const filterVal = coerceFilterValue(value)?.trim().toLowerCase();
+    if (!filterVal) continue;
     const fieldValue = (meta[key as keyof CatalogMetadata] || '').toLowerCase();
-    const filterVal = value.trim().toLowerCase();
     if (!fieldValue.includes(filterVal)) return false;
   }
   return true;
@@ -51,12 +55,6 @@ function matchesBbox(record: DbRecord, bbox: Bbox | null): boolean {
 
 export type Bbox = [number, number, number, number];
 
-export interface EnrichedRecord extends DbRecord {
-  metadata: CatalogMetadata;
-  lat: number | null;
-  lng: number | null;
-}
-
 export interface SearchOptions {
   q?: string;
   filters?: Record<string, string>;
@@ -66,20 +64,11 @@ export interface SearchOptions {
   limit?: number;
 }
 
-export interface SearchResults {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  results: EnrichedRecord[];
-}
-
 export function enrichRecord(record: DbRecord): EnrichedRecord {
-  const metadata = getMetadata(record);
-  const coords = parseGpsPosition(metadata.gpsPosition);
+  const row = toClientRecordRow(record);
+  const coords = parseGpsPosition(row.metadata.gpsPosition);
   return {
-    ...record,
-    metadata,
+    ...row,
     lat: coords?.lat ?? null,
     lng: coords?.lng ?? null,
   };
@@ -132,19 +121,30 @@ export function parseFiltersParam(filtersStr: unknown): Record<string, string> {
   if (!filtersStr) return {};
   try {
     const parsed = JSON.parse(String(filtersStr));
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const filters: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const coerced = coerceFilterValue(value);
+      if (coerced != null) filters[key] = coerced;
+    }
+    return filters;
   } catch {
     return {};
   }
 }
 
+/** Split a user query into FTS/substring tokens. Hyphens are separators (FTS5 `-` is NOT). */
+export function tokenizeSearchQuery(q: string): string[] {
+  return q
+    .toLowerCase()
+    .split(/[\s,.;:/\\|"'`~!@#$%^&*()[\]{}<>?+=-]+/)
+    .map((token) => token.replace(/[^a-z0-9_]/gi, ''))
+    .filter((token) => token.length >= 2);
+}
+
 /** Build a safe FTS5 MATCH query; returns null when the input has no usable tokens. */
 export function buildFtsMatchQuery(q: string): string | null {
-  const tokens = q
-    .toLowerCase()
-    .split(/[\s,.;:/\\|"'`~!@#$%^&*()[\]{}<>?+=]+/)
-    .map((token) => token.replace(/[^a-z0-9_-]/gi, ''))
-    .filter((token) => token.length >= 2);
+  const tokens = tokenizeSearchQuery(q);
   if (!tokens.length) return null;
   return tokens.map((token) => `${token}*`).join(' AND ');
 }
@@ -207,8 +207,7 @@ export function loadSearchCandidatesForFilter(
   if (filter === 'unpublished') {
     const records = listRecordsByPublish(db, schema, 'unpublished');
     if (!q.trim()) return records;
-    const needle = q.trim().toLowerCase();
-    return records.filter((record) => recordSearchText(record).includes(needle));
+    return records.filter((record) => matchesQuery(record, q));
   }
   return loadSearchCandidates(db, schema, {
     publishedOnly: filter === 'published',

@@ -13,14 +13,19 @@ export function slugify(text: unknown): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** All-digit slugs collide with numeric record ids in /record/:id routes. */
+export function avoidNumericSlug(slug: string): string {
+  return /^\d+$/.test(slug) ? `r-${slug}` : slug;
+}
+
 /** Prefer registration number, then RTI filename, then record name. */
 export function deriveSlugBase(record: Pick<DbRecord, 'metadata' | 'name'>) {
   const meta = normalizeMetadata(record.metadata);
-  return (
+  return avoidNumericSlug(
     slugify(meta.primaryRegistrationNumber) ||
     slugify(meta.rtiFileName) ||
     slugify(record.name) ||
-    'record'
+    'record',
   );
 }
 
@@ -30,7 +35,7 @@ export function ensureUniqueSlug(
   base: string,
   excludeId: number | null = null,
 ): string {
-  const root = slugify(base) || 'record';
+  const root = avoidNumericSlug(slugify(base) || 'record');
   let candidate = root;
   let suffix = 2;
 
@@ -59,6 +64,27 @@ export function assignSlugForRecord(
   return slug;
 }
 
+/** True when the stored slug is still the auto name-based value (plus uniqueness suffix). */
+export function slugLooksAutoAssigned(record: Pick<DbRecord, 'slug' | 'name'>): boolean {
+  if (!record.slug) return true;
+  const nameSlug = avoidNumericSlug(slugify(record.name) || 'record');
+  return record.slug === nameSlug || record.slug.startsWith(`${nameSlug}-`);
+}
+
+/** Recompute slug when a registration number is added to a still-auto slug. */
+export function refreshSlugIfAuto(
+  db: AppDb,
+  schema: AppSchema,
+  record: DbRecord | null | undefined,
+): string | null {
+  if (!record) return null;
+  const desired = deriveSlugBase(record);
+  if (!record.slug) return assignSlugForRecord(db, schema, record);
+  if (record.slug === desired || record.slug.startsWith(`${desired}-`)) return record.slug;
+  if (!slugLooksAutoAssigned(record)) return record.slug;
+  return assignSlugForRecord(db, schema, record, { force: true });
+}
+
 export function backfillRecordSlugs(db: AppDb, schema: AppSchema) {
   const rows = db.select().from(schema.records).all();
   let updated = 0;
@@ -85,11 +111,6 @@ export function resolveRecordFromParam(
   if (param == null || param === '') return null;
 
   const raw = String(param).trim();
-  if (/^\d+$/.test(raw)) {
-    const byId = db.select().from(schema.records).where(eq(schema.records.id, Number(raw))).get();
-    if (byId) return byId;
-  }
-
   const bySlug = db.select().from(schema.records).where(eq(schema.records.slug, raw)).get();
   if (bySlug) return bySlug;
 
@@ -97,6 +118,11 @@ export function resolveRecordFromParam(
     (r) => r.slug && r.slug.toLowerCase() === raw.toLowerCase(),
   );
   if (bySlugCi) return bySlugCi;
+
+  if (/^\d+$/.test(raw)) {
+    const byId = db.select().from(schema.records).where(eq(schema.records.id, Number(raw))).get();
+    if (byId) return byId;
+  }
 
   const all = db.select().from(schema.records).all();
   const meta = all.find((r) => {

@@ -1,21 +1,28 @@
 import fs from 'fs/promises';
 import type { Express } from 'express';
-import { normalizeMetadata } from '../lib/metadataFields.js';
 import {
   searchRecords,
   parseBboxParam,
   parseFiltersParam,
   loadSearchCandidatesForFilter,
+  enrichRecord,
 } from '../lib/search.js';
 import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.js';
 import { getCachedImageSearch, hashImageFile } from '../lib/imageSearchCache.js';
 import { consumeRateLimit, imageSearchRateLimitKey, IMAGE_SEARCH_RATE_LIMIT } from '../lib/rateLimit.js';
-import { parseMetadataFiltersFromQuery } from '../lib/records.js';
+import { parseMetadataFiltersFromQuery, toClientRecordRow } from '../lib/records.js';
 import { sendExport } from '../lib/recordHelpers.js';
 import { queryNumber, routeParam } from '../lib/httpParams.js';
 import { listRecordsByPublish, resolvePublishedFilter } from '../lib/userResources.js';
-import { publishedImageSearchMatches } from '../lib/imageSearch.js';
+import { publishedImageSearchMatches, type ImageSearchMatch } from '../lib/imageSearch.js';
 import type { ServerContext } from '../types/index.js';
+
+function toClientImageSearchMatch(record: ImageSearchMatch) {
+  return {
+    ...toClientRecordRow(record),
+    similarity: record.similarity,
+  };
+}
 
 function searchOptionsFromQuery(req: import('express').Request) {
   return {
@@ -41,8 +48,9 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         req.query.filters ||
         req.query.bbox ||
         Object.keys(req.query).some((k) => !['published', 'page', 'limit'].includes(k));
+      const wantsPaging = req.query.page != null || req.query.limit != null;
 
-      if (hasFilters) {
+      if (hasFilters || wantsPaging) {
         const filter = resolvePublishedFilter(req);
         const candidates = loadSearchCandidatesForFilter(
           db,
@@ -55,7 +63,14 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
       }
 
       const records = listRecordsByPublish(db, schema, resolvePublishedFilter(req));
-      res.json(records.map((r) => ({ ...r, metadata: normalizeMetadata(r.metadata) })));
+      const results = records.map(enrichRecord);
+      res.json({
+        total: results.length,
+        page: 1,
+        limit: results.length || 20,
+        totalPages: 1,
+        results,
+      });
     } catch (err) {
       console.error('Records list error:', err);
       res.status(500).json({ error: 'Failed to list records' });
@@ -123,10 +138,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         const cached = getCachedImageSearch(contentHash, limit);
         if (cached) {
           await fs.unlink(req.file.path);
-          const results = publishedImageSearchMatches(cached.results).map((r) => ({
-            ...r,
-            metadata: normalizeMetadata(r.metadata),
-          }));
+          const results = publishedImageSearchMatches(cached.results).map(toClientImageSearchMatch);
           return res.json({
             cached: true,
             status: 'done',
@@ -173,13 +185,10 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
     if (!job) {
       return res.status(404).json({ error: 'Job not found or expired' });
     }
-    const results = job.results ? publishedImageSearchMatches(job.results) : null;
+    const results = job.results ? publishedImageSearchMatches(job.results).map(toClientImageSearchMatch) : null;
     res.json({
       ...job,
-      results: results?.map((r) => ({
-        ...r,
-        metadata: normalizeMetadata(r.metadata),
-      })) ?? null,
+      results,
       total: results?.length ?? job.total,
     });
   });
