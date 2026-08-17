@@ -1,28 +1,38 @@
 import fs from 'fs/promises';
-import { sql } from 'drizzle-orm';
 import type { Express } from 'express';
-import { userCanManageRecords } from '@rtidb/shared/authorization';
 import { normalizeMetadata } from '../lib/metadataFields.js';
-import { searchRecords, parseBboxParam, parseFiltersParam, loadSearchCandidates } from '../lib/search.js';
+import {
+  searchRecords,
+  parseBboxParam,
+  parseFiltersParam,
+  loadSearchCandidatesForFilter,
+} from '../lib/search.js';
 import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.js';
 import { getCachedImageSearch, hashImageFile } from '../lib/imageSearchCache.js';
 import { consumeRateLimit, imageSearchRateLimitKey, IMAGE_SEARCH_RATE_LIMIT } from '../lib/rateLimit.js';
 import { parseMetadataFiltersFromQuery } from '../lib/records.js';
 import { sendExport } from '../lib/recordHelpers.js';
 import { queryNumber, routeParam } from '../lib/httpParams.js';
-import { listRecordsByPublish } from '../lib/userResources.js';
+import { listRecordsByPublish, resolvePublishedFilter } from '../lib/userResources.js';
+import { publishedImageSearchMatches } from '../lib/imageSearch.js';
 import type { ServerContext } from '../types/index.js';
+
+function searchOptionsFromQuery(req: import('express').Request) {
+  return {
+    q: String(req.query.q || ''),
+    filters: {
+      ...parseFiltersParam(String(req.query.filters || '')),
+      ...parseMetadataFiltersFromQuery(req.query),
+    },
+    bbox: parseBboxParam(String(req.query.bbox || '')),
+    publishedOnly: resolvePublishedFilter(req) === 'published',
+    page: queryNumber(req.query.page),
+    limit: queryNumber(req.query.limit),
+  };
+}
 
 export function registerSearchRoutes(app: Express, ctx: ServerContext) {
   const { db, schema, uploadDir, imageSearchUpload, authMiddleware, optionalAuthMiddleware } = ctx;
-
-  function publishedFilter(req: import('express').Request): 'all' | 'published' | 'unpublished' {
-    const staff = userCanManageRecords(req.user);
-    const publishedParam = String(req.query.published ?? '');
-    if (publishedParam === 'all' && staff) return 'all';
-    if (publishedParam === '0' && staff) return 'unpublished';
-    return 'published';
-  }
 
   app.get('/api/records', optionalAuthMiddleware, (req, res) => {
     try {
@@ -33,29 +43,18 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         Object.keys(req.query).some((k) => !['published', 'page', 'limit'].includes(k));
 
       if (hasFilters) {
-        const staff = userCanManageRecords(req.user);
-        const publishedOnly = req.query.published === 'all' && staff
-          ? false
-          : req.query.published !== '0';
-        const candidates = loadSearchCandidates(db, schema, {
-          publishedOnly,
-          q: String(req.query.q || ''),
-        });
-        const result = searchRecords(candidates, {
-          q: String(req.query.q || ''),
-          filters: {
-            ...parseFiltersParam(String(req.query.filters || '')),
-            ...parseMetadataFiltersFromQuery(req.query),
-          },
-          bbox: parseBboxParam(String(req.query.bbox || '')),
-          publishedOnly: false,
-          page: queryNumber(req.query.page),
-          limit: queryNumber(req.query.limit),
-        });
+        const filter = resolvePublishedFilter(req);
+        const candidates = loadSearchCandidatesForFilter(
+          db,
+          schema,
+          filter,
+          String(req.query.q || ''),
+        );
+        const result = searchRecords(candidates, searchOptionsFromQuery(req));
         return res.json(result);
       }
 
-      const records = listRecordsByPublish(db, schema, publishedFilter(req));
+      const records = listRecordsByPublish(db, schema, resolvePublishedFilter(req));
       res.json(records.map((r) => ({ ...r, metadata: normalizeMetadata(r.metadata) })));
     } catch (err) {
       console.error('Records list error:', err);
@@ -63,7 +62,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/export/records', (req, res) => {
+  app.get('/api/export/records', optionalAuthMiddleware, (req, res) => {
     try {
       const format = String(req.query.format || 'json').toLowerCase();
       if (!['json', 'xml', 'csv'].includes(format)) {
@@ -73,18 +72,15 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         });
       }
 
-      const allRecords = loadSearchCandidates(db, schema, {
-        publishedOnly: req.query.published !== '0',
-        q: String(req.query.q || ''),
-      });
+      const filter = resolvePublishedFilter(req);
+      const allRecords = loadSearchCandidatesForFilter(
+        db,
+        schema,
+        filter,
+        String(req.query.q || ''),
+      );
       const result = searchRecords(allRecords, {
-        q: String(req.query.q || ''),
-        filters: {
-          ...parseFiltersParam(String(req.query.filters || '')),
-          ...parseMetadataFiltersFromQuery(req.query),
-        },
-        bbox: parseBboxParam(String(req.query.bbox || '')),
-        publishedOnly: false,
+        ...searchOptionsFromQuery(req),
         page: 1,
         limit: 10000,
       });
@@ -97,23 +93,16 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/search', (req, res) => {
+  app.get('/api/search', optionalAuthMiddleware, (req, res) => {
     try {
-      const records = loadSearchCandidates(db, schema, {
-        publishedOnly: req.query.published !== '0',
-        q: String(req.query.q || ''),
-      });
-      const result = searchRecords(records, {
-        q: String(req.query.q || ''),
-        filters: {
-          ...parseFiltersParam(String(req.query.filters || '')),
-          ...parseMetadataFiltersFromQuery(req.query),
-        },
-        bbox: parseBboxParam(String(req.query.bbox || '')),
-        publishedOnly: false,
-        page: queryNumber(req.query.page),
-        limit: queryNumber(req.query.limit),
-      });
+      const filter = resolvePublishedFilter(req);
+      const records = loadSearchCandidatesForFilter(
+        db,
+        schema,
+        filter,
+        String(req.query.q || ''),
+      );
+      const result = searchRecords(records, searchOptionsFromQuery(req));
       res.json(result);
     } catch (err) {
       console.error('Search error:', err);
@@ -134,15 +123,17 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         const cached = getCachedImageSearch(contentHash, limit);
         if (cached) {
           await fs.unlink(req.file.path);
+          const results = publishedImageSearchMatches(cached.results).map((r) => ({
+            ...r,
+            metadata: normalizeMetadata(r.metadata),
+          }));
           return res.json({
             cached: true,
             status: 'done',
             contentHash,
             ...cached,
-            results: cached.results.map((r) => ({
-              ...r,
-              metadata: normalizeMetadata(r.metadata),
-            })),
+            results,
+            total: results.length,
           });
         }
       }
@@ -167,7 +158,8 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         uploadDir,
         limit,
         contentHash,
-        fetchRecords: () => db.select().from(schema.records).orderBy(sql`${schema.records.id} DESC`).all(),
+        userId: req.user!.id,
+        fetchRecords: () => listRecordsByPublish(db, schema, 'published'),
       });
       res.status(202).json({ ...job, cached: false, contentHash });
     } catch (err) {
@@ -177,16 +169,18 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.get('/api/search/image/jobs/:jobId', authMiddleware, (req, res) => {
-    const job = getImageSearchJob(routeParam(req.params.jobId));
+    const job = getImageSearchJob(routeParam(req.params.jobId), req.user!);
     if (!job) {
       return res.status(404).json({ error: 'Job not found or expired' });
     }
+    const results = job.results ? publishedImageSearchMatches(job.results) : null;
     res.json({
       ...job,
-      results: job.results?.map((r) => ({
+      results: results?.map((r) => ({
         ...r,
         metadata: normalizeMetadata(r.metadata),
       })) ?? null,
+      total: results?.length ?? job.total,
     });
   });
 }

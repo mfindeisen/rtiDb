@@ -22,6 +22,7 @@ interface QueueItem {
   uploadDir: string;
   limit: number;
   contentHash: string | null;
+  userId: number;
   fetchRecords: () => DbRecord[];
 }
 
@@ -54,6 +55,8 @@ function toPublic(job: ImageSearchJob): PublicImageSearchJob {
     finishedAt: job.finishedAt,
   };
 }
+
+const jobOwners = new Map<string, number>();
 
 const queue = createJobQueue<ImageSearchJob, QueueItem, PublicImageSearchJob>({
   ttlMs: JOB_TTL_MS,
@@ -102,14 +105,34 @@ const queue = createJobQueue<ImageSearchJob, QueueItem, PublicImageSearchJob>({
   },
 });
 
-export function getImageSearchJob(jobId: string): PublicImageSearchJob | null {
-  return queue.get(jobId);
+export function getImageSearchJob(
+  jobId: string,
+  user: { id: number; role: string },
+): PublicImageSearchJob | null {
+  const job = queue.get(jobId);
+  if (!job) {
+    jobOwners.delete(jobId);
+    return null;
+  }
+  if (!canReadImageSearchJob(jobOwners.get(jobId), user)) {
+    return null;
+  }
+  return job;
+}
+
+export function canReadImageSearchJob(
+  ownerId: number | undefined,
+  user: { id: number; role: string },
+): boolean {
+  if (user.role === 'admin') return true;
+  return ownerId === user.id;
 }
 
 export interface EnqueueImageSearchParams {
   filePath: string;
   uploadDir: string;
   limit: number;
+  userId: number;
   fetchRecords: () => DbRecord[];
   contentHash?: string | null;
 }
@@ -118,16 +141,20 @@ export function enqueueImageSearch({
   filePath,
   uploadDir,
   limit,
+  userId,
   fetchRecords,
   contentHash = null,
 }: EnqueueImageSearchParams): PublicImageSearchJob {
-  return queue.enqueue({
+  const job = queue.enqueue({
     filePath,
     uploadDir,
     limit,
     contentHash,
+    userId,
     fetchRecords,
   });
+  jobOwners.set(job.jobId, userId);
+  return job;
 }
 
 export function getImageSearchQueueStats(): { queued: number; processing: number } {

@@ -1,7 +1,7 @@
 import { normalizeMetadata, parseGpsPosition, type CatalogMetadata } from './metadataFields.js';
 import { inArray, sql } from 'drizzle-orm';
 import type { AppDb, AppSchema, DbRecord, RecordMetadata } from '../types/index.js';
-import { listAllRecords, listRecordsByPublish } from './userResources.js';
+import { listAllRecords, listRecordsByPublish, type PublishedFilter } from './userResources.js';
 
 function getMetadata(record: DbRecord): CatalogMetadata {
   if (!record.metadata) return normalizeMetadata(null);
@@ -196,5 +196,23 @@ export function loadSearchCandidates(
   return publishedOnly
     ? listRecordsByPublish(db, schema, 'published')
     : listAllRecords(db, schema);
+}
+
+export function loadSearchCandidatesForFilter(
+  db: AppDb,
+  schema: AppSchema,
+  filter: PublishedFilter,
+  q = '',
+): DbRecord[] {
+  if (filter === 'unpublished') {
+    const records = listRecordsByPublish(db, schema, 'unpublished');
+    if (!q.trim()) return records;
+    const needle = q.trim().toLowerCase();
+    return records.filter((record) => recordSearchText(record).includes(needle));
+  }
+  return loadSearchCandidates(db, schema, {
+    publishedOnly: filter === 'published',
+    q,
+  });
 }
 

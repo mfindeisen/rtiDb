@@ -60,6 +60,9 @@ export function createProtectedUploadsStatic(
 
   router.use((req: Request, res: Response, next: NextFunction) => {
     const rel = req.path.replace(/^\//, '');
+    if (rel.startsWith('search-temp/')) {
+      return res.status(404).end();
+    }
     if (rel.startsWith('archive/')) {
       if (!req.user || !userCanManageRecords(req.user)) {
         if (!req.user) return res.status(404).end();
@@ -69,7 +72,10 @@ export function createProtectedUploadsStatic(
 
     const fullPath = `/static/uploads${req.path.startsWith('/') ? req.path : `/${req.path}`}`;
     const record = findRecordForStaticPath(db, schema, fullPath);
-    if (record && !userCanViewRecord(req.user, record)) {
+    if (!record) {
+      return res.status(404).end();
+    }
+    if (!userCanViewRecord(req.user, record)) {
       if (!req.user) {
         return res.status(404).end();
       }

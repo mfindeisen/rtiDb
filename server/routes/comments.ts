@@ -10,10 +10,10 @@ import {
 import type { ServerContext } from '../types/index.js';
 
 export function registerCommentRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, fetchRecordOr404, authMiddleware } = ctx;
+  const { db, schema, fetchAccessibleRecordOr404, authMiddleware } = ctx;
 
   app.get('/api/records/:id/comments', authMiddleware, requireComment, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     try {
       const comments = db.select({
@@ -37,7 +37,7 @@ export function registerCommentRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.post('/api/records/:id/comments', authMiddleware, requireComment, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const { body, parentId } = req.body;
     if (!body || !String(body).trim()) {
@@ -80,7 +80,7 @@ export function registerCommentRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.put('/api/records/:id/comments/:commentId', authMiddleware, requireComment, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const commentId = Number(req.params.commentId);
     const { body } = req.body;
@@ -104,7 +104,7 @@ export function registerCommentRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.delete('/api/records/:id/comments/:commentId', authMiddleware, requireComment, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const commentId = Number(req.params.commentId);
     try {

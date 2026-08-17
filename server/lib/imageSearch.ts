@@ -58,3 +58,7 @@ export async function findSimilarRecords(
     similarity: Math.round(similarity * 100),
   }));
 }
+
+export function publishedImageSearchMatches(results: ImageSearchMatch[]): ImageSearchMatch[] {
+  return results.filter((record) => record.isPublished === 1);
+}

@@ -1,8 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
+import type { ParsedQs } from 'qs';
+import { userCanManageRecords, RESEARCHER_DEFAULT_PERMISSIONS } from '@rtidb/shared/authorization';
+import type { JwtUser } from '@rtidb/shared/auth';
 import type { AppDb, AppSchema, DbRecord } from '../types/index.js';
 import { hashPassword, parsePermissions } from './auth/password.js';
 import { sendError } from './httpErrors.js';
-import { RESEARCHER_DEFAULT_PERMISSIONS } from '@rtidb/shared/authorization';
 import type { Permission } from '@rtidb/shared/permissions';
 
 export function listAllRecords(db: AppDb, schema: AppSchema) {
@@ -10,6 +12,17 @@ export function listAllRecords(db: AppDb, schema: AppSchema) {
 }
 
 export type PublishedFilter = 'all' | 'published' | 'unpublished';
+
+export function resolvePublishedFilter(req: {
+  user?: JwtUser | null;
+  query: ParsedQs;
+}): PublishedFilter {
+  const staff = userCanManageRecords(req.user);
+  const publishedParam = String(req.query.published ?? '');
+  if (publishedParam === 'all' && staff) return 'all';
+  if (publishedParam === '0' && staff) return 'unpublished';
+  return 'published';
+}
 
 export function listRecordsByPublish(
   db: AppDb,

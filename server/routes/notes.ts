@@ -5,10 +5,10 @@ import { catalogNow, respondResourceError, findUserOwnedNote } from '../lib/reco
 import type { ServerContext } from '../types/index.js';
 
 export function registerNoteRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, fetchRecordOr404, authMiddleware } = ctx;
+  const { db, schema, fetchAccessibleRecordOr404, authMiddleware } = ctx;
 
   app.get('/api/records/:id/notes', authMiddleware, requireCollaboration, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     try {
       const notes = db.select({
@@ -31,7 +31,7 @@ export function registerNoteRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.post('/api/records/:id/notes', authMiddleware, requireCollaboration, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const { body } = req.body;
     if (!body || !String(body).trim()) {
@@ -58,7 +58,7 @@ export function registerNoteRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.put('/api/records/:id/notes/:noteId', authMiddleware, requireCollaboration, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const noteId = Number(req.params.noteId);
     const { body } = req.body;
@@ -82,7 +82,7 @@ export function registerNoteRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.delete('/api/records/:id/notes/:noteId', authMiddleware, requireCollaboration, (req, res) => {
-    const record = fetchRecordOr404(req, res);
+    const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const noteId = Number(req.params.noteId);
     try {
