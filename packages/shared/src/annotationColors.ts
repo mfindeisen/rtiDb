@@ -11,6 +11,9 @@ export const ANNOTATION_COLOR_PRESETS = [
   '#64748b',
 ] as const;
 
+const STORAGE_KEY = 'rtiAnnotationColor';
+const LEGACY_STORAGE_KEY = 'annotationColor';
+
 export function normalizeAnnotationColor(color: string | null | undefined): string {
   if (!color) return DEFAULT_ANNOTATION_COLOR;
   const trimmed = color.trim();
@@ -22,7 +25,12 @@ export function normalizeAnnotationColor(color: string | null | undefined): stri
 
 export function loadStoredAnnotationColor(): string {
   try {
-    return normalizeAnnotationColor(localStorage.getItem('rtiAnnotationColor'));
+    const stored = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    const normalized = normalizeAnnotationColor(stored);
+    if (stored && !localStorage.getItem(STORAGE_KEY)) {
+      storeAnnotationColor(normalized);
+    }
+    return normalized;
   } catch {
     return DEFAULT_ANNOTATION_COLOR;
   }
@@ -30,7 +38,8 @@ export function loadStoredAnnotationColor(): string {
 
 export function storeAnnotationColor(color: string): void {
   try {
-    localStorage.setItem('rtiAnnotationColor', normalizeAnnotationColor(color));
+    localStorage.setItem(STORAGE_KEY, normalizeAnnotationColor(color));
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     // ignore storage errors
   }
