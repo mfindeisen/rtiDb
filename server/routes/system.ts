@@ -12,28 +12,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultDocsDir = path.join(__dirname, '../../client/dist/docs');
 
-const SWAGGER_AUTH_BRIDGE = `
-(function trySwaggerAuth() {
-  var token = localStorage.getItem('adminToken');
-  if (!window.ui) {
-    setTimeout(trySwaggerAuth, 150);
-    return;
-  }
-  if (!token) return;
-  try {
-    window.ui.authActions.authorize({
-      bearerAuth: {
-        name: 'bearerAuth',
-        schema: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-        value: token,
-      },
-    });
-  } catch (e) {
-    console.warn('Swagger auth bridge:', e);
-  }
-})();
-`.trim();
-
 export function registerHealthRoutes(app: Express) {
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
@@ -45,14 +23,9 @@ export function registerDocsRoutes(app: Express, sessionAuthMiddleware: RequestH
     res.json(buildOpenApiSpec(req));
   });
 
-  app.get('/api/docs/auth-bridge.js', sessionAuthMiddleware, (_req, res) => {
-    res.type('application/javascript').send(SWAGGER_AUTH_BRIDGE);
-  });
-
   app.use('/api/docs', sessionAuthMiddleware, swaggerUi.serve, swaggerUi.setup(null, {
     customSiteTitle: 'RTI Database API',
     customCss: '.swagger-ui .topbar { display: none }',
-    customJs: '/api/docs/auth-bridge.js',
     swaggerOptions: {
       url: '/api/openapi.json',
       persistAuthorization: true,

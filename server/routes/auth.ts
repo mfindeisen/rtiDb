@@ -51,9 +51,19 @@ function issueSessionFromToken(
 
 export function registerAuthRoutes(
   app: Express,
-  { db, schema, config, verifyAuthHandler }: Pick<ServerContext, 'db' | 'schema' | 'config' | 'verifyAuthHandler'>,
+  {
+    db,
+    schema,
+    config,
+    verifyAuthHandler,
+    authMiddleware,
+  }: Pick<ServerContext, 'db' | 'schema' | 'config' | 'verifyAuthHandler' | 'authMiddleware'>,
 ) {
   app.get('/api/auth/verify', verifyAuthHandler);
+
+  app.get('/api/auth/me', authMiddleware, (req, res) => {
+    res.json({ user: req.user! });
+  });
 
   app.post('/api/auth/sync-session', (req, res) => {
     if (!issueSessionFromToken(req, res, config.jwtSecret, config.isProduction)) {
@@ -79,7 +89,10 @@ export function registerAuthRoutes(
           { expiresIn: '24h' },
         );
         setSessionCookie(res, token, config.isProduction);
-        res.json({ success: true, token });
+        res.json({
+          success: true,
+          user: { id: user.id, username: user.username, role: user.role, permissions },
+        });
       } else {
         res.status(401).json({ error: 'Invalid credentials' });
       }

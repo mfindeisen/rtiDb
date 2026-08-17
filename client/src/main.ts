@@ -2,5 +2,8 @@ import { createApp } from 'vue';
 import './style.css';
 import App from './App.vue';
 import router from './router';
+import { initAuth } from '@/composables/useAuth';
 
-createApp(App).use(router).mount('#app');
+void initAuth().finally(() => {
+  createApp(App).use(router).mount('#app');
+});

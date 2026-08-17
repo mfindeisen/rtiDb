@@ -388,7 +388,7 @@ import {
   uploadNewRecord,
   uploadToRecord,
 } from '@/api/records';
-import { parseTokenPayload, logout as authLogout, hasPermission } from '@/composables/useAuth';
+import { getCurrentUser, logout as authLogout, hasPermission } from '@/composables/useAuth';
 import { pollJob } from '@/composables/useJobPoll';
 import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
 import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
@@ -396,8 +396,7 @@ import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 
 const router = useRouter();
 
-const tokenPayload = parseTokenPayload();
-const userRole = ref(tokenPayload?.role || 'editor');
+const userRole = ref(getCurrentUser()?.role || 'editor');
 const userManagementRef = ref(null);
 
 function handleUnauthorized(err: unknown): boolean {

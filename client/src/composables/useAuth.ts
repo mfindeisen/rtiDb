@@ -7,99 +7,107 @@ import {
   userCanComment as sharedCanComment,
 } from '@rtidb/shared/authorization';
 import type { JwtUser } from '@rtidb/shared/auth';
+import { apiUrl } from '@/api/client';
 
-const TOKEN_KEY = 'adminToken';
+const LEGACY_TOKEN_KEY = 'adminToken';
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
+let currentUser: JwtUser | null = null;
+let authInitPromise: Promise<void> | null = null;
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export async function syncSessionCookie(): Promise<void> {
-  const token = getToken();
-  if (!token) return;
+function clearLegacyToken(): void {
   try {
-    await fetch('/api/auth/sync-session', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    });
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   } catch {
-    // ignore sync failures; API calls still use Authorization header
+    // ignore storage failures
   }
 }
 
+export function getCurrentUser(): JwtUser | null {
+  return currentUser;
+}
+
+/** @deprecated Use getCurrentUser() */
 export function parseTokenPayload(): JwtUser | null {
-  const token = getToken();
-  if (!token) return null;
+  return getCurrentUser();
+}
+
+export function setCurrentUser(user: JwtUser | null): void {
+  currentUser = user;
+}
+
+async function fetchCurrentUser(): Promise<JwtUser | null> {
   try {
-    return JSON.parse(atob(token.split('.')[1]!)) as JwtUser;
+    const res = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user: JwtUser };
+    return data.user;
   } catch {
     return null;
   }
 }
 
+export function initAuth(): Promise<void> {
+  if (!authInitPromise) {
+    authInitPromise = (async () => {
+      clearLegacyToken();
+      currentUser = await fetchCurrentUser();
+    })();
+  }
+  return authInitPromise;
+}
+
+export function waitForAuth(): Promise<void> {
+  return authInitPromise ?? Promise.resolve();
+}
+
 export function isAuthenticated(): boolean {
-  return !!parseTokenPayload();
+  return currentUser !== null;
 }
 
 export function logout(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  void fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+  currentUser = null;
+  clearLegacyToken();
+  void fetch(apiUrl('/api/logout'), { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
 export function hasPermission(permission: Permission): boolean {
-  return sharedHasPermission(parseTokenPayload(), permission);
+  return sharedHasPermission(currentUser, permission);
 }
 
 export function canAccessAdmin(): boolean {
-  return sharedCanAccessAdmin(parseTokenPayload());
+  return sharedCanAccessAdmin(currentUser);
 }
 
 export function canCollaborate(): boolean {
-  return sharedCanCollaborate(parseTokenPayload());
+  return sharedCanCollaborate(currentUser);
 }
 
 export function canAnnotate(): boolean {
-  return sharedCanAnnotate(parseTokenPayload());
+  return sharedCanAnnotate(currentUser);
 }
 
 export function canComment(): boolean {
-  return sharedCanComment(parseTokenPayload());
+  return sharedCanComment(currentUser);
 }
 
 export function currentUserId(): number | null {
-  return parseTokenPayload()?.id ?? null;
-}
-
-export function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return currentUser?.id ?? null;
 }
 
 export function isResearcherRole(): boolean {
-  const payload = parseTokenPayload();
-  return payload?.role === 'researcher';
+  return currentUser?.role === 'researcher';
 }
 
 /** Default landing route after login (optional redirect from query). */
 export function postLoginPath(redirect: unknown): string {
-  const payload = parseTokenPayload();
-  if (!payload) return '/login';
+  if (!currentUser) return '/login';
 
   const safeRedirect = typeof redirect === 'string' && redirect.startsWith('/') && redirect !== '/login'
     ? redirect
     : null;
   if (safeRedirect) return safeRedirect;
 
-  if (payload.role === 'researcher') return '/';
+  if (currentUser.role === 'researcher') return '/';
   if (canAccessAdmin()) return '/admin';
   return '/';
 }

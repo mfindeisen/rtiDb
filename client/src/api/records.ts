@@ -7,7 +7,7 @@ import type {
 } from '@rtidb/shared/api/records';
 import type { AutoAnnotateJob } from '@rtidb/shared/api/jobs';
 import type { CatalogMetadata } from '@rtidb/shared';
-import { ApiError, apiUrl, authHeaders, request } from './client';
+import { ApiError, apiUrl, request } from './client';
 
 export async function listRecords(params?: Record<string, string>): Promise<RecordRow[]> {
   const query = params ? `?${new URLSearchParams(params)}` : '';
@@ -88,9 +88,7 @@ export function uploadWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', apiUrl(url));
-    for (const [key, value] of Object.entries(authHeaders())) {
-      xhr.setRequestHeader(key, value);
-    }
+    xhr.withCredentials = true;
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         onProgress(Math.round((event.loaded / event.total) * 100));

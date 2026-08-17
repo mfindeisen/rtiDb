@@ -1,5 +1,5 @@
 import type { SearchResults, ImageSearchCachedResponse, ImageSearchJobResponse } from '@rtidb/shared/api/search';
-import { apiUrl, authHeaders, request } from './client';
+import { apiUrl, request } from './client';
 
 export async function searchRecords(params: Record<string, string>): Promise<SearchResults> {
   const query = new URLSearchParams(params).toString();
@@ -23,10 +23,9 @@ export async function searchByImage(
     ...(force ? { force: '1' } : {}),
   });
 
-  const headers = authHeaders();
   const res = await fetch(apiUrl(`/api/search/image?${query}`), {
     method: 'POST',
-    headers,
+    credentials: 'include',
     body: formData,
   });
 

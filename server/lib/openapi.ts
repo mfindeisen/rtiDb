@@ -476,7 +476,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Obtain token via POST /login, then paste the JWT here (without "Bearer ").',
+          description: 'Browser clients use the httpOnly session cookie set by POST /api/login. Bearer tokens are for API clients only.',
         },
       },
     },

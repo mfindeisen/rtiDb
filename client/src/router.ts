@@ -4,7 +4,7 @@ import AdvancedSearch from './views/AdvancedSearch.vue';
 import Admin from './views/Admin.vue';
 import Login from './views/Login.vue';
 import RecordDetail from './views/RecordDetail.vue';
-import { isAuthenticated, parseTokenPayload, postLoginPath } from '@/composables/useAuth';
+import { isAuthenticated, getCurrentUser, postLoginPath, waitForAuth } from '@/composables/useAuth';
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
@@ -19,9 +19,10 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
+  await waitForAuth();
   const authed = isAuthenticated();
-  const payload = parseTokenPayload();
+  const user = getCurrentUser();
 
   if (to.meta.guest) {
     if (authed) {
@@ -42,7 +43,7 @@ router.beforeEach((to, _from, next) => {
     return;
   }
 
-  if (to.path === '/admin' && payload?.role === 'researcher') {
+  if (to.path === '/admin' && user?.role === 'researcher') {
     next('/');
     return;
   }

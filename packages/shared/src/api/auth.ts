@@ -1,6 +1,12 @@
+import type { JwtUser } from '../auth.js';
+
 export interface LoginResponse {
   success: true;
-  token: string;
+  user: JwtUser;
+}
+
+export interface MeResponse {
+  user: JwtUser;
 }
 
 export interface LoginErrorResponse {
