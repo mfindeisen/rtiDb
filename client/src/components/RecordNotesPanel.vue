@@ -19,17 +19,17 @@
 
     <template v-else>
       <form class="space-y-2" @submit.prevent="saveNewNote">
-        <textarea
+        <Textarea
           v-model="newNoteBody"
           rows="3"
-          class="form-input text-sm resize-y min-h-[72px]"
+          class="text-sm min-h-[72px]"
           placeholder="Observation, reference, hypothesis…"
           :disabled="saving"
         />
         <div class="flex items-center gap-2">
-          <button type="submit" class="btn-primary text-xs px-3 py-1.5" :disabled="saving || !newNoteBody.trim()">
+          <Button type="submit" size="sm" :disabled="saving || !newNoteBody.trim()">
             {{ saving ? 'Saving…' : 'Add note' }}
-          </button>
+          </Button>
           <p v-if="formError" class="text-xs text-red-600 dark:text-red-400">{{ formError }}</p>
         </div>
       </form>
@@ -45,10 +45,10 @@
           class="rounded-lg border border-violet-200/80 dark:border-violet-500/20 bg-white/70 dark:bg-white/[0.03] p-3"
         >
           <template v-if="editingId === note.id">
-            <textarea v-model="editBody" rows="3" class="form-input text-sm w-full resize-y" />
+            <Textarea v-model="editBody" rows="3" class="text-sm w-full" />
             <div class="flex gap-2 mt-2">
-              <button type="button" class="btn-primary text-xs px-2.5 py-1" @click="saveEdit(note.id)">Save</button>
-              <button type="button" class="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1" @click="cancelEdit">Cancel</button>
+              <Button type="button" size="sm" @click="saveEdit(note.id)">Save</Button>
+              <Button type="button" variant="ghost" size="sm" @click="cancelEdit">Cancel</Button>
             </div>
           </template>
           <template v-else>
@@ -56,8 +56,8 @@
             <div class="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-200/80 dark:border-white/5">
               <time class="text-[10px] font-mono text-slate-400">{{ formatNoteDate(note.updatedAt || note.createdAt) }}</time>
               <div class="flex gap-1">
-                <button type="button" class="text-[10px] font-semibold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 px-1.5 py-0.5" @click="startEdit(note)">Edit</button>
-                <button type="button" class="text-[10px] font-semibold text-slate-500 hover:text-red-600 dark:hover:text-red-400 px-1.5 py-0.5" @click="removeNote(note.id)">Delete</button>
+                <Button type="button" variant="ghost" size="xs" class="text-slate-500" @click="startEdit(note)">Edit</Button>
+                <Button type="button" variant="ghost" size="xs" class="text-slate-500 hover:text-destructive" @click="removeNote(note.id)">Delete</Button>
               </div>
             </div>
           </template>
@@ -70,11 +70,14 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { StickyNote } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { canCollaborate as checkCanCollaborate } from '@/composables/useAuth';
 import { formatCatalogDateTime } from '@rtidb/shared';
 import type { RecordNote } from '@rtidb/shared/api/notes';
 import * as notesApi from '@/api/notes';
 import { ApiError } from '@/api/client';
+import { confirmAction } from '@/composables/useConfirmDialog';
 
 const props = defineProps<{
   recordId: number | string;
@@ -165,7 +168,12 @@ async function saveEdit(noteId: number) {
 }
 
 async function removeNote(noteId: number) {
-  if (!window.confirm('Delete this note?')) return;
+  const ok = await confirmAction({
+    title: 'Delete this note?',
+    description: 'This private research note will be removed.',
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
   try {
     await notesApi.deleteNote(recordKey(), noteId);
     notes.value = notes.value.filter((n) => n.id !== noteId);

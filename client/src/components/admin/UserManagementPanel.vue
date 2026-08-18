@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ApiError } from '@/api/client';
+import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
 import { listUsers, createUser, updateUser, deleteUser as apiDeleteUser } from '@/api/users';
 import { RESEARCHER_DEFAULT_PERMISSIONS } from '@rtidb/shared/authorization';
 import type { UserRole, Permission } from '@rtidb/shared/permissions';
@@ -122,13 +123,22 @@ async function saveUser() {
 }
 
 async function deleteUser(u: { id: number; username: string }) {
-  if (!window.confirm(`Delete user "${u.username}"? This action cannot be undone.`)) return;
+  const ok = await confirmAction({
+    title: `Delete user "${u.username}"?`,
+    description: 'This action cannot be undone.',
+    confirmLabel: 'Delete user',
+  });
+  if (!ok) return;
   try {
     await apiDeleteUser(u.id);
     usersList.value = usersList.value.filter((x) => x.id !== u.id);
   } catch (err) {
     if (handleUnauthorized(err)) return;
-    alert(err instanceof ApiError ? `Failed to delete user: ${err.body}` : 'Failed to delete user.');
+    await showAlert({
+      title: 'Could not delete user',
+      description: err instanceof ApiError ? err.body : 'Failed to delete user.',
+      variant: 'destructive',
+    });
     console.error('Failed to delete user', err);
   }
 }
