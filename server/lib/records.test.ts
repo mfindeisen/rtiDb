@@ -59,6 +59,7 @@ describe('toClientRecordRow', () => {
     expect(row.weightsFilePath).toBeUndefined();
     expect(row.imageEmbedding).toBeUndefined();
     expect(row.metadata).toMatchObject({ primaryMotif: 'lion' });
+    expect(row.scaleCalibration).toBeNull();
   });
 });
 

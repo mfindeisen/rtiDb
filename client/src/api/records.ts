@@ -4,7 +4,9 @@ import type {
   RecordRow,
   SuccessResponse,
   UpdateMetadataResponse,
+  UpdateScaleCalibrationResponse,
 } from '@rtidb/shared/api/records';
+import type { ScaleCalibration } from '@rtidb/shared/scaleCalibration';
 import type { AutoAnnotateJob, ProcessingEnqueueResponse, ProcessingJob } from '@rtidb/shared/api/jobs';
 import type { CatalogMetadata } from '@rtidb/shared';
 import type { SearchResults } from '@rtidb/shared/api/search';
@@ -65,6 +67,16 @@ export async function updateMetadata(
   return request<UpdateMetadataResponse>(`/api/records/${id}/metadata`, {
     method: 'PATCH',
     body: JSON.stringify({ metadata }),
+  });
+}
+
+export async function updateScaleCalibration(
+  id: number | string,
+  scaleCalibration: ScaleCalibration | null,
+): Promise<UpdateScaleCalibrationResponse> {
+  return request<UpdateScaleCalibrationResponse>(`/api/records/${id}/scale-calibration`, {
+    method: 'PUT',
+    body: JSON.stringify({ scaleCalibration }),
   });
 }
 

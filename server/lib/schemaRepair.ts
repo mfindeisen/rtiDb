@@ -18,6 +18,7 @@ const RECORDS_COLUMNS = [
   { name: 'format', definition: 'text' },
   { name: 'metadata', definition: "text DEFAULT '{}'" },
   { name: 'slug', definition: 'text' },
+  { name: 'scale_calibration', definition: 'text' },
 ] as const;
 
 /** Apply legacy column fixes missing from older DBs. */

@@ -99,6 +99,13 @@
       "when": 1787042000000,
       "tag": "00013_annotation_stroke_width",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787045000000,
+      "tag": "00014_scale_calibration",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@
     "./authorization": "./src/authorization.ts",
     "./annotationColors": "./src/annotationColors.ts",
     "./annotationStroke": "./src/annotationStroke.ts",
+    "./scaleCalibration": "./src/scaleCalibration.ts",
     "./annotations": "./src/annotations.ts",
     "./recordRevisions": "./src/recordRevisions.ts",
     "./api/records": "./src/api/records.ts",

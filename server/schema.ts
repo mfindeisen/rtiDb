@@ -1,4 +1,5 @@
 import { sqliteTable, integer, text, primaryKey } from 'drizzle-orm/sqlite-core';
+import type { ScaleCalibration } from '@rtidb/shared/scaleCalibration';
 
 /** JSON metadata blob stored on records.metadata */
 type RecordMetadataJson = Record<string, unknown>;
@@ -25,6 +26,7 @@ export const records = sqliteTable('records', {
   tileSize: integer('tile_size'),
   format: text('format'),
   metadata: text('metadata', { mode: 'json' }).$type<RecordMetadataJson>().default({}),
+  scaleCalibration: text('scale_calibration', { mode: 'json' }).$type<ScaleCalibration | null>(),
 });
 
 export const users = sqliteTable('users', {

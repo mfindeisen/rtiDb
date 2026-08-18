@@ -75,6 +75,13 @@ export function resetViewerLight(viewerEl: ViewerElement | null | undefined): vo
   viewerCommand(viewerEl, 'reset-light');
 }
 
+export function setViewerScale(
+  viewerEl: ViewerElement | null | undefined,
+  scale: { pixelsPerUnit: number; unit: string } | null | undefined,
+): void {
+  viewerCommand(viewerEl, 'set-scale', { scale: scale ?? null });
+}
+
 export function exportViewer(
   viewerEl: ViewerElement | null | undefined,
   options: { download?: boolean } = {},

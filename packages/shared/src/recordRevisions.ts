@@ -13,6 +13,7 @@ export const SNAPSHOT_FIELDS = [
   'folderUrl',
   'tiffUrl',
   'thumbnailUrl',
+  'scaleCalibration',
 ] as const;
 
 export type SnapshotField = (typeof SNAPSHOT_FIELDS)[number];
@@ -66,6 +67,7 @@ export const RECORD_FIELD_LABELS: Record<string, string> = {
   folderUrl: 'Tile folder',
   tiffUrl: 'GeoTIFF',
   thumbnailUrl: 'Thumbnail',
+  scaleCalibration: 'Image scale',
 };
 
 const metadataLabelByKey = Object.fromEntries(
@@ -97,6 +99,7 @@ export function formatRevisionValue(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (value === 1 || value === '1') return 'Yes';
   if (value === 0 || value === '0') return 'No';
+  if (value && typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 

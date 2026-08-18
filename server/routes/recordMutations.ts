@@ -5,6 +5,7 @@ import type { Express } from 'express';
 import { normalizeMetadata, formatCatalogDate, formatCatalogDateTime } from '../lib/metadataFields.js';
 import { assignSlugForRecord, refreshSlugIfAuto } from '../lib/slug.js';
 import { metadataWithPublishStatus } from '../lib/records.js';
+import { parseScaleCalibration } from '@rtidb/shared/scaleCalibration';
 import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '../lib/rtiUploadHandler.js';
 import { sendError } from '../lib/httpErrors.js';
 import { resolveThumbnailPath } from '../lib/recordEmbeddings.js';
@@ -143,6 +144,28 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
       res.json({ success: true, metadata: updatedMetadata });
     } catch (err) {
       sendDatabaseError(res, err, 'Update metadata error');
+    }
+  });
+
+  app.put('/api/records/:id/scale-calibration', authMiddleware, requirePermission('edit_record'), (req, res) => {
+    try {
+      const existing = fetchRecordOr404(req, res);
+      if (!existing) return;
+
+      const body = req.body?.scaleCalibration ?? req.body;
+      const scaleCalibration = body == null ? null : parseScaleCalibration(body);
+      if (body != null && !scaleCalibration) {
+        return sendError(res, 400, 'Valid scaleCalibration with pixelsPerUnit and unit is required');
+      }
+
+      db.update(schema.records)
+        .set({ scaleCalibration })
+        .where(eq(schema.records.id, existing.id))
+        .run();
+      snapshotRecordAfter(existing.id, 'updated', req, 'Image scale updated');
+      res.json({ success: true, scaleCalibration });
+    } catch (err) {
+      sendDatabaseError(res, err, 'Update scale calibration error');
     }
   });
 

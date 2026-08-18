@@ -1,4 +1,5 @@
 import type { CatalogMetadata } from '../metadataFields.js';
+import type { ScaleCalibration } from '../scaleCalibration.js';
 
 export interface PublicRecordLinks {
   self: string;
@@ -52,6 +53,7 @@ export interface RecordRow {
   tileSize: number | null;
   format: string | null;
   metadata: CatalogMetadata;
+  scaleCalibration: ScaleCalibration | null;
 }
 
 export interface RecordDetail extends RecordRow {
@@ -77,6 +79,10 @@ export interface SuccessWithIdResponse extends SuccessResponse {
 
 export interface UpdateMetadataResponse extends SuccessResponse {
   metadata: CatalogMetadata;
+}
+
+export interface UpdateScaleCalibrationResponse extends SuccessResponse {
+  scaleCalibration: ScaleCalibration | null;
 }
 
 export interface ProgressEvent {

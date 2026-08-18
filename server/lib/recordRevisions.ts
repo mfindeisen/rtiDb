@@ -1,5 +1,6 @@
 import { eq, desc, and, count } from 'drizzle-orm';
 import { normalizeMetadata, emptyMetadata, formatCatalogDateTime, type CatalogMetadata } from './metadataFields.js';
+import { parseScaleCalibration, type ScaleCalibration } from '@rtidb/shared/scaleCalibration';
 import {
   SNAPSHOT_FIELDS,
   countChanges,
@@ -26,6 +27,7 @@ export interface RecordSnapshot {
   folderUrl: string | null;
   tiffUrl: string | null;
   thumbnailUrl: string | null;
+  scaleCalibration: ScaleCalibration | null;
 }
 
 export interface RevisionUser {
@@ -48,6 +50,7 @@ export function recordToSnapshot(record: DbRecord): RecordSnapshot {
     folderUrl: record.folderUrl || null,
     tiffUrl: record.tiffUrl || null,
     thumbnailUrl: record.thumbnailUrl || null,
+    scaleCalibration: parseScaleCalibration(record.scaleCalibration),
   };
 }
 
@@ -57,7 +60,7 @@ export function diffSnapshots(before: RecordSnapshot | null | undefined, after: 
   for (const field of SNAPSHOT_FIELDS) {
     const oldVal = before?.[field] ?? null;
     const newVal = after[field] ?? null;
-    if (String(oldVal ?? '') !== String(newVal ?? '')) {
+    if (comparableSnapshotValue(oldVal) !== comparableSnapshotValue(newVal)) {
       changes[field] = { old: oldVal, new: newVal };
     }
   }
@@ -250,4 +253,9 @@ export function getRevisionDetail(
 
 export function userCanViewRevisions(user: JwtUser | undefined, record: DbRecord): boolean {
   return userCanViewRecord(user, record);
+}
+
+function comparableSnapshotValue(value: unknown) {
+  if (value && typeof value === 'object') return JSON.stringify(value);
+  return String(value ?? '');
 }

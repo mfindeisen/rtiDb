@@ -4,6 +4,7 @@ import { getConfig } from '../config.js';
 import { normalizeMetadata, getFilledMetadata, ALL_METADATA_KEYS, parseGpsPosition, type CatalogMetadata, type CatalogMetadataKey, type StoredMetadata } from './metadataFields.js';
 import { recordPublicPath } from './slug.js';
 import type { DbRecord } from '../types/index.js';
+import { parseScaleCalibration } from '@rtidb/shared/scaleCalibration';
 import type {
   PublicRecord,
   PublicRecordLinks,
@@ -115,6 +116,7 @@ export function toClientRecordRow(record: DbRecord): RecordRow {
     tileSize: record.tileSize ?? null,
     format: record.format ?? null,
     metadata: normalizeMetadata(record.metadata),
+    scaleCalibration: parseScaleCalibration(record.scaleCalibration),
   };
 }
 
