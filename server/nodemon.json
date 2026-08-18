@@ -1,0 +1,23 @@
+{
+  "watch": [
+    "index.ts",
+    "app.ts",
+    "config.ts",
+    "db.ts",
+    "schema.ts",
+    "lib",
+    "routes",
+    "types",
+    "middleware"
+  ],
+  "ext": "ts",
+  "ignore": [
+    "uploads",
+    "data",
+    ".e2e-data",
+    "node_modules",
+    "lib/rtiprep",
+    "lib/webGLRTIMaker-src",
+    "**/*.test.ts"
+  ]
+}

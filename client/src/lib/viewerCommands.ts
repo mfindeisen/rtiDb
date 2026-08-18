@@ -71,6 +71,10 @@ export function fitViewer(viewerEl: ViewerElement | null | undefined): void {
   viewerCommand(viewerEl, 'fit');
 }
 
+export function resetViewerLight(viewerEl: ViewerElement | null | undefined): void {
+  viewerCommand(viewerEl, 'reset-light');
+}
+
 export function exportViewer(
   viewerEl: ViewerElement | null | undefined,
   options: { download?: boolean } = {},

@@ -19,36 +19,29 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
   await waitForAuth();
   const authed = isAuthenticated();
   const user = getCurrentUser();
 
   if (to.meta.guest) {
     if (authed) {
-      next(postLoginPath(to.query.redirect));
-    } else {
-      next();
+      return postLoginPath(to.query.redirect);
     }
     return;
   }
 
   if (to.meta.public) {
-    next();
     return;
   }
 
   if (to.meta.requiresAuth && !authed) {
-    next({ path: '/login', query: { redirect: to.fullPath } });
-    return;
+    return { path: '/login', query: { redirect: to.fullPath } };
   }
 
   if (to.path === '/admin' && user?.role === 'researcher') {
-    next('/');
-    return;
+    return '/';
   }
-
-  next();
 });
 
 export default router;

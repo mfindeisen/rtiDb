@@ -219,6 +219,8 @@
               arrows nudge light,
               <span class="font-semibold text-slate-700 dark:text-slate-200">+</span>/<span class="font-semibold text-slate-700 dark:text-slate-200">-</span> zoom,
               <span class="font-semibold text-slate-700 dark:text-slate-200">F</span> fit,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">R</span> center light,
+              <span class="font-semibold text-slate-700 dark:text-slate-200">?</span> shortcut list,
               <span class="font-semibold text-slate-700 dark:text-slate-200">S</span> snapshot,
               <span class="font-semibold text-slate-700 dark:text-slate-200">Esc</span> back to pan.
             </p>
