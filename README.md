@@ -4,6 +4,28 @@ A full-stack web application for uploading, processing, managing, and viewing Re
 
 This platform serves as a modern archive and viewer for archaeological and scientific RTI data (PTM and HSH formats), automatically converting massive, monolithic raw files into web-friendly, streamable multi-resolution image pyramids.
 
+## Screenshots
+
+Gallery, record viewer, and admin upload — plus a short orbit-lighting clip of the viewer.
+
+### Gallery
+
+![RTI Gallery](screenshots/1.png)
+
+### RTI Viewer & Annotations
+
+![RTI Viewer with annotations](screenshots/2.png)
+
+### Admin — Records & Upload
+
+![Admin Records and Upload](screenshots/3.png)
+
+### Viewer demo
+
+[Orbit lighting in the RTI viewer](screenshots/rti_orbit_1787067681380.webm)
+
+Sample datasets shown in these screenshots are credited under [Acknowledgements](#acknowledgements).
+
 ## Architecture & Tech Stack
 
 The project is divided into a decoupled **Client** and **Server** architecture, containerized via Docker.
@@ -87,4 +109,8 @@ During Docker deployment, the documentation is automatically built and served at
 
 - **Viewer Engine**: The frontend relies on [mfindeisen/modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer).
 - **Processing Engine**: The Go processing utility is [rtiprep](https://github.com/mfindeisen/rtiprep). We acknowledge the foundational work in decoding and tiling RTI structures from earlier tools like `webRTIViewer` by jcupitt.
+- **Sample RTI data** (screenshots and demo records):
+  - Modern obsidian point (`Lookout_Mtn_LRGB`) — [Leszek Pawlowicz](https://rtimage.us/?page_id=18) (Northern Arizona University).
+  - Ancient papyrus (`Ban-Papyrus_1000`) — Bancroft Library sample from [Cultural Heritage Imaging, RTIViewer example files](https://culturalheritageimaging.org/What_We_Offer/Downloads/View/index.html).
+  - Rock art petroglyph (`WLR-tbird-no-distortion_1000`) — Legend Rock State Park, Wyoming, also from [CHI RTIViewer example files](https://culturalheritageimaging.org/What_We_Offer/Downloads/View/index.html).
 
