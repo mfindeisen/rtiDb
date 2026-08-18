@@ -22,20 +22,19 @@
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
           <div class="relative flex-1 md:max-w-xs">
             <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-            <input
+            <Input
               v-model="searchQuery"
               type="text"
               placeholder="Search scans..."
               class="form-input pl-10 w-full"
             />
           </div>
-          <router-link
-            to="/search"
-            class="btn-secondary inline-flex items-center justify-center gap-2 text-sm !py-2.5 !px-4 whitespace-nowrap"
-          >
-            <ScanSearchIcon class="w-4 h-4" />
-            Advanced Search
-          </router-link>
+          <Button as-child variant="outline">
+            <router-link to="/search">
+              <ScanSearchIcon class="w-4 h-4" />
+              Advanced Search
+            </router-link>
+          </Button>
         </div>
 
         <div class="flex items-center gap-3">
@@ -222,40 +221,38 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             :disabled="currentPage === 1"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
             @click="prevPage"
           >
             <ChevronLeftIcon class="w-4 h-4" /> Prev
-          </button>
+          </Button>
 
           <div class="flex gap-1">
-            <button
+            <Button
               v-for="p in visiblePages"
               :key="p"
               type="button"
-              :class="[
-                'w-8 h-8 rounded-lg flex items-center justify-center border transition-colors',
-                currentPage === p
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800',
-              ]"
+              size="icon-sm"
+              :variant="currentPage === p ? 'default' : 'outline'"
               @click="goToPage(p)"
             >
               {{ p }}
-            </button>
+            </Button>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             :disabled="currentPage >= totalPages || totalPages === 0"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
             @click="nextPage"
           >
             Next <ChevronRightIcon class="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -271,6 +268,8 @@ import { listRecords } from '@/api/records';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 import GalleryColumnPicker from '@/components/GalleryColumnPicker.vue';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   getMetadataValue,

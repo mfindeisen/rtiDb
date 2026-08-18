@@ -19,8 +19,8 @@
         </div>
         <form @submit.prevent="handleLogin" class="space-y-5" autocomplete="on">
           <div class="flex flex-col text-left">
-            <label for="username" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Username</label>
-            <input
+            <Label for="username" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Username</Label>
+            <Input
               id="username"
               v-model="username"
               name="username"
@@ -35,8 +35,8 @@
             />
           </div>
           <div class="flex flex-col text-left">
-            <label for="password" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Password</label>
-            <input
+            <Label for="password" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Password</Label>
+            <Input
               id="password"
               v-model="password"
               name="password"
@@ -48,11 +48,13 @@
               :disabled="isLoading"
             />
           </div>
-          <button type="submit" class="btn-primary w-full" :disabled="isLoading">
+          <Button type="submit" class="w-full" :disabled="isLoading">
             {{ isLoading ? 'Signing in…' : 'Sign in' }}
-          </button>
+          </Button>
         </form>
-        <p v-if="error" class="mt-4 text-sm text-red-600 dark:text-red-400 text-center">{{ error }}</p>
+        <Alert v-if="error" variant="destructive" class="mt-4">
+          <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
       </div>
     </div>
   </div>
@@ -62,6 +64,10 @@
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { postLoginPath } from '@/composables/useAuth';
 import { login } from '@/api/auth';
 import { ApiError } from '@/api/client';

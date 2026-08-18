@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Button } from '@/components/ui/button';
 
 export interface AutoAnnotateUiState {
   running?: boolean;
@@ -124,14 +125,16 @@ const elapsed = computed(() => {
 
     <template v-else>
       <p>{{ state.message }}</p>
-      <button
+      <Button
         v-if="state.canRetry"
         type="button"
-        class="btn-secondary mt-2 !py-1.5 !px-3 text-xs"
+        variant="outline"
+        size="sm"
+        class="mt-2"
         @click="$emit('retry')"
       >
         Replace AI annotations &amp; re-run
-      </button>
+      </Button>
     </template>
   </div>
 </template>

@@ -39,9 +39,9 @@
               <Textarea v-model="createDescription" rows="3" class="form-input !px-4 !py-3" :disabled="isCreating" :dir="createDirection" />
               <SegmentPills v-model="createDirection" class="mt-2" :options="directionOptions" />
             </div>
-            <button type="submit" class="btn-primary w-full" :disabled="isCreating">
+            <Button type="submit" class="w-full" :disabled="isCreating">
               {{ isCreating ? 'Creating...' : 'Create Record' }}
-            </button>
+            </Button>
           </form>
           <InfoCallout v-if="createError" variant="error" class="mt-4">{{ createError }}</InfoCallout>
           <InfoCallout v-if="createSuccess" variant="success" class="mt-4">{{ createSuccess }}</InfoCallout>
@@ -54,7 +54,7 @@
         <InfoCallout v-if="uploadTargetId" variant="warn" class="mb-6">
           Uploading RTI for: <strong>{{ uploadTargetName }}</strong>
           <template #action>
-            <button type="button" class="text-xs font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0" @click="clearUploadTarget">Clear</button>
+            <Button type="button" variant="link" size="xs" class="text-amber-700 dark:text-amber-300 h-auto px-0" @click="clearUploadTarget">Clear</Button>
           </template>
         </InfoCallout>
         
@@ -72,10 +72,15 @@
 
           <div v-if="!uploadTargetId && draftRecords.length" class="flex flex-col text-left">
             <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Attach to existing draft (optional)</Label>
-            <select v-model="attachDraftId" class="form-input py-2 cursor-pointer text-sm" :disabled="isUploading">
-              <option value="">— New record —</option>
-              <option v-for="d in draftRecords" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
-            </select>
+            <Select :model-value="attachDraftId || '__new__'" :disabled="isUploading" @update:model-value="onAttachDraftChange">
+              <SelectTrigger class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__new__">— New record —</SelectItem>
+                <SelectItem v-for="d in draftRecords" :key="d.id" :value="String(d.id)">{{ d.name }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div class="flex flex-col text-left">
@@ -164,31 +169,42 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="flex flex-col text-left">
                 <Label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Quality ({{ quality }}%)</Label>
-                <input
-                  type="range"
-                  v-model="quality"
-                  min="10"
-                  max="100"
-                  class="w-full mt-2 accent-blue-600"
+                <Slider
+                  class="mt-3"
+                  :model-value="[Number(quality)]"
+                  :min="10"
+                  :max="100"
+                  :step="1"
                   :disabled="isUploading || format === 'png'"
+                  @update:model-value="onQualityChange"
                 />
               </div>
               <div class="flex flex-col text-left">
                 <Label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Tile Size</Label>
-                <select v-model="tileSize" class="form-input py-1.5 cursor-pointer" :disabled="isUploading">
-                  <option :value="128">128px</option>
-                  <option :value="256">256px</option>
-                  <option :value="512">512px</option>
-                  <option :value="1024">1024px</option>
-                </select>
+                <Select :model-value="String(tileSize)" :disabled="isUploading" @update:model-value="onTileSizeChange">
+                  <SelectTrigger class="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="128">128px</SelectItem>
+                    <SelectItem value="256">256px</SelectItem>
+                    <SelectItem value="512">512px</SelectItem>
+                    <SelectItem value="1024">1024px</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="flex flex-col text-left">
                 <Label class="mb-1 text-sm text-slate-600 dark:text-slate-300">Image Format</Label>
-                <select v-model="format" class="form-input py-1.5 cursor-pointer" :disabled="isUploading">
-                  <option value="jpg">JPG (Smaller)</option>
-                  <option value="png">PNG (Lossless)</option>
-                  <option value="webp">WebP (Modern)</option>
-                </select>
+                <Select :model-value="format" :disabled="isUploading" @update:model-value="onFormatChange">
+                  <SelectTrigger class="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="jpg">JPG (Smaller)</SelectItem>
+                    <SelectItem value="png">PNG (Lossless)</SelectItem>
+                    <SelectItem value="webp">WebP (Modern)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -198,18 +214,16 @@
               <span>Uploading scan file to server...</span>
               <span class="font-bold text-blue-600 dark:text-blue-400">{{ uploadProgress }}%</span>
             </div>
-            <div class="w-full h-2 bg-slate-200 dark:bg-black/30 rounded-full overflow-hidden">
-              <div class="h-full bg-blue-500 transition-all duration-100" :style="{ width: uploadProgress + '%' }" />
-            </div>
+            <Progress :model-value="uploadProgress" class="h-2" />
             <div class="flex justify-between text-[11px] text-blue-500/80 dark:text-blue-400/70 pt-1.5 border-t border-blue-100 dark:border-blue-800/30 mt-1">
               <span>Speed: {{ uploadSpeed || 'Calculating...' }}</span>
               <span>ETA: {{ uploadETA || 'Calculating...' }}</span>
             </div>
           </div>
 
-          <button type="submit" class="btn-primary w-full mt-4" :disabled="isUploading">
+          <Button type="submit" class="w-full mt-4" :disabled="isUploading">
             {{ isUploading ? 'Uploading to Server...' : (uploadTargetId || attachDraftId ? 'Upload RTI to Record' : 'Upload & Start Processing') }}
-          </button>
+          </Button>
         </form>
 
         <InfoCallout v-if="error" variant="error" class="mt-4">{{ error }}</InfoCallout>
@@ -349,6 +363,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 import { ApiError } from '@/api/client';
 import { subscribeProgress } from '@/api/progress';
 import {
@@ -369,6 +386,7 @@ import type { ProcessingJob } from '@rtidb/shared/api/jobs';
 import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
 import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
+import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
 
 const router = useRouter();
 
@@ -444,6 +462,22 @@ const outputType = ref('geotiff'); // 'geotiff' | 'tiles'
 const uploadMode = ref('standard'); // 'standard' | 'neural'
 const latentMapInputRef = ref(null);
 const weightsInputRef = ref(null);
+
+function onAttachDraftChange(value: unknown) {
+  attachDraftId.value = !value || value === '__new__' ? '' : String(value);
+}
+
+function onTileSizeChange(value: unknown) {
+  if (value) tileSize.value = Number(value);
+}
+
+function onFormatChange(value: unknown) {
+  if (typeof value === 'string') format.value = value;
+}
+
+function onQualityChange(value: number[] | undefined) {
+  if (value?.[0] != null) quality.value = value[0];
+}
 
 const selectedFileName = ref('');
 const selectedLatentMapName = ref('');
@@ -565,11 +599,15 @@ async function pollAutoAnnotateJob(recordId, jobId) {
 }
 
 async function runAutoAnnotate(rec, replace = false) {
-  if (!window.confirm(
-    replace
-      ? 'Replace your existing AI annotations and re-run? This uses significant CPU/RAM on the server.'
-      : 'Run AI auto-annotation on this thumbnail? This uses significant CPU/RAM on the server (prototype).'
-  )) return;
+  const ok = await confirmAction({
+    title: replace ? 'Replace AI annotations?' : 'Run AI auto-annotation?',
+    description: replace
+      ? 'This replaces your existing AI annotations and uses significant CPU/RAM on the server.'
+      : 'This uses significant CPU/RAM on the server (prototype).',
+    confirmLabel: replace ? 'Replace and re-run' : 'Run',
+    variant: replace ? 'destructive' : 'default',
+  });
+  if (!ok) return;
 
   clearAutoAnnotatePoll();
   autoAnnotateState.value[rec.id] = {
@@ -918,14 +956,23 @@ const openEdit = (id: number) => {
 };
 
 const deleteRecord = async (id) => {
-  if (!window.confirm("Are you sure you want to completely delete this record and its massive folder from the server? This cannot be undone.")) return;
+  const ok = await confirmAction({
+    title: 'Delete this record?',
+    description: 'This permanently deletes the record and its files from the server. This cannot be undone.',
+    confirmLabel: 'Delete record',
+  });
+  if (!ok) return;
 
   try {
     await apiDeleteRecord(id);
     records.value = records.value.filter(r => r.id !== id);
   } catch (err) {
     if (handleUnauthorized(err)) return;
-    alert(err instanceof ApiError ? err.body : "Failed to delete record.");
+    await showAlert({
+      title: 'Could not delete record',
+      description: err instanceof ApiError ? err.body : 'Failed to delete record.',
+      variant: 'destructive',
+    });
     console.error("Failed to delete record", err);
   }
 };
@@ -953,7 +1000,11 @@ const rerunRecord = async (id) => {
     void pollProcessingFallback();
   } catch (err) {
     if (handleUnauthorized(err)) return;
-    alert(err instanceof ApiError ? `Failed to rerun record: ${err.body}` : "Failed to rerun record.");
+    await showAlert({
+      title: 'Could not rerun record',
+      description: err instanceof ApiError ? err.body : 'Failed to rerun record.',
+      variant: 'destructive',
+    });
     console.error("Failed to rerun record", err);
   }
 };

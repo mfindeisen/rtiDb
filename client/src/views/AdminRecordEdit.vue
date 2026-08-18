@@ -19,9 +19,9 @@
           <Button type="button" variant="outline" :disabled="saving" @click="$router.push('/admin')">
             Cancel
           </Button>
-          <button type="submit" class="btn-primary px-6 py-2" :disabled="saving || !name.trim()">
+          <Button type="submit" :disabled="saving || !name.trim()">
             {{ saving ? 'Saving…' : 'Save changes' }}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -64,9 +64,9 @@
         <Button type="button" variant="outline" :disabled="saving" @click="$router.push('/admin')">
           Cancel
         </Button>
-        <button type="submit" class="btn-primary px-6 py-2" :disabled="saving || !name.trim()">
+        <Button type="submit" :disabled="saving || !name.trim()">
           {{ saving ? 'Saving…' : 'Save changes' }}
-        </button>
+        </Button>
       </div>
     </form>
   </div>

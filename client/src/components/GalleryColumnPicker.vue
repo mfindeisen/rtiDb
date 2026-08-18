@@ -1,16 +1,17 @@
 <template>
   <div class="relative">
-    <button
-      ref="buttonEl"
-      type="button"
-      class="btn-secondary inline-flex items-center justify-center gap-2 text-sm !py-2.5 !px-4 whitespace-nowrap"
-      :aria-expanded="open"
-      aria-haspopup="dialog"
-      @click="toggle"
-    >
-      <Columns3Icon class="w-4 h-4" />
-      Columns
-    </button>
+    <div ref="buttonEl">
+      <Button
+        type="button"
+        variant="outline"
+        :aria-expanded="open"
+        aria-haspopup="dialog"
+        @click="toggle"
+      >
+        <Columns3Icon class="w-4 h-4" />
+        Columns
+      </Button>
+    </div>
 
     <Teleport to="body">
       <div
@@ -33,13 +34,15 @@
               Choose visible columns and their order.
             </p>
           </div>
-          <button
+          <Button
             type="button"
-            class="text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+            variant="link"
+            size="xs"
+            class="h-auto px-0 shrink-0"
             @click="resetColumns"
           >
             Reset
-          </button>
+          </Button>
         </div>
 
         <div class="space-y-2">
@@ -65,24 +68,26 @@
                 {{ col.label }}
               </label>
               <div class="flex items-center gap-0.5 shrink-0">
-                <button
+                <Button
                   type="button"
-                  class="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  variant="ghost"
+                  size="icon-xs"
                   :disabled="index === 0"
                   title="Move up"
                   @click="move(col.id, -1)"
                 >
                   <ChevronUpIcon class="w-4 h-4" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  class="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                  variant="ghost"
+                  size="icon-xs"
                   :disabled="index === visibleColumns.length - 1"
                   title="Move down"
                   @click="move(col.id, 1)"
                 >
                   <ChevronDownIcon class="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </li>
           </ul>
@@ -121,6 +126,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { Columns3 as Columns3Icon, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon } from '@lucide/vue';
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue';
+import { Button } from '@/components/ui/button';
 import {
   getHiddenColumns,
   loadGalleryColumnPrefs,
@@ -137,7 +143,7 @@ const emit = defineEmits<{
 }>();
 
 const open = ref(false);
-const buttonEl = ref<HTMLButtonElement | null>(null);
+const buttonEl = ref<HTMLElement | null>(null);
 const panelStyle = ref<Record<string, string>>({});
 const prefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
 

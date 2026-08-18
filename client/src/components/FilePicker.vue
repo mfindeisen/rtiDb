@@ -9,15 +9,16 @@
       :disabled="disabled"
       @change="onChange"
     />
-    <button
+    <Button
       type="button"
-      class="file-picker-btn"
+      variant="outline"
+      size="sm"
       :disabled="disabled"
       @click="inputRef?.click()"
     >
-      <Upload class="w-3.5 h-3.5 inline-block mr-1 -mt-px" />
+      <Upload class="w-3.5 h-3.5" />
       Choose File
-    </button>
+    </Button>
     <span class="text-sm text-slate-500 dark:text-slate-400 truncate">
       {{ fileName || placeholder }}
     </span>
@@ -27,6 +28,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Upload } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
 
 defineProps({
   fileName: { type: String, default: '' },

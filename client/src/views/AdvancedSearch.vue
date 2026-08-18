@@ -1,12 +1,8 @@
 <template>
   <div class="page-shell space-y-6">
-    <button
-      type="button"
-      class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-colors"
-      @click="goBack"
-    >
+    <Button variant="ghost" class="text-slate-500 dark:text-slate-400" @click="goBack">
       <ArrowLeft class="w-5 h-5" /> Back
-    </button>
+    </Button>
 
     <div class="text-center mb-4">
       <h2 class="page-title mb-2">Advanced Search</h2>
@@ -32,7 +28,7 @@
       <div class="glass-card !p-6 space-y-4">
         <div class="relative">
           <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-          <input
+          <Input
             v-model="query"
             type="text"
             placeholder="Full-text search across all catalog fields…"
@@ -53,17 +49,21 @@
           </summary>
           <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 bg-slate-50/50 dark:bg-white/[0.02]">
             <div v-for="field in SEARCH_FILTER_FIELDS" :key="field.key" class="flex flex-col">
-              <label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">{{ field.label }}</label>
-              <select
+              <Label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">{{ field.label }}</Label>
+              <Select
                 v-if="field.type === 'select'"
-                :value="filters[field.key] || ''"
-                class="form-input py-2 text-sm cursor-pointer"
-                @change="filters[field.key] = ($event.target as HTMLSelectElement).value"
+                :model-value="filters[field.key] || '__any__'"
+                @update:model-value="(v) => setFilterSelect(field.key, v)"
               >
-                <option value="">Any</option>
-                <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
-              <input
+                <SelectTrigger class="w-full">
+                  <SelectValue placeholder="Any" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__any__">Any</SelectItem>
+                  <SelectItem v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
                 v-else
                 v-model="filters[field.key]"
                 type="text"
@@ -75,19 +75,19 @@
         </details>
 
         <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-          <button type="button" class="btn-primary !py-2.5 !px-5 w-full sm:w-auto" @click="runSearch">Search</button>
-          <button type="button" class="btn-secondary !py-2.5 !px-4 text-sm w-full sm:w-auto" @click="clearFilters">Clear filters</button>
-          <a
-            :href="exportCsvUrl"
-            class="btn-secondary inline-flex items-center justify-center gap-1.5 !py-2.5 !px-4 text-sm w-full sm:w-auto"
-            download
-          >
-            <Table class="w-4 h-4" /> Export CSV
-          </a>
-          <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer sm:ml-auto">
-            <input v-model="spatialFilter" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-            Filter by map area
-          </label>
+          <Button type="button" class="w-full sm:w-auto" @click="runSearch">Search</Button>
+          <Button type="button" variant="outline" class="w-full sm:w-auto" @click="clearFilters">Clear filters</Button>
+          <Button as-child variant="outline" class="w-full sm:w-auto">
+            <a :href="exportCsvUrl" download>
+              <Table class="w-4 h-4" /> Export CSV
+            </a>
+          </Button>
+          <div class="flex items-center gap-2 sm:ml-auto">
+            <Checkbox id="spatial-filter" v-model="spatialFilter" />
+            <Label for="spatial-filter" class="text-sm font-normal text-slate-600 dark:text-slate-300 cursor-pointer">
+              Filter by map area
+            </Label>
+          </div>
           <SegmentPills v-model="viewMode" class="w-full sm:w-auto" :options="viewModeOptions" />
         </div>
       </div>
@@ -154,23 +154,13 @@
           <p v-if="results.length === 0" class="text-center py-12 text-slate-500 dark:text-slate-400">No records match your search.</p>
 
           <div v-if="totalPages > 1" class="flex justify-center gap-2 pt-2">
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 text-sm"
-              :disabled="page <= 1"
-              @click="changePage(page - 1)"
-            >
+            <Button type="button" variant="outline" size="sm" :disabled="page <= 1" @click="changePage(page - 1)">
               Prev
-            </button>
+            </Button>
             <span class="px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400">{{ page }} / {{ totalPages }}</span>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 text-sm"
-              :disabled="page >= totalPages"
-              @click="changePage(page + 1)"
-            >
+            <Button type="button" variant="outline" size="sm" :disabled="page >= totalPages" @click="changePage(page + 1)">
               Next
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -239,9 +229,9 @@
           <img :src="imagePreview" alt="Query" class="w-24 h-24 object-cover rounded-lg border border-slate-200 dark:border-white/10" />
           <div>
             <p class="text-sm font-medium text-slate-800 dark:text-white">{{ imageFile?.name }}</p>
-            <button type="button" class="btn-primary mt-2 !py-2 !px-4 text-sm" :disabled="imageLoading" @click="runImageSearch(false)">
+            <Button type="button" class="mt-2" :disabled="imageLoading" @click="runImageSearch(false)">
               {{ imageLoading ? 'Search in progress…' : 'Find similar' }}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -300,14 +290,15 @@
         <p v-if="imageCatalogChanged" class="mt-1.5 text-xs sm:text-sm">
           The catalog has new indexed records since that search. Re-run for potentially different matches.
         </p>
-        <button
+        <Button
           type="button"
-          class="btn-secondary mt-3 !py-2 !px-4 text-sm"
+          variant="outline"
+          class="mt-3"
           :disabled="imageLoading"
           @click="runImageSearchForced"
         >
           Re-run CLIP search anyway
-        </button>
+        </Button>
         <p class="text-xs mt-1.5 opacity-80">
           Re-running uses CPU and RAM on the server and may take several seconds. It enters the single-worker queue.
         </p>
@@ -344,6 +335,11 @@ import { recordPath } from '@/lib/recordPath';
 import SearchMap from '../components/SearchMap.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import SegmentPills from '../components/SegmentPills.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SEARCH_FILTER_FIELDS } from '@rtidb/shared';
 import type { EnrichedRecord } from '@rtidb/shared/api/search';
 import { searchRecords, searchByImage, getImageSearchJob, bulkExportUrl } from '@/api/search';
@@ -376,6 +372,10 @@ const viewMode = ref('split');
 const query = ref('');
 const filters = reactive(Object.fromEntries(SEARCH_FILTER_FIELDS.map((f) => [f.key, ''])));
 const spatialFilter = ref(false);
+
+function setFilterSelect(key: string, value: unknown) {
+  filters[key] = !value || value === '__any__' ? '' : String(value);
+}
 const mapBounds = ref(null);
 const loading = ref(false);
 const error = ref('');
