@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ANNOTATION_COLOR,
+  hexToHsv,
+  hsvToHex,
+  isPresetAnnotationColor,
   loadStoredAnnotationColor,
   storeAnnotationColor,
 } from './annotationColors.js';
@@ -36,5 +39,12 @@ describe('annotationColors', () => {
     expect(loadStoredAnnotationColor()).toBe('#123456');
     storeAnnotationColor('not-a-color');
     expect(loadStoredAnnotationColor()).toBe(DEFAULT_ANNOTATION_COLOR);
+  });
+
+  it('round-trips primary HSV colors', () => {
+    expect(hsvToHex(0, 1, 1)).toBe('#ff0000');
+    expect(hexToHsv('#00ff00').h).toBe(120);
+    expect(isPresetAnnotationColor('#ec4899')).toBe(true);
+    expect(isPresetAnnotationColor('#abcdef')).toBe(false);
   });
 });
