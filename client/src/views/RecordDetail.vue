@@ -401,10 +401,13 @@
                     :record="record"
                     :viewer-mode="viewerMode"
                     :annotation-enabled="canAnnotateViewer"
+                    :scale-editable="canEditScale"
                     class="flex-1 min-h-0 flex flex-col"
                     @annotation-create="onAnnotationCreate"
                     @annotation-click="onAnnotationClick"
-                    @rti-loaded="onRtiLoaded"
+                    @annotation-update="onAnnotationUpdate"
+                    @rti-loaded="onViewerLoaded"
+                    @scale-change="onScaleChange"
                   />
                 </div>
               </template>
@@ -479,6 +482,7 @@
       :deleting="annotationDeleting"
       :mode="annotationDialogMode"
       :initial-color="annotationDialogMode === 'edit' ? editingAnnotation?.color : pendingAnnotation?.color"
+      :initial-stroke-width="annotationDialogMode === 'edit' ? editingAnnotation?.strokeWidth : pendingAnnotation?.strokeWidth"
       :initial-label="editingAnnotation?.label || ''"
       :initial-visibility="editingAnnotation?.visibility || 'private'"
       @save="saveAnnotationDialog"
@@ -523,14 +527,15 @@ import RecordHistoryPanel from '../components/RecordHistoryPanel.vue';
 import AnnotationNoteDialog from '../components/AnnotationNoteDialog.vue';
 import SegmentPills from '../components/SegmentPills.vue';
 import RtiViewerHost from '../components/RtiViewerHost.vue';
-import { canAnnotate, getCurrentUser } from '@/composables/useAuth';
+import { canAnnotate, getCurrentUser, hasPermission } from '@/composables/useAuth';
 import { userCanViewRecord } from '@rtidb/shared/authorization';
 import { useViewer } from '@/composables/useViewer';
-import { getRecord, exportRecordUrl } from '@/api/records';
+import { getRecord, exportRecordUrl, updateScaleCalibration } from '@/api/records';
 import { createAnnotation, updateAnnotation, deleteAnnotation } from '@/api/annotations';
-import { setViewerAnnotations, selectViewerAnnotation } from '@/lib/viewerCommands';
+import { setViewerAnnotations, selectViewerAnnotation, setViewerScale } from '@/lib/viewerCommands';
 import { DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
 import { recordPath } from '@/lib/recordPath';
+import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
 import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 
@@ -568,6 +573,7 @@ const showModernViewer = computed(() =>
 );
 
 const canAnnotateViewer = computed(() => canAnnotate() && showModernViewer.value);
+const canEditScale = computed(() => hasPermission('edit_record') && showModernViewer.value);
 const showAnnotationsSection = computed(() =>
   showModernViewer.value && userCanViewRecord(getCurrentUser(), { isPublished: record.value?.isPublished }),
 );
@@ -591,6 +597,34 @@ const { showGuide, toggleGuide: toggleGuidePanel, triggerResize, onRtiLoaded, ju
 });
 
 const getViewerElement = () => viewerRef.value;
+
+const applyRecordScale = () => {
+  const el = getViewerElement();
+  if (!el) return;
+  setViewerScale(el, record.value?.scaleCalibration ?? null);
+};
+
+const onViewerLoaded = async () => {
+  await onRtiLoaded();
+  applyRecordScale();
+};
+
+const onScaleChange = async (event) => {
+  const detail = event?.detail ?? event;
+  if (!record.value || !canEditScale.value) return;
+  const key = record.value.slug || record.value.id;
+  try {
+    const data = await updateScaleCalibration(key, detail);
+    record.value = { ...record.value, scaleCalibration: data.scaleCalibration };
+  } catch (err) {
+    console.error(err);
+    await showAlert({
+      title: 'Could not save scale',
+      description: err instanceof Error ? err.message : 'Could not save the image scale',
+      variant: 'destructive',
+    });
+  }
+};
 
 const recordTabOptions = computed(() => [
   { value: 'metadata', label: 'Catalog & Metadata', shortLabel: 'Catalog', icon: FileText },
@@ -631,6 +665,23 @@ const onAnnotationClick = (event) => {
   openAnnotationEdit(ann);
 };
 
+const onAnnotationUpdate = async (event) => {
+  const detail = event?.detail ?? event;
+  if (!record.value || detail?.id == null || !detail?.geometry) return;
+  const key = record.value.slug || record.value.id;
+  try {
+    await updateAnnotation(key, Number(detail.id), { geometry: detail.geometry });
+    await annotationsPanelRef.value?.refresh?.();
+  } catch (err) {
+    console.error(err);
+    await showAlert({
+      title: 'Could not update annotation',
+      description: err instanceof Error ? err.message : 'Could not update annotation',
+      variant: 'destructive',
+    });
+  }
+};
+
 const closeAnnotationDialog = () => {
   annotationNoteOpen.value = false;
   pendingAnnotation.value = null;
@@ -639,7 +690,7 @@ const closeAnnotationDialog = () => {
   selectViewerAnnotation(getViewerElement(), null);
 };
 
-const saveAnnotationDialog = async ({ label, color, visibility }) => {
+const saveAnnotationDialog = async ({ label, color, strokeWidth, visibility }) => {
   if (!record.value) return;
   const key = record.value.slug || record.value.id;
   annotationSaving.value = true;
@@ -648,23 +699,30 @@ const saveAnnotationDialog = async ({ label, color, visibility }) => {
       await updateAnnotation(key, editingAnnotation.value.id, {
         label: label || null,
         color,
+        strokeWidth,
         visibility,
       });
     } else if (pendingAnnotation.value) {
       const payload = {
         ...pendingAnnotation.value,
         color: color || pendingAnnotation.value.color || DEFAULT_ANNOTATION_COLOR,
+        strokeWidth: strokeWidth || pendingAnnotation.value.strokeWidth,
         visibility: visibility || 'private',
         ...(label ? { label } : {}),
       };
       await createAnnotation(key, payload);
     }
     closeAnnotationDialog();
+    annotationsPanelRef.value?.revealOverlays?.();
     await annotationsPanelRef.value?.refresh?.();
     syncViewerAnnotations();
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Could not save annotation');
+    await showAlert({
+      title: 'Could not save annotation',
+      description: err instanceof Error ? err.message : 'Could not save annotation',
+      variant: 'destructive',
+    });
   } finally {
     annotationSaving.value = false;
   }
@@ -672,19 +730,28 @@ const saveAnnotationDialog = async ({ label, color, visibility }) => {
 
 const deleteAnnotationDialog = async () => {
   if (!record.value || !editingAnnotation.value) return;
-  if (!window.confirm('Delete this annotation?')) return;
+  const ok = await confirmAction({
+    title: 'Delete this annotation?',
+    description: 'This mark and its note will be removed from the image.',
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
   const key = record.value.slug || record.value.id;
-  annotationDeleting.value = true;
+  const annotationId = editingAnnotation.value.id;
+  closeAnnotationDialog();
   try {
-    await deleteAnnotation(key, editingAnnotation.value.id);
-    closeAnnotationDialog();
+    await deleteAnnotation(key, annotationId);
     await annotationsPanelRef.value?.refresh?.();
     syncViewerAnnotations();
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Could not delete annotation');
-  } finally {
-    annotationDeleting.value = false;
+    await annotationsPanelRef.value?.refresh?.();
+    syncViewerAnnotations();
+    await showAlert({
+      title: 'Could not delete annotation',
+      description: err instanceof Error ? err.message : 'Could not delete annotation',
+      variant: 'destructive',
+    });
   }
 };
 
@@ -695,6 +762,10 @@ watch(canAnnotateViewer, (enabled) => {
       syncViewerAnnotations();
     });
   }
+});
+
+watch(() => record.value?.scaleCalibration, () => {
+  nextTick(applyRecordScale);
 });
 
 watch(viewerMode, () => {
