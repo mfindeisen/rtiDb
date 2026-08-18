@@ -32,7 +32,8 @@ The project is divided into a decoupled **Client** and **Server** architecture, 
 
 ### 1. Client (Frontend)
 - **Framework**: Vue 3 + Vite
-- **Styling**: Tailwind CSS for a modern, responsive, glass-morphic UI.
+- **UI**: [shadcn-vue](https://www.shadcn-vue.com/) on [Reka UI](https://reka-ui.com/) primitives (`client/src/components/ui`), with [Lucide](https://lucide.dev/) icons.
+- **Styling**: Tailwind CSS for a modern, responsive, glass-morphic layout.
 - **Viewing Engine**: Integrates our custom [modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer) as a standalone Web Component. The viewer handles all WebGL shader magic (Slope Heatmaps, Dual-Light Raking Light, dynamic normals) and Quadtree LOD (Level of Detail) loading for the images.
 - **Real-Time Updates**: Consumes Server-Sent Events (SSE) to display live progress bars while the server processes gigabytes of uploaded RTI data.
 
