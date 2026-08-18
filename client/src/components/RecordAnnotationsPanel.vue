@@ -7,9 +7,21 @@
       <h4 class="section-label flex items-center gap-2 mb-0">
         <Circle class="w-3.5 h-3.5" /> Image Annotations
       </h4>
-      <span class="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-        Shared layers · RTI view saved
-      </span>
+      <button
+        v-if="canView"
+        type="button"
+        class="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border transition-colors"
+        :class="overlaysVisible
+          ? 'bg-amber-100 dark:bg-amber-500/20 border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-200'
+          : 'bg-white/60 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 text-slate-500'"
+        :aria-pressed="overlaysVisible"
+        :title="overlaysVisible ? 'Hide all annotations on the image' : 'Show annotations on the image'"
+        @click="overlaysVisible = !overlaysVisible"
+      >
+        <Eye v-if="overlaysVisible" class="w-3 h-3" />
+        <EyeOff v-else class="w-3 h-3" />
+        {{ overlaysVisible ? 'Shown on image' : 'Hidden on image' }}
+      </button>
     </div>
 
     <p v-if="!canView" class="text-xs text-slate-500 dark:text-slate-400">
@@ -41,8 +53,12 @@
         </button>
       </div>
 
+      <p v-if="!overlaysVisible && listedAnnotations.length > 0" class="text-xs text-slate-500 dark:text-slate-400">
+        Marks are hidden on the image. The list below stays available.
+      </p>
+
       <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400">Loading annotations…</div>
-      <div v-else-if="visibleAnnotations.length === 0" class="text-xs text-slate-500 dark:text-slate-400">
+      <div v-else-if="listedAnnotations.length === 0" class="text-xs text-slate-500 dark:text-slate-400">
         <template v-if="canAnnotate">
           No annotations in the selected layers. Use <strong class="text-slate-700 dark:text-slate-300">Annotate</strong> mode in the viewer.
         </template>
@@ -50,7 +66,7 @@
       </div>
       <ul v-else class="space-y-2" :class="embedded ? '' : 'max-h-56 overflow-y-auto [scrollbar-gutter:stable]'">
         <li
-          v-for="ann in visibleAnnotations"
+          v-for="ann in listedAnnotations"
           :key="ann.id"
           class="rounded-lg border border-amber-200/80 dark:border-amber-500/20 bg-white/70 dark:bg-white/[0.03] p-3 flex items-start justify-between gap-2"
           :class="highlightId === ann.id ? 'ring-2 ring-blue-400/60' : ''"
@@ -73,7 +89,7 @@
             <button
               type="button"
               class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline px-1"
-              @click="$emit('jump-to-view', ann)"
+              @click="jumpTo(ann)"
             >
               Jump to view
             </button>
@@ -81,7 +97,7 @@
               <button
                 type="button"
                 class="text-[10px] font-semibold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 px-1"
-                @click="$emit('edit', ann)"
+                @click="edit(ann)"
               >
                 Edit
               </button>
@@ -103,7 +119,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import { Circle, CircleDot, Square } from '@lucide/vue';
+import { Circle, CircleDot, Square, Eye, EyeOff } from '@lucide/vue';
 import { canAnnotate as checkCanAnnotate, currentUserId, getCurrentUser } from '@/composables/useAuth';
 import { userCanViewRecord } from '@rtidb/shared/authorization';
 import { formatCatalogDateTime } from '@rtidb/shared';
@@ -111,6 +127,7 @@ import { ANNOTATION_VISIBILITY_LABELS, type AnnotationVisibility } from '@rtidb/
 import type { RecordAnnotation } from '@rtidb/shared/api/annotations';
 import * as annotationsApi from '@/api/annotations';
 import { ApiError } from '@/api/client';
+import { confirmAction } from '@/composables/useConfirmDialog';
 
 const props = defineProps({
   recordId: { type: [Number, String], required: true },
@@ -130,6 +147,7 @@ const annotations = ref<RecordAnnotation[]>([]);
 const loading = ref(false);
 const error = ref('');
 
+const overlaysVisible = ref(true);
 const layerFilters = reactive<Record<AnnotationVisibility, boolean>>({
   private: true,
   team: true,
@@ -142,12 +160,30 @@ const layerOptions = [
   { key: 'published' as const, label: 'Published' },
 ];
 
-const visibleAnnotations = computed(() => {
+const listedAnnotations = computed(() => {
   if (!canAnnotate.value) {
     return annotations.value.filter((ann) => ann.visibility === 'published');
   }
   return annotations.value.filter((ann) => layerFilters[ann.visibility]);
 });
+
+const overlayAnnotations = computed(() =>
+  overlaysVisible.value ? listedAnnotations.value : [],
+);
+
+function revealOverlays() {
+  overlaysVisible.value = true;
+}
+
+function jumpTo(ann: RecordAnnotation) {
+  revealOverlays();
+  emit('jump-to-view', ann);
+}
+
+function edit(ann: RecordAnnotation) {
+  revealOverlays();
+  emit('edit', ann);
+}
 
 const recordKey = () => props.recordSlug || props.recordId;
 const formatDate = (iso: string) => formatCatalogDateTime(iso);
@@ -183,7 +219,12 @@ async function fetchAnnotations() {
 }
 
 async function remove(id: number) {
-  if (!window.confirm('Delete this annotation?')) return;
+  const ok = await confirmAction({
+    title: 'Delete this annotation?',
+    description: 'This mark and its note will be removed from the image.',
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
   try {
     await annotationsApi.deleteAnnotation(recordKey(), id);
     annotations.value = annotations.value.filter((a) => a.id !== id);
@@ -194,13 +235,15 @@ async function remove(id: number) {
 }
 
 defineExpose({
-  annotations: visibleAnnotations,
+  annotations: overlayAnnotations,
   allAnnotations: annotations,
   fetchAnnotations,
   refresh: fetchAnnotations,
+  revealOverlays,
 });
 
 onMounted(fetchAnnotations);
 watch(() => props.recordId, fetchAnnotations);
 watch(layerFilters, () => emit('updated'), { deep: true });
+watch(overlaysVisible, () => emit('updated'));
 </script>
