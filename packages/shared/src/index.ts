@@ -6,6 +6,7 @@ export * from './recordRevisions.js';
 export * from './recordOutput.js';
 export * from './authorization.js';
 export * from './annotationColors.js';
+export * from './annotationStroke.js';
 
 export type * from './api/records.js';
 export type * from './api/search.js';

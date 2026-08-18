@@ -86,6 +86,10 @@ export function ensureAnnotationSchema(sqlite: Database.Database) {
     sqlite.exec(`ALTER TABLE \`record_annotations\` ADD \`visibility\` text DEFAULT 'private' NOT NULL`);
     console.log('Schema repair: added record_annotations.visibility');
   }
+  if (!cols.has('stroke_width')) {
+    sqlite.exec(`ALTER TABLE \`record_annotations\` ADD \`stroke_width\` integer DEFAULT 2`);
+    console.log('Schema repair: added record_annotations.stroke_width');
+  }
 }
 
 /** Full-text search index over catalog records. */

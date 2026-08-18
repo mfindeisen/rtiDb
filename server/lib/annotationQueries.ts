@@ -27,6 +27,7 @@ export function listRecordAnnotations(db: AppDb, schema: AppSchema, record: DbRe
     geometry: schema.recordAnnotations.geometry,
     label: schema.recordAnnotations.label,
     color: schema.recordAnnotations.color,
+    strokeWidth: schema.recordAnnotations.strokeWidth,
     rtiView: schema.recordAnnotations.rtiView,
     source: schema.recordAnnotations.source,
     visibility: schema.recordAnnotations.visibility,

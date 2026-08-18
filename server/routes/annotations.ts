@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import type { Express } from 'express';
 import { parseAnnotationVisibility } from '@rtidb/shared/annotations';
+import { normalizeAnnotationStrokeWidth } from '@rtidb/shared/annotationStroke';
 import { requireAnnotate } from '../lib/collaboration.js';
 import { validateAnnotationBody } from '../lib/annotations.js';
 import { canListRecordAnnotations, listRecordAnnotations } from '../lib/annotationQueries.js';
@@ -32,7 +33,7 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
   app.post('/api/records/:id/annotations', authMiddleware, requireAnnotate, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
-    const { type, geometry, label, color, rtiView, visibility } = req.body;
+    const { type, geometry, label, color, strokeWidth, rtiView, visibility } = req.body;
     if (!type || !geometry || !rtiView) {
       return res.status(400).json({ error: 'type, geometry, and rtiView are required' });
     }
@@ -50,6 +51,7 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
         geometry,
         label: label ? String(label).trim() : null,
         color: color || '#f59e0b',
+        strokeWidth: normalizeAnnotationStrokeWidth(strokeWidth),
         rtiView,
         visibility: parsedVisibility,
         createdAt: now,
@@ -60,6 +62,7 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
         geometry: schema.recordAnnotations.geometry,
         label: schema.recordAnnotations.label,
         color: schema.recordAnnotations.color,
+        strokeWidth: schema.recordAnnotations.strokeWidth,
         rtiView: schema.recordAnnotations.rtiView,
         source: schema.recordAnnotations.source,
         visibility: schema.recordAnnotations.visibility,
@@ -81,7 +84,7 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const annotationId = Number(req.params.annotationId);
-    const { label, color, visibility } = req.body;
+    const { label, color, strokeWidth, visibility } = req.body;
     try {
       const existing = findUserOwnedAnnotation(db, schema, annotationId, record.id, req.user!.id);
       if (!existing) {
@@ -92,10 +95,12 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
         updatedAt: string;
         label?: string | null;
         color?: string;
+        strokeWidth?: number;
         visibility?: string;
       } = { updatedAt: now };
       if (label !== undefined) updates.label = label ? String(label).trim() : null;
       if (color !== undefined) updates.color = color || '#f59e0b';
+      if (strokeWidth !== undefined) updates.strokeWidth = normalizeAnnotationStrokeWidth(strokeWidth);
       if (visibility !== undefined) updates.visibility = parseAnnotationVisibility(visibility);
       db.update(schema.recordAnnotations).set(updates).where(eq(schema.recordAnnotations.id, annotationId)).run();
       res.json({ success: true, updatedAt: now });

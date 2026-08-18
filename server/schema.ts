@@ -75,6 +75,7 @@ export const recordAnnotations = sqliteTable('record_annotations', {
   geometry: text('geometry', { mode: 'json' }).notNull(),
   label: text('label'),
   color: text('color').default('#f59e0b'),
+  strokeWidth: integer('stroke_width').default(2),
   rtiView: text('rti_view', { mode: 'json' }).notNull(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

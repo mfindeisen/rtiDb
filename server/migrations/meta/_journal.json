@@ -92,6 +92,13 @@
       "when": 1786960000000,
       "tag": "00012_annotation_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787042000000,
+      "tag": "00013_annotation_stroke_width",
+      "breakpoints": true
     }
   ]
 }

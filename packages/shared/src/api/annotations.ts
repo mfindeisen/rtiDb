@@ -14,6 +14,7 @@ export interface RecordAnnotation {
   geometry: AnnotationGeometry;
   label: string | null;
   color: string | null;
+  strokeWidth: number | null;
   rtiView: AnnotationRtiView;
   source?: string | null;
   visibility: AnnotationVisibility;
@@ -33,6 +34,7 @@ export interface CreateAnnotationPayload {
   geometry: AnnotationGeometry;
   label?: string | null;
   color?: string;
+  strokeWidth?: number;
   rtiView: AnnotationRtiView;
   visibility?: AnnotationVisibility;
 }
@@ -40,5 +42,6 @@ export interface CreateAnnotationPayload {
 export interface UpdateAnnotationPayload {
   label?: string | null;
   color?: string;
+  strokeWidth?: number;
   visibility?: AnnotationVisibility;
 }
