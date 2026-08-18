@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { Request } from 'express';
 import { processRTI, processRtiToTiff } from './rtiprep.js';
 import { normalizeMetadata, formatCatalogDate, type CatalogMetadata } from './metadataFields.js';
+import { firstExistingPath, writeGalleryThumbnail } from './thumbnail.js';
 import { updateRecordImageEmbedding } from './recordEmbeddings.js';
 import { broadcastProgress } from './progress.js';
 import { archiveOriginalFiles } from './protectedStatic.js';
@@ -48,7 +49,15 @@ export function createProcessingPipeline({
         const tiffName = path.basename(tiffPath);
         const tiffPublicUrl = `/static/uploads/${tiffName}`;
         const thumbName = `${tiffName.substring(0, tiffName.lastIndexOf('.'))}.jpg`;
+        const thumbAbs = path.join(uploadDir, thumbName);
         const thumbPublicUrl = `/static/uploads/${thumbName}`;
+        try {
+          if (await firstExistingPath([thumbAbs])) {
+            await writeGalleryThumbnail(thumbAbs, thumbAbs);
+          }
+        } catch (err) {
+          console.error(`Gallery thumbnail failed for record ${recordId}:`, err);
+        }
         db.update(schema.records)
           .set({ tiffUrl: tiffPublicUrl, thumbnailUrl: thumbPublicUrl, status: 'done', progress: 100 })
           .where(eq(schema.records.id, recordId))
@@ -72,7 +81,19 @@ export function createProcessingPipeline({
         });
         const folderName = path.basename(outputDir);
         const publicUrl = `/static/uploads/${folderName}`;
-        const thumbnailUrl = `${publicUrl}/1_1.${options.format || 'jpg'}`;
+        const thumbAbs = path.join(outputDir, 'thumbnail.jpg');
+        const thumbSource = await firstExistingPath([
+          thumbAbs,
+          path.join(outputDir, `1_1.${options.format || 'jpg'}`),
+        ]);
+        try {
+          if (thumbSource) {
+            await writeGalleryThumbnail(thumbSource, thumbAbs);
+          }
+        } catch (err) {
+          console.error(`Gallery thumbnail failed for record ${recordId}:`, err);
+        }
+        const thumbnailUrl = `${publicUrl}/thumbnail.jpg`;
         db.update(schema.records)
           .set({ folderUrl: publicUrl, thumbnailUrl, status: 'done', progress: 100 })
           .where(eq(schema.records.id, recordId))

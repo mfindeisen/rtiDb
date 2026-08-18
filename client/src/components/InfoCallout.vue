@@ -1,5 +1,5 @@
 <template>
-  <div v-if="dismissKey && dismissed" class="flex">
+  <div v-if="dismissKey && dismissed" class="flex" :class="$attrs.class || 'mb-4'">
     <button
       type="button"
       class="inline-flex items-center justify-center w-8 h-8 rounded-full border border-blue-200 dark:border-blue-700/40 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"

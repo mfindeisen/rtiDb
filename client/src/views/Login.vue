@@ -11,7 +11,12 @@
       </div>
 
       <div class="glass-card">
-        <h2 class="text-xl font-bold text-center text-slate-800 dark:text-white mb-6">Login</h2>
+        <div class="relative mb-6">
+          <h2 class="text-xl font-bold text-center text-slate-800 dark:text-white">Login</h2>
+          <div class="absolute inset-y-0 right-0 flex items-center">
+            <ThemeToggle />
+          </div>
+        </div>
         <form @submit.prevent="handleLogin" class="space-y-5" autocomplete="on">
           <div class="flex flex-col text-left">
             <label for="username" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Username</label>
@@ -56,6 +61,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { postLoginPath } from '@/composables/useAuth';
 import { login } from '@/api/auth';
 import { ApiError } from '@/api/client';

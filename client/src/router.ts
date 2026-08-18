@@ -4,7 +4,7 @@ import AdvancedSearch from './views/AdvancedSearch.vue';
 import Admin from './views/Admin.vue';
 import Login from './views/Login.vue';
 import RecordDetail from './views/RecordDetail.vue';
-import { isAuthenticated, getCurrentUser, postLoginPath, waitForAuth } from '@/composables/useAuth';
+import { isAuthenticated, getCurrentUser, postLoginPath, waitForAuth, hasPermission, canAccessAdmin } from '@/composables/useAuth';
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
@@ -12,6 +12,11 @@ const routes: RouteRecordRaw[] = [
   { path: '/record/:slug', component: RecordDetail, meta: { public: true } },
   { path: '/search', component: AdvancedSearch, meta: { requiresAuth: true } },
   { path: '/admin', component: Admin, meta: { requiresAuth: true } },
+  {
+    path: '/admin/records/:id/edit',
+    component: () => import('./views/AdminRecordEdit.vue'),
+    meta: { requiresAuth: true, requiresEditRecord: true },
+  },
 ];
 
 const router = createRouter({
@@ -39,8 +44,13 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { redirect: to.fullPath } };
   }
 
-  if (to.path === '/admin' && user?.role === 'researcher') {
-    return '/';
+  if (to.path.startsWith('/admin')) {
+    if (user?.role === 'researcher' || !canAccessAdmin()) {
+      return '/';
+    }
+    if (to.meta.requiresEditRecord && !hasPermission('edit_record')) {
+      return '/admin';
+    }
   }
 });
 

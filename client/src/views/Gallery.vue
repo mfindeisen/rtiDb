@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1600px] mx-auto space-y-8">
+  <div class="page-shell space-y-8">
     <div class="text-center mb-12">
       <h2 class="page-title mb-4">RTI Gallery</h2>
     </div>
@@ -41,13 +41,15 @@
         <div class="flex items-center gap-3">
           <GalleryColumnPicker class="hidden md:block" @change="onColumnPrefsChange" />
           <div class="flex items-center gap-2">
-            <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</label>
-            <select v-model.number="itemsPerPage" class="form-input py-1.5 px-3 cursor-pointer w-20">
-              <option :value="5">5</option>
-              <option :value="10">10</option>
-              <option :value="20">20</option>
-              <option :value="50">50</option>
-            </select>
+            <Label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</Label>
+            <Select :model-value="String(itemsPerPage)" @update:model-value="onItemsPerPageChange">
+              <SelectTrigger class="w-[4.75rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" align="end">
+                <SelectItem v-for="n in pageSizeOptions" :key="n" :value="String(n)">{{ n }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -268,6 +270,8 @@ import type { RecordRow } from '@rtidb/shared/api/records';
 import { listRecords } from '@/api/records';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 import GalleryColumnPicker from '@/components/GalleryColumnPicker.vue';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   getMetadataValue,
   loadGalleryColumnPrefs,
@@ -289,7 +293,8 @@ const loading = ref(true);
 const error = ref('');
 const searchQuery = ref('');
 const currentPage = ref(1);
-const itemsPerPage = ref(10);
+const pageSizeOptions = [5, 10, 20, 50] as const;
+const itemsPerPage = ref<(typeof pageSizeOptions)[number]>(10);
 const columnPrefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
 const visibleColumns = computed(() => resolveVisibleColumns(columnPrefs.value));
 
@@ -305,6 +310,13 @@ onMounted(async () => {
 
 function onColumnPrefsChange(prefs: GalleryColumnPrefs) {
   columnPrefs.value = prefs;
+}
+
+function onItemsPerPageChange(value: unknown) {
+  const n = Number(value);
+  if ((pageSizeOptions as readonly number[]).includes(n)) {
+    itemsPerPage.value = n as (typeof pageSizeOptions)[number];
+  }
 }
 
 function columnColClass(col: GalleryColumnDef): string {

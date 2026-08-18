@@ -14,23 +14,17 @@
         <div class="hidden lg:flex items-center gap-4 xl:gap-6 flex-wrap justify-end">
           <router-link to="/" class="nav-link">Gallery</router-link>
           <router-link to="/search" class="nav-link">Search</router-link>
-          <router-link v-if="showAdminLink" to="/admin" class="nav-link">Admin</router-link>
+          <router-link v-if="showAdminLink" to="/admin" class="nav-link" :class="{ 'router-link-active': route.path.startsWith('/admin') }">Admin</router-link>
           <a href="/api/docs" target="_blank" rel="noopener" class="nav-link">Swagger API</a>
           <a href="/docs/" target="_blank" class="nav-link">Documentation</a>
           <Button variant="ghost" size="sm" class="text-slate-500 dark:text-slate-400" @click="handleLogout">
             Logout
           </Button>
-          <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle Theme">
-            <Sun v-if="isDark" class="w-5 h-5" />
-            <Moon v-else class="w-5 h-5" />
-          </Button>
+          <ThemeToggle />
         </div>
 
         <div class="flex lg:hidden items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle Theme">
-            <Sun v-if="isDark" class="w-5 h-5" />
-            <Moon v-else class="w-5 h-5" />
-          </Button>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" :aria-expanded="mobileMenuOpen" aria-label="Open menu" @click="mobileMenuOpen = !mobileMenuOpen">
             <X v-if="mobileMenuOpen" class="w-5 h-5" />
             <Menu v-else class="w-5 h-5" />
@@ -44,7 +38,7 @@
       >
         <router-link to="/" class="mobile-nav-link" @click="mobileMenuOpen = false">Gallery</router-link>
         <router-link to="/search" class="mobile-nav-link" @click="mobileMenuOpen = false">Search</router-link>
-        <router-link v-if="showAdminLink" to="/admin" class="mobile-nav-link" @click="mobileMenuOpen = false">Admin</router-link>
+        <router-link v-if="showAdminLink" to="/admin" class="mobile-nav-link" :class="{ 'router-link-active': route.path.startsWith('/admin') }" @click="mobileMenuOpen = false">Admin</router-link>
         <a href="/api/docs" target="_blank" rel="noopener" class="mobile-nav-link" @click="mobileMenuOpen = false">Swagger API</a>
         <a href="/docs/" target="_blank" class="mobile-nav-link" @click="mobileMenuOpen = false">Documentation</a>
         <button type="button" class="mobile-nav-link w-full text-left text-red-600 dark:text-red-400" @click="handleLogout">
@@ -79,13 +73,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Sun, Moon, Menu, X } from '@lucide/vue';
+import { Menu, X } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { canAccessAdmin, logout } from '@/composables/useAuth';
+import { useTheme } from '@/composables/useTheme';
 
 const route = useRoute();
 const router = useRouter();
-const isDark = ref(false);
+const { initTheme } = useTheme();
 const mobileMenuOpen = ref(false);
 
 const showNav = computed(() => !route.meta.guest);
@@ -102,24 +98,6 @@ const handleLogout = async () => {
 };
 
 onMounted(() => {
-  if (localStorage.theme === 'dark') {
-    isDark.value = true;
-    document.documentElement.classList.add('dark');
-  } else {
-    isDark.value = false;
-    document.documentElement.classList.remove('dark');
-    localStorage.theme = 'light';
-  }
+  initTheme();
 });
-
-const toggleTheme = () => {
-  isDark.value = !isDark.value;
-  if (isDark.value) {
-    document.documentElement.classList.add('dark');
-    localStorage.theme = 'dark';
-  } else {
-    document.documentElement.classList.remove('dark');
-    localStorage.theme = 'light';
-  }
-};
 </script>

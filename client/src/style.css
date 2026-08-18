@@ -54,6 +54,10 @@
       bg-slate-50/80 dark:bg-white/[0.03] backdrop-blur-sm;
   }
 
+  .page-shell {
+    @apply max-w-[1600px] mx-auto w-full;
+  }
+
   .page-title {
     @apply text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight
       bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900

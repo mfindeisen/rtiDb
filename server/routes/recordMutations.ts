@@ -7,6 +7,7 @@ import { assignSlugForRecord, refreshSlugIfAuto } from '../lib/slug.js';
 import { metadataWithPublishStatus } from '../lib/records.js';
 import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '../lib/rtiUploadHandler.js';
 import { sendError } from '../lib/httpErrors.js';
+import { resolveThumbnailPath } from '../lib/recordEmbeddings.js';
 import { sendDatabaseError } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
 
@@ -205,12 +206,14 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
       }
 
       if (record.thumbnailUrl) {
-        const thumbPath = path.join(uploadDir, path.basename(record.thumbnailUrl));
-        try {
-          await fs.unlink(thumbPath);
-          console.log(`Deleted thumbnail file: ${thumbPath}`);
-        } catch {
-          // ignore
+        const thumbPath = resolveThumbnailPath(record.thumbnailUrl, uploadDir);
+        if (thumbPath) {
+          try {
+            await fs.unlink(thumbPath);
+            console.log(`Deleted thumbnail file: ${thumbPath}`);
+          } catch {
+            // ignore
+          }
         }
       }
 

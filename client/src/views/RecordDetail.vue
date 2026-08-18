@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-[1600px] mx-auto space-y-4">
+  <div class="page-shell space-y-4">
     <button
       type="button"
       class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-colors"

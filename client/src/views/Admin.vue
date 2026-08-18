@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-6xl mx-auto space-y-6">
+  <div class="page-shell space-y-6">
     <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
       <Button variant="ghost" class="justify-start sm:justify-center" @click="$router.push('/')">
         <ArrowLeft class="w-4 h-4 mr-2" /> Back to Gallery
@@ -244,29 +244,7 @@
 
         <div v-else class="space-y-4">
           <div v-for="rec in records" :key="rec.id" class="metadata-field p-4 text-left">
-            <div v-if="editingId === rec.id" class="space-y-4">
-              <div class="space-y-3 p-3 rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50/80 dark:bg-white/[0.03]">
-                <h4 class="text-sm font-semibold text-slate-800 dark:text-white">Basic Information</h4>
-                <Input v-model="editName" placeholder="Name" class="form-input" />
-                <Textarea v-model="editDescription" rows="2" placeholder="Description" class="form-input" :dir="editDirection" />
-                <SegmentPills v-model="editDirection" :options="directionOptions" />
-              </div>
-
-              <div class="p-3 rounded-lg border border-slate-200/70 dark:border-white/10 bg-slate-50/80 dark:bg-white/[0.03]">
-                <h4 class="text-sm font-semibold text-slate-800 dark:text-white mb-3">Catalog Metadata</h4>
-                <div class="max-h-[60vh] overflow-y-auto pr-1">
-                  <MetadataForm v-model="editMetadata" :text-direction="editDirection" :open-sections="['identification', 'archaeological', 'physical']" />
-                </div>
-              </div>
-
-              <div class="flex gap-2">
-                <button type="button" class="btn-primary px-5 py-2" @click="saveEdit(rec.id)">Save</button>
-                <Button variant="outline" @click="cancelEdit">Cancel</Button>
-              </div>
-            </div>
-
-            <div v-else>
-              <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
               <div class="flex gap-4 items-start flex-1 min-w-0">
                 <div v-if="rec.thumbnailUrl" class="w-20 h-20 shrink-0 bg-slate-100 dark:bg-black/30 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
                   <img :src="rec.thumbnailUrl" alt="Thumbnail" class="w-full h-full object-cover" />
@@ -306,7 +284,7 @@
                 <button v-if="userRole === 'admin' && rec.status === 'done' && rec.thumbnailUrl" type="button" class="record-action-btn text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10" :disabled="!!autoAnnotateState[rec.id]?.running" @click="runAutoAnnotate(rec, false)" title="AI auto-annotate (prototype)">
                   <Sparkles class="w-4 h-4" :class="autoAnnotateState[rec.id]?.running ? 'animate-spin' : ''" />
                 </button>
-                <button v-if="hasPermission('edit_record')" type="button" class="record-action-btn text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10" @click="startEdit(rec)" title="Edit">
+                <button v-if="hasPermission('edit_record')" type="button" class="record-action-btn text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10" @click="openEdit(rec.id)" title="Edit">
                   <Pencil class="w-4 h-4" />
                 </button>
                 <button v-if="hasPermission('delete_record')" type="button" class="record-action-btn text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10" @click="deleteRecord(rec.id)" title="Delete">
@@ -343,7 +321,6 @@
             <div v-else-if="rec.status === 'draft'" class="mt-2 text-right">
               <router-link :to="recordPath(rec)" class="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:underline">View catalog entry →</router-link>
             </div>
-            </div>
           </div>
         </div>
         </CardContent>
@@ -365,9 +342,7 @@ import FancyCard from '../components/FancyCard.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import FilePicker from '../components/FilePicker.vue';
 import SegmentPills from '../components/SegmentPills.vue';
-import MetadataForm from '../components/MetadataForm.vue';
 import { recordPath } from '@/lib/recordPath';
-import { normalizeMetadata, emptyMetadata } from '@rtidb/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -379,7 +354,6 @@ import { subscribeProgress } from '@/api/progress';
 import {
   listRecords,
   createRecord as apiCreateRecord,
-  updateRecord,
   deleteRecord as apiDeleteRecord,
   publishRecord,
   rerunProcessing,
@@ -639,11 +613,6 @@ async function runAutoAnnotate(rec, replace = false) {
 }
 
 const loadingRecords = ref(true);
-const editingId = ref(null);
-const editName = ref('');
-const editDescription = ref('');
-const editDirection = ref('ltr');
-const editMetadata = ref(emptyMetadata());
 
 const draftRecords = computed(() => records.value.filter((r) => r.status === 'draft'));
 
@@ -944,38 +913,8 @@ const resetForm = () => {
 
 // --- Management Functions ---
 
-const startEdit = (rec) => {
-  editingId.value = rec.id;
-  editName.value = rec.name;
-  editDescription.value = rec.description;
-  editDirection.value = rec.direction || 'ltr';
-  editMetadata.value = normalizeMetadata(rec.metadata);
-};
-
-const cancelEdit = () => {
-  editingId.value = null;
-};
-
-const saveEdit = async (id) => {
-  try {
-    const data = await updateRecord(id, {
-      name: editName.value,
-      description: editDescription.value,
-      direction: editDirection.value,
-      metadata: editMetadata.value,
-    });
-    const rec = records.value.find(r => r.id === id);
-    if (rec) {
-      rec.name = editName.value;
-      rec.description = editDescription.value;
-      rec.direction = editDirection.value;
-      rec.metadata = data.metadata || editMetadata.value;
-    }
-    editingId.value = null;
-  } catch (err) {
-    if (handleUnauthorized(err)) return;
-    console.error("Failed to edit record", err);
-  }
+const openEdit = (id: number) => {
+  router.push(`/admin/records/${id}/edit`);
 };
 
 const deleteRecord = async (id) => {
