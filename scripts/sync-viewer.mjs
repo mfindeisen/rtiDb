@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Build deps/modernRtiViewer and copy dist/ into client/public/modern-viewer/.
- * Requires: pnpm, git submodules initialized.
+ * Build modernRtiViewer and copy dist/ into client/public/modern-viewer/.
+ *
+ * Prefers the sibling workspace ../modernRtiViewer (local development).
+ * Falls back to the git submodule at deps/modernRtiViewer.
  */
 import { spawnSync } from 'child_process';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'fs';
@@ -9,8 +11,14 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const viewerRoot = join(root, 'deps', 'modernRtiViewer');
+const siblingViewer = join(root, '..', 'modernRtiViewer');
+const submoduleViewer = join(root, 'deps', 'modernRtiViewer');
+const viewerRoot = existsSync(join(siblingViewer, 'package.json'))
+  ? siblingViewer
+  : submoduleViewer;
 const dest = join(root, 'client', 'public', 'modern-viewer');
+
+console.log(`Using viewer source: ${viewerRoot}`);
 
 function run(cmd, args, cwd) {
   const result = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
@@ -20,7 +28,7 @@ function run(cmd, args, cwd) {
 }
 
 if (!existsSync(join(viewerRoot, 'package.json'))) {
-  console.error('deps/modernRtiViewer not found.');
+  console.error('modernRtiViewer not found (looked at ../modernRtiViewer and deps/modernRtiViewer).');
   console.error('Run: git submodule update --init --recursive');
   process.exit(1);
 }
