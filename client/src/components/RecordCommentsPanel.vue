@@ -15,21 +15,21 @@
     </p>
 
     <template v-else>
-      <form v-if="!replyToId" class="space-y-2" @submit.prevent="submitNewComment">
-        <textarea
+      <form class="space-y-2" @submit.prevent="submitNewComment">
+        <Textarea
           v-model="newBody"
           rows="3"
-          class="form-input text-sm resize-y min-h-[72px]"
+          class="text-sm min-h-[72px]"
           placeholder="Share an observation, question, or reference for other researchers…"
           :disabled="saving"
         />
         <div class="flex items-center gap-2">
-          <button type="submit" class="btn-primary text-xs px-3 py-1.5" :disabled="saving || !newBody.trim()">
+          <Button type="submit" size="sm" :disabled="saving || !newBody.trim()">
             {{ saving ? 'Posting…' : 'Post comment' }}
-          </button>
-          <p v-if="formError" class="text-xs text-red-600 dark:text-red-400">{{ formError }}</p>
+          </Button>
         </div>
       </form>
+      <p v-if="formError" class="text-xs text-red-600 dark:text-red-400">{{ formError }}</p>
 
       <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400 py-2">Loading discussion…</div>
       <div v-else-if="thread.length === 0" class="text-xs text-slate-500 dark:text-slate-400 py-1">
@@ -64,10 +64,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { MessageSquare } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { canComment as checkCanComment, currentUserId as getCurrentUserId } from '@/composables/useAuth';
 import type { RecordComment } from '@rtidb/shared/api/comments';
 import * as commentsApi from '@/api/comments';
 import { ApiError } from '@/api/client';
+import { confirmAction } from '@/composables/useConfirmDialog';
 import CommentThreadItem, { type CommentNode } from './CommentThreadItem.vue';
 
 const props = defineProps<{
@@ -225,7 +228,12 @@ async function saveEdit(commentId: number) {
 }
 
 async function removeComment(commentId: number) {
-  if (!window.confirm('Delete this comment? Replies will also be removed.')) return;
+  const ok = await confirmAction({
+    title: 'Delete this comment?',
+    description: 'Replies will also be removed.',
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
   try {
     await commentsApi.deleteComment(recordKey(), commentId);
     const toRemove = new Set<number>();
