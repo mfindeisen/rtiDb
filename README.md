@@ -6,7 +6,7 @@ This platform serves as a modern archive and viewer for archaeological and scien
 
 ## Screenshots
 
-Gallery, record viewer, and admin upload — plus a short orbit-lighting clip of the viewer.
+Gallery, record viewer, and admin upload — plus a short orbit-lighting clip of the viewer (loops in the README).
 
 ### Gallery
 
@@ -22,7 +22,7 @@ Gallery, record viewer, and admin upload — plus a short orbit-lighting clip of
 
 ### Viewer demo
 
-[Orbit lighting in the RTI viewer](screenshots/rti_orbit_1787067681380.webm)
+![Orbit lighting in the RTI viewer](screenshots/rti_orbit.gif)
 
 Sample datasets shown in these screenshots are credited under [Acknowledgements](#acknowledgements).
 
