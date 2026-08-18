@@ -36,7 +36,10 @@ export function findUserOwnedAnnotation(
   recordId: number,
   userId: number,
 ) {
-  return db.select({ id: schema.recordAnnotations.id })
+  return db.select({
+    id: schema.recordAnnotations.id,
+    type: schema.recordAnnotations.type,
+  })
     .from(schema.recordAnnotations)
     .where(and(
       eq(schema.recordAnnotations.id, annotationId),

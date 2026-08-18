@@ -84,11 +84,17 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const annotationId = Number(req.params.annotationId);
-    const { label, color, strokeWidth, visibility } = req.body;
+    const { label, color, strokeWidth, visibility, geometry } = req.body;
     try {
       const existing = findUserOwnedAnnotation(db, schema, annotationId, record.id, req.user!.id);
       if (!existing) {
         return res.status(404).json({ error: 'Annotation not found' });
+      }
+      if (geometry !== undefined) {
+        const validationError = validateAnnotationBody({ type: existing.type, geometry });
+        if (validationError) {
+          return res.status(400).json({ error: validationError });
+        }
       }
       const now = catalogNow();
       const updates: {
@@ -97,11 +103,13 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
         color?: string;
         strokeWidth?: number;
         visibility?: string;
+        geometry?: unknown;
       } = { updatedAt: now };
       if (label !== undefined) updates.label = label ? String(label).trim() : null;
       if (color !== undefined) updates.color = color || '#f59e0b';
       if (strokeWidth !== undefined) updates.strokeWidth = normalizeAnnotationStrokeWidth(strokeWidth);
       if (visibility !== undefined) updates.visibility = parseAnnotationVisibility(visibility);
+      if (geometry !== undefined) updates.geometry = geometry;
       db.update(schema.recordAnnotations).set(updates).where(eq(schema.recordAnnotations.id, annotationId)).run();
       res.json({ success: true, updatedAt: now });
     } catch (err) {

@@ -44,4 +44,5 @@ export interface UpdateAnnotationPayload {
   color?: string;
   strokeWidth?: number;
   visibility?: AnnotationVisibility;
+  geometry?: AnnotationGeometry;
 }
