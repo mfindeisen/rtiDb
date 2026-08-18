@@ -51,6 +51,8 @@
       <router-view />
     </main>
 
+    <ConfirmDialogHost />
+
     <footer
       v-if="showNav"
       class="py-5 px-4 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-x-6 gap-y-2 text-xs md:text-sm text-center"
@@ -76,6 +78,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Menu, X } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import ConfirmDialogHost from '@/components/ConfirmDialogHost.vue';
 import { canAccessAdmin, logout } from '@/composables/useAuth';
 import { useTheme } from '@/composables/useTheme';
 
