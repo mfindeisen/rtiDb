@@ -8,7 +8,13 @@ const apiProxy = process.env.VITE_DEV_API_PROXY || 'http://localhost:3000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    vue(),
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag === 'modern-rti-viewer',
+        },
+      },
+    }),
     tailwindcss(),
   ],
   resolve: {
