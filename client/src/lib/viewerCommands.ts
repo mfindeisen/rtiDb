@@ -18,6 +18,13 @@ export function viewerCommand(
   }));
 }
 
+export function setViewerAnnotationOverlaysVisible(
+  viewerEl: ViewerElement | null | undefined,
+  visible: boolean,
+): void {
+  viewerCommand(viewerEl, 'set-annotation-overlays-visible', { visible });
+}
+
 export function setViewerAnnotations(
   viewerEl: ViewerElement | null | undefined,
   annotations: RecordAnnotation[] | null | undefined,
