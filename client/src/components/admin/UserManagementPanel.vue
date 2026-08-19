@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Pencil, Trash2 } from '@lucide/vue';
 import FancyCard from '@/components/FancyCard.vue';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,6 +143,7 @@ async function deleteUser(u: { id: number; username: string }) {
   }
 }
 
+onMounted(fetchUsers);
 defineExpose({ fetchUsers });
 </script>
 

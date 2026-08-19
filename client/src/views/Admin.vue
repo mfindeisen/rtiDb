@@ -4,14 +4,13 @@
       <Button variant="ghost" class="justify-start sm:justify-center" @click="$router.push('/')">
         <ArrowLeft class="w-4 h-4 mr-2" /> Back to Gallery
       </Button>
-      <Button variant="ghost" class="text-destructive hover:text-destructive justify-start sm:justify-center" @click="logout">
-        Logout
-      </Button>
     </div>
 
-    <Tabs v-model="activeTab" @update:model-value="onTabChange">
-      <TabsList v-if="userRole === 'admin'" class="mb-6 w-full grid grid-cols-2 h-auto gap-1 p-1 sm:w-auto sm:inline-flex">
+    <Tabs v-model="activeTab">
+      <TabsList v-if="userRole === 'admin'" class="mb-6 w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1 sm:w-auto sm:inline-flex">
         <TabsTrigger value="records" class="gap-1.5 text-xs sm:text-sm"><FolderOpen class="w-4 h-4 shrink-0" /> Records & Upload</TabsTrigger>
+        <TabsTrigger value="catalog" class="gap-1.5 text-xs sm:text-sm"><Shapes class="w-4 h-4 shrink-0" /> Catalog</TabsTrigger>
+        <TabsTrigger value="site" class="gap-1.5 text-xs sm:text-sm"><Palette class="w-4 h-4 shrink-0" /> Site</TabsTrigger>
         <TabsTrigger value="users" class="gap-1.5 text-xs sm:text-sm"><Users class="w-4 h-4 shrink-0" /> User Management</TabsTrigger>
       </TabsList>
 
@@ -31,12 +30,21 @@
 
           <form @submit.prevent="createRecord" class="space-y-6">
             <div class="flex flex-col text-left">
+              <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Record type</Label>
+              <Select v-model="createTypeId" :disabled="isCreating">
+                <SelectTrigger class="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="type in recordTypes" :key="type.id" :value="String(type.id)">{{ type.name }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div class="flex flex-col text-left">
               <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Record Name</Label>
-              <Input v-model="createName" required class="form-input !px-4 !py-3" :disabled="isCreating" />
+              <Input v-model="createName" required :disabled="isCreating" />
             </div>
             <div class="flex flex-col text-left">
               <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Description</Label>
-              <Textarea v-model="createDescription" rows="3" class="form-input !px-4 !py-3" :disabled="isCreating" :dir="createDirection" />
+              <Textarea v-model="createDescription" rows="3" :disabled="isCreating" :dir="createDirection" />
               <SegmentPills v-model="createDirection" class="mt-2" :options="directionOptions" />
             </div>
             <Button type="submit" class="w-full" :disabled="isCreating">
@@ -61,12 +69,12 @@
         <form @submit.prevent="uploadFile" class="space-y-6">
           <div v-if="!uploadTargetId" class="flex flex-col text-left">
             <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Scan Name</Label>
-            <Input v-model="name" required class="form-input !px-4 !py-3" :disabled="isUploading" />
+            <Input v-model="name" required :disabled="isUploading" />
           </div>
 
           <div v-if="!uploadTargetId" class="flex flex-col text-left">
             <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Description</Label>
-            <Textarea v-model="description" rows="3" placeholder="Additional details about the scan..." class="form-input !px-4 !py-3" :disabled="isUploading" :dir="direction" />
+            <Textarea v-model="description" rows="3" placeholder="Additional details about the scan..." :disabled="isUploading" :dir="direction" />
             <SegmentPills v-model="direction" class="mt-2" :options="directionOptionsLong" :disabled="isUploading" />
           </div>
 
@@ -141,26 +149,23 @@
 
           <div v-if="uploadMode === 'standard'" class="flex flex-col text-left">
             <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Output Format</Label>
-            <div class="format-toggle">
-              <button
-                type="button"
-                @click="outputType = 'geotiff'"
-                :disabled="isUploading"
-                :class="['format-toggle-btn', outputType === 'geotiff' ? 'active-geotiff' : 'inactive']"
-              >
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              class="w-full"
+              :model-value="outputType"
+              :disabled="isUploading"
+              @update:model-value="onOutputTypeChange"
+            >
+              <ToggleGroupItem value="geotiff" class="flex-1 h-auto min-h-16 flex-col items-start gap-0.5 py-3 whitespace-normal data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                 <span class="flex items-center gap-2"><Map class="w-4 h-4" /> GeoTIFF <span class="text-[10px] font-normal opacity-70">(Modern)</span></span>
-                <span class="text-[11px] font-normal opacity-70">Single file, HTTP Range Requests, no legacy tiler</span>
-              </button>
-              <button
-                type="button"
-                @click="outputType = 'tiles'"
-                :disabled="isUploading"
-                :class="['format-toggle-btn border-l border-slate-200 dark:border-white/10', outputType === 'tiles' ? 'active-tiles' : 'inactive']"
-              >
+                <span class="text-[11px] font-normal opacity-70 text-left">Single file, HTTP Range Requests, no legacy tiler</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="tiles" class="flex-1 h-auto min-h-16 flex-col items-start gap-0.5 py-3 whitespace-normal">
                 <span class="flex items-center gap-2"><Layers class="w-4 h-4" /> Tile Folder <span class="text-[10px] font-normal opacity-70">(Legacy)</span></span>
-                <span class="text-[11px] font-normal opacity-70">Hundreds of JPEG/PNG tiles + info.xml</span>
-              </button>
-            </div>
+                <span class="text-[11px] font-normal opacity-70 text-left">Hundreds of JPEG/PNG tiles + info.xml</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <div v-if="uploadMode === 'standard' && outputType === 'tiles'" class="pt-4 border-t border-slate-200 dark:border-white/10">
@@ -238,11 +243,13 @@
         <InfoCallout
           v-if="userRole === 'admin'"
           variant="info"
-          title="AI auto-annotation (prototype)"
+          title="AI auto-annotation"
+          experimental
           dismiss-key="admin-auto-annotate"
           class="mb-6"
         >
           <p>
+            <span class="text-amber-700 dark:text-amber-300 font-semibold">Experimental.</span>
             Runs <strong>OWL-ViT</strong> zero-shot detection on the catalog thumbnail (CPU, ~200–400&nbsp;MB extra RAM).
             Looks for figures, animals, symbols, and inscriptions. If nothing is detected, falls back to catalog metadata as a labeled region.
           </p>
@@ -270,6 +277,7 @@
                 <div class="flex-grow min-w-0">
                   <div class="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 class="text-xl font-bold truncate text-slate-800 dark:text-white">{{ rec.name }}</h3>
+                    <span v-if="rec.recordTypeName" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">{{ rec.recordTypeName }}</span>
                     <span v-if="rec.status === 'done'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">Ready</span>
                     <RecordOutputBadge :record="rec" />
                     <span v-if="autoAnnotateState[rec.id]?.running" class="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 animate-pulse">AI running</span>
@@ -279,31 +287,32 @@
                   </div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mb-2 font-mono flex items-center gap-1">
                     <CalendarIcon class="w-3.5 h-3.5" />
-                    {{ new Date(rec.date).toLocaleString() }}
+                    {{ formatRecordDateTime(rec.date) }}
                   </div>
                   <p class="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2" :dir="rec.direction">{{ rec.description }}</p>
                 </div>
               </div>
 
               <div class="flex items-center gap-1 shrink-0">
-                <button v-if="rec.status === 'draft' && hasPermission('upload_rti')" type="button" class="record-action-btn text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10" @click="startUploadForRecord(rec)" title="Upload RTI">
-                  <Upload class="w-4 h-4" />
-                </button>
-                <button v-if="rec.status === 'done' && hasPermission('edit_record')" type="button" class="record-action-btn text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10" @click="togglePublish(rec)" :title="rec.isPublished ? 'Unpublish' : 'Publish'">
+                <Button v-if="rec.status === 'draft' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon-sm" class="text-emerald-600 dark:text-emerald-400" title="Upload RTI" @click="startUploadForRecord(rec)">
+                  <Upload />
+                </Button>
+                <Button v-if="rec.status === 'done' && hasPermission('edit_record')" type="button" variant="ghost" size="sm" class="text-blue-600 dark:text-blue-400" :title="rec.isPublished ? 'Unpublish' : 'Publish'" @click="togglePublish(rec)">
                   {{ rec.isPublished ? 'Unpublish' : 'Publish' }}
-                </button>
-                <button v-if="rec.status === 'error' && hasPermission('upload_rti')" type="button" class="record-action-btn text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10" @click="rerunRecord(rec.id)" title="Rerun">
-                  <RefreshCw class="w-4 h-4" />
-                </button>
-                <button v-if="userRole === 'admin' && rec.status === 'done' && rec.thumbnailUrl" type="button" class="record-action-btn text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10" :disabled="!!autoAnnotateState[rec.id]?.running" @click="runAutoAnnotate(rec, false)" title="AI auto-annotate (prototype)">
-                  <Sparkles class="w-4 h-4" :class="autoAnnotateState[rec.id]?.running ? 'animate-spin' : ''" />
-                </button>
-                <button v-if="hasPermission('edit_record')" type="button" class="record-action-btn text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10" @click="openEdit(rec.id)" title="Edit">
-                  <Pencil class="w-4 h-4" />
-                </button>
-                <button v-if="hasPermission('delete_record')" type="button" class="record-action-btn text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10" @click="deleteRecord(rec.id)" title="Delete">
-                  <Trash2 class="w-4 h-4" />
-                </button>
+                </Button>
+                <Button v-if="rec.status === 'error' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon-sm" class="text-amber-600 dark:text-amber-400" title="Rerun" @click="rerunRecord(rec.id)">
+                  <RefreshCw />
+                </Button>
+                <Button v-if="userRole === 'admin' && rec.status === 'done' && rec.thumbnailUrl" type="button" variant="ghost" size="icon-sm" class="relative text-violet-600 dark:text-violet-400" :disabled="!!autoAnnotateState[rec.id]?.running" title="AI auto-annotate (experimental)" @click="runAutoAnnotate(rec, false)">
+                  <Sparkles :class="autoAnnotateState[rec.id]?.running ? 'animate-spin' : ''" />
+                  <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />
+                </Button>
+                <Button v-if="hasPermission('edit_record')" type="button" variant="ghost" size="icon-sm" class="text-blue-600 dark:text-blue-400" title="Edit" @click="openEdit(rec.id)">
+                  <Pencil />
+                </Button>
+                <Button v-if="hasPermission('delete_record')" type="button" variant="ghost" size="icon-sm" class="text-destructive" title="Delete" @click="deleteRecord(rec.id)">
+                  <Trash2 />
+                </Button>
               </div>
             </div>
 
@@ -341,8 +350,18 @@
       </FancyCard>
       </TabsContent>
 
+      <TabsContent v-if="userRole === 'admin'" value="catalog" class="space-y-10">
+        <CatalogTypesPanel />
+        <CatalogViewsPanel />
+      </TabsContent>
+
+      <TabsContent v-if="userRole === 'admin'" value="site" class="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+        <SiteBrandingPanel />
+        <SiteDateTimePanel />
+      </TabsContent>
+
       <TabsContent v-if="userRole === 'admin'" value="users">
-        <UserManagementPanel ref="userManagementRef" @unauthorized="logout" />
+        <UserManagementPanel @unauthorized="logout" />
       </TabsContent>
     </Tabs>
   </div>
@@ -351,12 +370,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { Pencil, Trash2, ArrowLeft, Image as ImageIcon, Calendar as CalendarIcon, Map, Layers, RefreshCw, ExternalLink, FolderOpen, Users, FilePlus, Upload, Sparkles } from '@lucide/vue';
+import { Pencil, Trash2, ArrowLeft, Image as ImageIcon, Calendar as CalendarIcon, Map, Layers, RefreshCw, ExternalLink, FolderOpen, Users, FilePlus, Upload, Sparkles, Shapes, Palette } from '@lucide/vue';
 import FancyCard from '../components/FancyCard.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import FilePicker from '../components/FilePicker.vue';
 import SegmentPills from '../components/SegmentPills.vue';
 import { recordPath } from '@/lib/recordPath';
+import { formatRecordDateTime } from '@rtidb/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -366,6 +386,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ApiError } from '@/api/client';
 import { subscribeProgress } from '@/api/progress';
 import {
@@ -385,13 +406,17 @@ import { pollJob } from '@/composables/useJobPoll';
 import type { ProcessingJob } from '@rtidb/shared/api/jobs';
 import AutoAnnotateProgressPanel from '@/components/admin/AutoAnnotateProgressPanel.vue';
 import UserManagementPanel from '@/components/admin/UserManagementPanel.vue';
+import SiteBrandingPanel from '@/components/admin/SiteBrandingPanel.vue';
+import SiteDateTimePanel from '@/components/admin/SiteDateTimePanel.vue';
+import CatalogTypesPanel from '@/components/admin/CatalogTypesPanel.vue';
+import CatalogViewsPanel from '@/components/admin/CatalogViewsPanel.vue';
+import { listRecordTypes } from '@/api/catalog';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
 
 const router = useRouter();
 
 const userRole = ref(getCurrentUser()?.role || 'editor');
-const userManagementRef = ref(null);
 
 function handleUnauthorized(err: unknown): boolean {
   if (err instanceof ApiError && err.status === 401) {
@@ -442,6 +467,8 @@ const uploadModeOptions = [
 const createName = ref('');
 const createDescription = ref('');
 const createDirection = ref('ltr');
+const createTypeId = ref('');
+const recordTypes = ref([]);
 const isCreating = ref(false);
 const createError = ref('');
 const createSuccess = ref('');
@@ -459,6 +486,10 @@ const quality = ref(90);
 const tileSize = ref(256);
 const format = ref('jpg');
 const outputType = ref('geotiff'); // 'geotiff' | 'tiles'
+
+function onOutputTypeChange(value: string | string[] | undefined) {
+  if (typeof value === 'string' && value) outputType.value = value;
+}
 const uploadMode = ref('standard'); // 'standard' | 'neural'
 const latentMapInputRef = ref(null);
 const weightsInputRef = ref(null);
@@ -603,7 +634,7 @@ async function runAutoAnnotate(rec, replace = false) {
     title: replace ? 'Replace AI annotations?' : 'Run AI auto-annotation?',
     description: replace
       ? 'This replaces your existing AI annotations and uses significant CPU/RAM on the server.'
-      : 'This uses significant CPU/RAM on the server (prototype).',
+      : 'This uses significant CPU/RAM on the server (experimental).',
     confirmLabel: replace ? 'Replace and re-run' : 'Run',
     variant: replace ? 'destructive' : 'default',
   });
@@ -677,6 +708,7 @@ const createRecord = async () => {
       name: createName.value,
       description: createDescription.value,
       direction: createDirection.value,
+      recordTypeId: createTypeId.value ? Number(createTypeId.value) : undefined,
     });
     createSuccess.value = `Record #${data.id} created. You can add metadata and upload RTI when ready.`;
     createName.value = '';
@@ -820,6 +852,11 @@ const getETA = (rec) => {
 
 onMounted(() => {
   fetchRecords();
+  void listRecordTypes().then((list) => {
+    recordTypes.value = list;
+    const def = list.find((t) => t.isDefault) || list[0];
+    if (def) createTypeId.value = String(def.id);
+  }).catch(() => {});
   setupProgress();
   timer = setInterval(() => { now.value = Date.now(); }, 1000);
   processingPollTimer = setInterval(() => { void pollProcessingFallback(); }, 3000);
@@ -876,6 +913,7 @@ const uploadFile = async () => {
     formData.append('name', name.value);
     formData.append('description', description.value);
     formData.append('direction', direction.value);
+    if (createTypeId.value) formData.append('recordTypeId', createTypeId.value);
   }
   formData.append('uploadMode', uploadMode.value);
 
@@ -1009,9 +1047,4 @@ const rerunRecord = async (id) => {
   }
 };
 
-const onTabChange = async (tab) => {
-  if (tab === 'users' && userRole.value === 'admin') {
-    await userManagementRef.value?.fetchUsers?.();
-  }
-};
 </script>
