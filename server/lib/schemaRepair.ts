@@ -19,6 +19,7 @@ const RECORDS_COLUMNS = [
   { name: 'metadata', definition: "text DEFAULT '{}'" },
   { name: 'slug', definition: 'text' },
   { name: 'scale_calibration', definition: 'text' },
+  { name: 'record_type_id', definition: 'integer' },
 ] as const;
 
 /** Apply legacy column fixes missing from older DBs. */
@@ -158,5 +159,68 @@ export function ensureProcessingJobsSchema(sqlite: Database.Database) {
     CREATE INDEX \`processing_jobs_record_idx\` ON \`processing_jobs\` (\`record_id\`);
   `);
   console.log('Schema repair: created processing_jobs table');
+}
+
+/** Site settings, record types, and gallery views. */
+export function ensureCatalogSchema(sqlite: Database.Database) {
+  const cols = new Set(
+    (sqlite.pragma('table_info(records)') as { name: string }[]).map((c) => c.name),
+  );
+  if (!cols.has('record_type_id')) {
+    sqlite.exec('ALTER TABLE `records` ADD `record_type_id` integer');
+    console.log('Schema repair: added records.record_type_id');
+  }
+
+  const siteExists = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'site_settings'")
+    .get();
+  if (!siteExists) {
+    sqlite.exec(`
+      CREATE TABLE \`site_settings\` (
+        \`id\` integer PRIMARY KEY NOT NULL,
+        \`config\` text DEFAULT '{}' NOT NULL
+      );
+    `);
+    console.log('Schema repair: created site_settings table');
+  }
+
+  const typesExist = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'record_types'")
+    .get();
+  if (!typesExist) {
+    sqlite.exec(`
+      CREATE TABLE \`record_types\` (
+        \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        \`slug\` text NOT NULL,
+        \`name\` text NOT NULL,
+        \`description\` text DEFAULT '',
+        \`is_default\` integer DEFAULT 0 NOT NULL,
+        \`sort_order\` integer DEFAULT 0 NOT NULL,
+        \`schema\` text NOT NULL
+      );
+      CREATE UNIQUE INDEX \`record_types_slug_unique\` ON \`record_types\` (\`slug\`);
+    `);
+    console.log('Schema repair: created record_types table');
+  }
+
+  const viewsExist = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'catalog_views'")
+    .get();
+  if (!viewsExist) {
+    sqlite.exec(`
+      CREATE TABLE \`catalog_views\` (
+        \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        \`record_type_id\` integer,
+        \`name\` text NOT NULL,
+        \`slug\` text NOT NULL,
+        \`is_default\` integer DEFAULT 0 NOT NULL,
+        \`is_public\` integer DEFAULT 1 NOT NULL,
+        \`config\` text NOT NULL,
+        FOREIGN KEY (\`record_type_id\`) REFERENCES \`record_types\`(\`id\`) ON UPDATE no action ON DELETE set null
+      );
+      CREATE UNIQUE INDEX \`catalog_views_slug_unique\` ON \`catalog_views\` (\`slug\`);
+    `);
+    console.log('Schema repair: created catalog_views table');
+  }
 }
 

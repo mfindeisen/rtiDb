@@ -27,6 +27,7 @@ export const records = sqliteTable('records', {
   format: text('format'),
   metadata: text('metadata', { mode: 'json' }).$type<RecordMetadataJson>().default({}),
   scaleCalibration: text('scale_calibration', { mode: 'json' }).$type<ScaleCalibration | null>(),
+  recordTypeId: integer('record_type_id'),
 });
 
 export const users = sqliteTable('users', {
@@ -109,4 +110,29 @@ export const processingJobs = sqliteTable('processing_jobs', {
   createdAt: text('created_at').notNull(),
   startedAt: text('started_at'),
   finishedAt: text('finished_at'),
+});
+
+export const siteSettings = sqliteTable('site_settings', {
+  id: integer('id').primaryKey(),
+  config: text('config', { mode: 'json' }).notNull().default({}),
+});
+
+export const recordTypes = sqliteTable('record_types', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description').default(''),
+  isDefault: integer('is_default').notNull().default(0),
+  sortOrder: integer('sort_order').notNull().default(0),
+  schema: text('schema', { mode: 'json' }).notNull(),
+});
+
+export const catalogViews = sqliteTable('catalog_views', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  recordTypeId: integer('record_type_id').references(() => recordTypes.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  isDefault: integer('is_default').notNull().default(0),
+  isPublic: integer('is_public').notNull().default(1),
+  config: text('config', { mode: 'json' }).notNull(),
 });
