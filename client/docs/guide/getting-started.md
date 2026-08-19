@@ -1,46 +1,56 @@
 # Getting Started
 
-The Modern RTI Viewer is a complete rewrite of the traditional `spidergl` based RTI viewers, leveraging the power of Vue 3 and Three.js.
+This portal documents the **RTI ecosystem**: tools to prepare, compress, catalog, and interactively render Reflectance Transformation Imaging records.
 
-## Installation
+## Components
 
-If you are a developer looking to build or run the project locally:
+| Project | What it does |
+|---|---|
+| **rtiDb** | Vue 3 + Express catalog: upload, process, search, annotate, and serve RTI scans |
+| **modernRtiViewer** | WebGL viewer (Vue 3 / Three.js) for PTM, HSH, and Neural RTI, also as a web component |
+| **rtiprep** | Go CLI that tiles `.ptm` / `.rti` files into JPEG pyramids or a pyramidal GeoTIFF |
+| **neural_rti** | Experimental PyTorch pipeline that compresses HSH into a latent map + decoder MLP |
 
-1. **Install dependencies:**
-   Make sure you have Node.js and `pnpm` installed.
-   ```bash
-   pnpm install
-   ```
+`rtiDb` vendors `rtiprep` and `modernRtiViewer` as git submodules under `deps/` and builds them during Docker and local setup.
 
-2. **Run the Development Server:**
-   ```bash
-   pnpm run dev
-   ```
-   This will spin up a Vite development server (usually at `http://localhost:5173`).
+## Run rtiDb with Docker
 
-## Usage Instructions
+```bash
+git clone --recurse-submodules https://github.com/mfindeisen/rtiDb.git
+cd rtiDb
+cp .env.example .env   # set ADMIN_PASSWORD and JWT_SECRET
+docker compose up -d --build
+```
 
-The viewer loads an RTI dataset via a URL property pointing to a directory that contains an `info.xml` file and the hierarchical image tiles.
+The app is at [http://localhost:8090](http://localhost:8090). The API is proxied at `/api/`. Documentation is at `/docs/` (login required).
 
-### Interface Modes
+If you cloned without `--recurse-submodules`:
 
-The viewer provides several interaction modes on the left sidebar:
+```bash
+git submodule update --init --recursive
+```
 
-1. **Pan & Zoom (Hand Icon):**
-   - Click and drag anywhere on the canvas to pan across the image.
-   - Use the scroll wheel (or pinch gesture on trackpads) to zoom in and out.
-   - The quadtree LOD system will automatically load high-resolution tiles as you zoom in.
+## Local development
 
-2. **Light Direction (Lightbulb Icon):**
-   - Click and drag on the main canvas to interactively change the lighting angle.
-   - The lighting simulation uses the RTI coefficients (PTM or HSH) to dynamically compute shadows and highlights.
-   - **Compass Widget:** The widget in the bottom left provides a visual reference of the current light position (x, y). You can also drag the dot inside the compass to move the light.
+Requires Node.js 22+, [pnpm](https://pnpm.io/), and [Go](https://go.dev/) (to compile `rtiprep`).
 
-### Render Modes
+```bash
+git submodule update --init --recursive
+pnpm install
+pnpm run prepare:deps    # build viewer web component + rtiprep binary
+pnpm dev                 # client + server + docs
+```
 
-You can switch the mathematical rendering mode:
-- **Default Mode:** Computes the standard diffuse reflection based on the encoded RTI coefficients.
-- **Specular Enhancement:** Adds an artificial specular highlight on top of the diffuse lighting to enhance surface details and scratches.
-- **Normals:** Visualizes the surface normal vectors calculated directly from the RTI coefficients, allowing you to see the raw geometric shape without texture color.
-- **Slope Heatmap:** Computes the steepness of the surface and maps it to a color gradient (blue for flat, red for steep). Extremely useful for highlighting shallow engravings or scratches without adjusting the light.
-- **Dual Light:** Calculates a secondary, opposite light source (raking light). The primary light is tinted red and the opposing light blue. This creates high-contrast shadows that perfectly reveal fine tool marks and edges.
+- Client: [http://localhost:5173](http://localhost:5173)
+- Docs: [http://localhost:5173/docs/](http://localhost:5173/docs/)
+- API: [http://localhost:3000](http://localhost:3000) (Vite proxies `/api` and `/static`)
+
+Default development login is `admin` / `admin` unless `ADMIN_USERNAME` / `ADMIN_PASSWORD` are set.
+
+## Next steps
+
+- [rtiDb catalog & admin](/guide/rtidb) — gallery, catalog types, auth, search, collaboration
+- [REST API](/guide/api) — OpenAPI, record identifiers, exports
+- [modernRtiViewer](/guide/viewer) — lighting, render modes, embed API
+- [rtiprep CLI](/guide/rtiprep) — tiling and GeoTIFF packaging
+- [neural_rti](/guide/neural-rti) — training a Neural RTI representation

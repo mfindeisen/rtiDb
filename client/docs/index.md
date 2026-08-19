@@ -15,9 +15,9 @@ hero:
 
 features:
   - title: rtiprep & neural_rti
-    details: Go-based slicing CLI for pyramidal TIFFs (COG) and PyTorch pipeline for Neural RTI compression.
+    details: Go CLI for JPEG/WebP pyramids and pyramidal TIFFs (COG-like), plus an experimental PyTorch pipeline for Neural RTI compression.
   - title: rtiDb Web Platform
-    details: Node.js/SQLite database and Vue 3 dashboard to catalog, upload, and serve gigapixel scans.
+    details: Vue 3 catalog and Node/SQLite API — configurable record types, search, annotations, and queued RTI processing.
   - title: modernRtiViewer
-    details: GPU-accelerated WebGL viewer (Three.js/Vue) supporting quadtree pyramids, PTM, HSH, and Neural RTI.
+    details: GPU-accelerated WebGL viewer (Three.js) for quadtree pyramids and GeoTIFF, supporting PTM, HSH, and Neural RTI.
 ---

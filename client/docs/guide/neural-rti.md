@@ -1,36 +1,50 @@
-# neural_rti (Python Pipeline)
+# neural_rti (Python pipeline)
 
-`neural_rti` is a PyTorch-based pipeline designed for compressing and evaluating Reflectance Transformation Imaging (RTI) datasets—specifically Hemispherical Harmonics (HSH)—using Neural RTI.
+`neural_rti` is an **experimental** PyTorch pipeline for compressing Hemispherical Harmonics (HSH) RTI datasets.
 
-Instead of storing large PTM or HSH polynomial coefficient maps, this pipeline trains a tiny Multi-Layer Perceptron (MLP) decoder alongside a compact spatial latent grid (latent map image). This representation can then be rendered in real-time in WebGL-based viewers.
+Instead of storing large polynomial or harmonic coefficient maps, it trains a small Multi-Layer Perceptron (MLP) decoder together with a compact spatial latent grid. The result can be rendered in real time in WebGL (modernRtiViewer / rtiDb).
 
 ## Installation
 
-Install the required dependencies:
+Python 3.8+ (use a CUDA build of PyTorch for GPU training):
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Pipelines
-
-### 1. Training (`train.py`)
-
-Compresses an `.rti` file and outputs the latent map and decoder weights:
+## Training
 
 ```bash
 python train.py --input path/to/your/file.rti --output-dir output --epochs 50 --latent-dim 4
 ```
 
-- `--input`: Path to the input `.rti` file.
-- `--output-dir`: Directory where weights and latent maps will be saved.
-- `--epochs`: Number of training epochs.
-- `--latent-dim`: Dimension of the latent space (default: 4 channels).
+| Argument | Default | Description |
+|---|---|---|
+| `--input` | *required* | Input `.rti` file |
+| `--output-dir` | `output` | Where weights and latent maps are written |
+| `--epochs` | `50` | Training epochs |
+| `--steps-per-epoch` | `1000` | Random sampling steps per epoch |
+| `--lr` | `0.005` | Learning rate |
+| `--latent-dim` | `4` | Latent channels (4 matches RGBA PNG) |
+| `--resize` | `0` | Resize before training (`0` = original size) |
+| `--num-lights` | `64` | Sampled hemispherical lights |
+| `--batch-size` | `262144` | Random pixels per step |
 
-### 2. Evaluation (`evaluate.py`)
+Outputs:
 
-Evaluates the reconstruction quality (MSE and PSNR in dB) of the trained representation against the original HSH file:
+- `decoder_weights.json` — MLP weight matrices and biases (`w1`/`b1` … `w3`/`b3`)
+- `latent_map.png` — 4-channel RGBA latent grid
+
+## Evaluation
+
+MSE and PSNR against the original HSH file:
 
 ```bash
 python evaluate.py --input path/to/your/file.rti --weights output/decoder_weights.json --latent output/latent_map.png
 ```
+
+## From training to the catalog
+
+1. Package with [rtiprep](/guide/rtiprep): `rtiprep -tiff -weights decoder_weights.json latent_map.png`
+2. In rtiDb Admin → Upload, choose **Neural RTI** and attach the latent PNG plus weights JSON (the server runs `rtiprep -tiff` for you)
+3. The viewer evaluates the MLP in the fragment shader — see [Neural RTI architecture](/technical/neural-rti) and the [case study](/technical/case-study)

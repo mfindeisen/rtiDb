@@ -11,12 +11,15 @@ Instead of storing large sets of coefficients (e.g., 16 coefficients for HSH) pe
 2. **Decoder MLP (Multilayer Perceptron):** A global, lightweight neural network (~13 KB JSON file, 448 parameters) shared by all pixels. 
 
 During rendering, the shader evaluates the MLP feed-forward pass for each pixel:
-```text
-Color(RGB) = Decoder_MLP(z_latent, l_light)
-```
-Where:
-- `z_latent` is the 4D latent vector fetched from the texture.
-- `l_light` is the 3D normalized light direction vector [x, y, z].
+
+$$
+\mathbf{C} = \mathrm{DecoderMLP}(\mathbf{z}, \mathbf{l})
+$$
+
+where:
+
+- $\mathbf{z}$ is the 4D latent vector fetched from the texture
+- $\mathbf{l}$ is the 3D normalized light direction $(x, y, z)$
 
 ---
 
@@ -47,19 +50,25 @@ if (this.rtiType === 5) {
 Bilinear filtering on the spatial latent grid ensures smooth transitions and removes blocky/pixelated rendering artifacts.
 
 ### Estimating Pseudo-Normals (Finite Differences)
-Because Neural RTI does not store physical surface coefficients directly, we compute the intensity gradients at normal incidence L0 = (0, 0, 1) on the GPU using **finite differences** (epsilon = 0.005) to support advanced visualization modes:
+Because Neural RTI does not store physical surface coefficients directly, we compute intensity gradients at normal incidence $\mathbf{L}_0 = (0, 0, 1)$ on the GPU using **finite differences** ($\varepsilon = 0.005$) to support advanced visualization modes:
 
-1. **MLP Evaluations:**
-   - I0 = Luminance( MLP(z_latent, [0, 0, 1]) )
-   - Ix = Luminance( MLP(z_latent, [epsilon, 0, sqrt(1 - epsilon^2)]) )
-   - Iy = Luminance( MLP(z_latent, [0, epsilon, sqrt(1 - epsilon^2)]) )
+$$
+\begin{aligned}
+I_0 &= L\bigl(\mathrm{MLP}(\mathbf{z}, (0, 0, 1))\bigr) \\
+I_x &= L\bigl(\mathrm{MLP}(\mathbf{z}, (\varepsilon, 0, \sqrt{1 - \varepsilon^2}))\bigr) \\
+I_y &= L\bigl(\mathrm{MLP}(\mathbf{z}, (0, \varepsilon, \sqrt{1 - \varepsilon^2}))\bigr)
+\end{aligned}
+$$
 
-2. **Gradients:**
-   - gx = (Ix - I0) / epsilon
-   - gy = (Iy - I0) / epsilon
+$$
+g_x = \frac{I_x - I_0}{\varepsilon},\qquad
+g_y = \frac{I_y - I_0}{\varepsilon}
+$$
 
-3. **Normal Vector (N):**
-   We scale the gradients (e.g. by `4.0`) to enhance geometric details and contrast:
-   - N = normalize([-gx * 4.0, -gy * 4.0, 1.0])
+The gradients are scaled (here by $4$) to enhance geometric detail, then normalized:
+
+$$
+\mathbf{N} = \mathrm{normalize}\,(-4 g_x,\, -4 g_y,\, 1)
+$$
 
 This normal vector is then used to compute specular highlights (Glossy), RGB normals (Normals Mode), or steepness heatmaps.

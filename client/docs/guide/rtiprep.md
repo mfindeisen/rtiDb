@@ -1,19 +1,30 @@
 # rtiprep
 
-`rtiprep` is a high-performance command-line utility written in Go designed to prepare Reflectance Transformation Imaging (RTI) datasets—such as Polynomial Texture Maps (PTM) and Hemispherical Harmonics (HSH)—as well as standard images for web-based multi-resolution visualization.
+`rtiprep` is a Go CLI that prepares Reflectance Transformation Imaging datasets (PTM and HSH) and standard images for web multi-resolution viewing.
 
-It slices large multi-layer images into hierarchical image pyramid tiles or packages them into a single, tiled pyramidal TIFF (Cloud Optimized GeoTIFF) containing embedded spatial/luminance coefficient metadata.
+It slices multi-layer images into hierarchical pyramid tiles (JPEG, PNG, or WebP) or packs them into a single tiled pyramidal TIFF (Cloud Optimized GeoTIFF-like) with coefficient metadata. Neural RTI decoder weights can be embedded in the TIFF `ImageDescription` tag.
 
-## Key Features
+## Viewer compatibility
 
-- **Format Support:** Supports `.ptm`, `.rti`, `.jpg`, `.jpeg`, `.png`, `.tif`, and `.tiff` as inputs.
-- **Pyramid Tiling:** Recursively divides layers into standard tiles (default 256x256 px) with 1-pixel neighbor borders (seam border padding) to ensure seamless blending at tile boundaries in WebGL.
-- **Pyramidal TIFF Export:** Combines all layers as chunky interleaved channels in a single pyramidal TIFF file.
-- **Neural RTI Integration:** Embed decoder neural network weights directly into the pyramidal TIFF metadata (`ImageDescription` tag) for GeoTIFF-based web renderers.
+Outputs are meant to be served statically:
+
+- [modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer) — JPEG/PNG/WebP pyramids (`info.json`) and tiled pyramidal TIFFs
+- [OpenLIME](https://github.com/cnr-isti-vclab/openlime) — with `-openlime`, an extra `openlime/` DeepZoom export
+
+`rtiDb` runs this binary after each upload (tile mode also passes `-legacy` and `-openlime`).
+
+## Features
+
+- **Inputs:** `.ptm`, `.rti`, `.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`
+- **Pyramid tiling:** default 256×256 tiles with 1-pixel seam padding for WebGL blending
+- **Pyramidal TIFF:** all layers as chunky interleaved channels in one file
+- **Neural RTI:** embed decoder weights JSON in TIFF metadata
+- **Auto white balance:** per-channel `colorGain` via white-patch on a nadir preview (`-wb`)
+- **Parallel processing** with Go goroutines
 
 ## Installation
 
-Ensure you have [Go](https://go.dev/) (version 1.18+) installed:
+Go 1.18+ (1.22 is used in the rtiDb Docker image):
 
 ```bash
 git clone https://github.com/mfindeisen/rtiprep.git
@@ -21,15 +32,64 @@ cd rtiprep
 go build -o rtiprep
 ```
 
-## CLI Parameters
+Inside rtiDb, `pnpm run prepare:deps` / `pnpm run build:rtiprep` builds the submodule at `deps/rtiprep`.
+
+## CLI
 
 ```bash
 ./rtiprep [options] <input_file>
 ```
 
-- `-t <size>`: Size of the output tiles in pixels (default: 256).
-- `-q <quality>`: Quality of saved JPEG tiles (default: 90).
-- `-p`: Save output tiles as PNG instead of JPEG.
-- `-o <path>`: Output destination directory/file.
-- `-tiff`: Save output as a single, tiled pyramidal TIFF file.
-- `-weights <path>`: Path to a Neural RTI decoder weights JSON file.
+| Flag | Default | Description |
+|---|---|---|
+| `-t <size>` | `256` | Tile size in pixels |
+| `-q <quality>` | `90` | JPEG/WebP quality (1–100) |
+| `-p` | `false` | PNG tiles (deprecated; prefer `-format png`) |
+| `-format <fmt>` | `jpg` | Tile format: `jpg`, `png`, or `webp` |
+| `-o <path>` | *auto* | Output directory (or TIFF file path with `-tiff`) |
+| `-tiff` | `false` | Single tiled pyramidal TIFF instead of a folder |
+| `-legacy` | `false` | Also write `info.xml` for the legacy WebRTIViewer |
+| `-openlime` | `false` | Native OpenLIME DeepZoom export under `openlime/` |
+| `-weights <path>` | | Neural RTI decoder weights JSON to embed in TIFF metadata |
+| `-wb <mode>` | `auto` | White-balance: `auto`, `off`, or `r,g,b` gains (`colorGain` in `info.json` / TIFF description) |
+
+## Examples
+
+JPEG pyramid (default). Auto white-balance is stored as `content.colorGain`:
+
+```bash
+./rtiprep object.ptm
+```
+
+WebP tiles:
+
+```bash
+./rtiprep -format webp -q 85 object.rti
+```
+
+PNG tiles with custom size:
+
+```bash
+./rtiprep -format png -t 512 -o output_tiles object.rti
+```
+
+Pyramidal TIFF:
+
+```bash
+./rtiprep -tiff object.rti
+```
+
+Neural RTI TIFF (latent map image + weights):
+
+```bash
+./rtiprep -tiff -weights weights.json object.png
+```
+
+Override white balance:
+
+```bash
+./rtiprep -wb off object.rti
+./rtiprep -wb 1.15,0.95,1.05 object.rti
+```
+
+Neural RTI overviews must use nearest-neighbour downsampling and an `NRGBA` canvas so latent channels are not alpha-premultiplied. See [Neural RTI architecture](/technical/neural-rti).

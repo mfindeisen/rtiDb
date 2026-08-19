@@ -26,7 +26,11 @@ export default defineConfig({
     proxy: {
       '/api': apiProxy,
       '/static': apiProxy,
-      '/docs': apiProxy,
+      '/docs': {
+        target: process.env.VITE_DEV_DOCS_PROXY || 'http://127.0.0.1:5174',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 })
