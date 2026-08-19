@@ -2,6 +2,8 @@ import type { Request } from 'express';
 import { SUPPORTED_EXPORT_FORMATS } from './export.js';
 import { METADATA_FILTER_ALIASES } from './records.js';
 import { ALL_METADATA_KEYS } from './metadataFields.js';
+import { getDb, schema } from '../db.js';
+import { getPublicApiName } from './catalog.js';
 
 interface OpenApiParameter {
   name: string;
@@ -27,7 +29,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
   return {
     openapi: '3.0.3',
     info: {
-      title: 'RTI Database API',
+      title: getPublicApiName(getDb(), schema),
       version: '1.0.0',
       description: [
         'REST API for the RTI scan catalog with rich archaeological metadata.',
@@ -42,7 +44,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
         '',
         '**Export formats:** ' + SUPPORTED_EXPORT_FORMATS.join(', '),
       ].join('\n'),
-      contact: { name: 'RTI Database' },
+      contact: { name: getPublicApiName(getDb(), schema).replace(/ API$/, '') },
     },
     servers: [
       { url: '/api', description: 'Current host (recommended for Swagger UI)' },

@@ -7,6 +7,8 @@ import type { Express, RequestHandler } from 'express';
 import { buildOpenApiSpec } from '../lib/openapi.js';
 import { getBaseUrl } from '../lib/records.js';
 import { SUPPORTED_EXPORT_FORMATS } from '../lib/export.js';
+import { getDb, schema } from '../db.js';
+import { getPublicApiName } from '../lib/catalog.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +26,7 @@ export function registerDocsRoutes(app: Express, sessionAuthMiddleware: RequestH
   });
 
   app.use('/api/docs', sessionAuthMiddleware, swaggerUi.serve, swaggerUi.setup(null, {
-    customSiteTitle: 'RTI Database API',
+    customSiteTitle: getPublicApiName(getDb(), schema),
     customCss: '.swagger-ui .topbar { display: none }',
     swaggerOptions: {
       url: '/api/openapi.json',
@@ -43,7 +45,7 @@ export function registerDiscoveryRoutes(app: Express) {
   app.get('/api', (req, res) => {
     const base = getBaseUrl(req);
     res.json({
-      name: 'RTI Database API',
+      name: getPublicApiName(getDb(), schema),
       version: 1,
       documentation: `${base}/docs/`,
       endpoints: {
