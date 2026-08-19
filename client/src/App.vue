@@ -5,9 +5,10 @@
       class="sticky top-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 transition-colors duration-300"
     >
       <div class="flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-3">
-        <router-link to="/" class="min-w-0 shrink" @click="mobileMenuOpen = false">
-          <h1 class="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent truncate">
-            RTI Database
+        <router-link to="/" class="min-w-0 shrink flex items-center gap-2.5" @click="mobileMenuOpen = false">
+          <img v-if="siteConfig.logoUrl" :src="siteConfig.logoUrl" alt="" class="h-8 w-8 sm:h-9 sm:w-9 object-contain shrink-0" />
+          <h1 class="text-lg sm:text-2xl font-bold bg-clip-text text-transparent truncate bg-gradient-to-r from-[var(--brand-from)] to-[var(--brand-to)]">
+            {{ siteConfig.siteName }}
           </h1>
         </router-link>
 
@@ -41,9 +42,9 @@
         <router-link v-if="showAdminLink" to="/admin" class="mobile-nav-link" :class="{ 'router-link-active': route.path.startsWith('/admin') }" @click="mobileMenuOpen = false">Admin</router-link>
         <a href="/api/docs" target="_blank" rel="noopener" class="mobile-nav-link" @click="mobileMenuOpen = false">Swagger API</a>
         <a href="/docs/" target="_blank" class="mobile-nav-link" @click="mobileMenuOpen = false">Documentation</a>
-        <button type="button" class="mobile-nav-link w-full text-left text-red-600 dark:text-red-400" @click="handleLogout">
+        <Button variant="ghost" class="mobile-nav-link w-full justify-start text-red-600 dark:text-red-400" @click="handleLogout">
           Logout
-        </button>
+        </Button>
       </div>
     </nav>
 
@@ -54,7 +55,6 @@
     <ConfirmDialogHost />
 
     <footer
-      v-if="showNav"
       class="py-5 px-4 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-x-6 gap-y-2 text-xs md:text-sm text-center"
     >
       <a href="/api/docs" target="_blank" rel="noopener" class="nav-link">Swagger API</a>
@@ -79,16 +79,18 @@ import { Menu, X } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ConfirmDialogHost from '@/components/ConfirmDialogHost.vue';
-import { canAccessAdmin, logout } from '@/composables/useAuth';
+import { logout, useAuth } from '@/composables/useAuth';
 import { useTheme } from '@/composables/useTheme';
+import { useSiteConfig } from '@/composables/useSiteConfig';
 
 const route = useRoute();
 const router = useRouter();
 const { initTheme } = useTheme();
+const { config: siteConfig } = useSiteConfig();
+const { canAccessAdmin: showAdminLink } = useAuth();
 const mobileMenuOpen = ref(false);
 
 const showNav = computed(() => !route.meta.guest);
-const showAdminLink = computed(() => canAccessAdmin());
 
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false;
