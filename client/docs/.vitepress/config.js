@@ -5,6 +5,7 @@ export default defineConfig({
   description: "Unified documentation portal for rtiDb, modernRtiViewer, rtiprep, and neural_rti.",
   base: '/docs/',
   outDir: '../dist/docs',
+  ignoreDeadLinks: 'localhostLinks',
   markdown: {
     math: true,
   },
