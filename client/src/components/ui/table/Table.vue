@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const props = defineProps({
   class: {
@@ -11,12 +12,12 @@ const props = defineProps({
 </script>
 
 <template>
-  <div data-slot="table-container" class="relative w-full overflow-x-auto">
+  <ScrollArea data-slot="table-container" class="w-full">
     <table
       data-slot="table"
       :class="cn('w-full caption-bottom text-sm', props.class)"
     >
       <slot />
     </table>
-  </div>
+  </ScrollArea>
 </template>
