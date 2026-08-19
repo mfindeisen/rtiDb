@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db, { schema } from './db.js';
 import type { ServerConfig } from './config.js';
+import { getSiteConfig } from './lib/catalog.js';
 import { buildCorsOptions } from './lib/cors.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createUploadMiddleware } from './lib/uploads.js';
@@ -23,6 +24,7 @@ import { registerCommentRoutes } from './routes/comments.js';
 import { registerRecordMutationRoutes } from './routes/recordMutations.js';
 import { registerProcessingJobRoutes } from './routes/processingJobs.js';
 import { registerUserRoutes } from './routes/users.js';
+import { registerCatalogRoutes } from './routes/catalog.js';
 import { errorHandler, notFoundHandler } from './lib/httpErrors.js';
 import type { ServerContext } from './types/index.js';
 
@@ -30,6 +32,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function createApp(config: ServerConfig): Express {
+  getSiteConfig(db, schema);
+
   const app = express();
   if (config.trustProxy !== false) {
     app.set('trust proxy', config.trustProxy);
@@ -89,6 +93,7 @@ export function createApp(config: ServerConfig): Express {
   registerRecordMutationRoutes(app, ctx);
   registerProcessingJobRoutes(app, ctx);
   registerUserRoutes(app, ctx);
+  registerCatalogRoutes(app, ctx);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

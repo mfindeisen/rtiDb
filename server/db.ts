@@ -7,6 +7,7 @@ import { backfillRecordSlugs } from './lib/slug.js';
 import { runMigrations } from './lib/runMigrations.js';
 import { backfillRecordRevisions } from './lib/recordRevisions.js';
 import { seedAdminUser } from './lib/bootstrapDb.js';
+import { seedCatalogDefaults } from './lib/catalog.js';
 import type { AppDb } from './types/index.js';
 import type { ServerConfig } from './config.js';
 
@@ -31,6 +32,7 @@ export function bootstrapDatabase(config: ServerConfig): AppDb {
   backfillRecordSlugs(dbInstance, schema);
   backfillRecordRevisions(dbInstance, schema);
   seedAdminUser(dbInstance, schema, config);
+  seedCatalogDefaults(dbInstance, schema);
 
   return dbInstance;
 }

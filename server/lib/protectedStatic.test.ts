@@ -11,6 +11,7 @@ function resolveStaticUploadAccess(options: {
 }): StaticAccess {
   const { relPath, record, user } = options;
   if (relPath.startsWith('search-temp/')) return 'not_found';
+  if (relPath.startsWith('branding/')) return 'serve';
   if (relPath.startsWith('archive/')) {
     if (!user || !userCanManageRecords(user)) {
       return user ? 'forbidden' : 'not_found';
@@ -35,6 +36,14 @@ describe('protectedStatic access rules', () => {
       record: null,
       user: null,
     })).toBe('not_found');
+  });
+
+  it('allows public branding assets', () => {
+    expect(resolveStaticUploadAccess({
+      relPath: 'branding/logo.png',
+      record: null,
+      user: null,
+    })).toBe('serve');
   });
 
   it('blocks search-temp files for everyone', () => {
