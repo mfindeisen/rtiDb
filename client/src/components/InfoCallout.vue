@@ -1,14 +1,16 @@
 <template>
   <div v-if="dismissKey && dismissed" class="flex" :class="$attrs.class || 'mb-4'">
-    <button
+    <Button
       type="button"
-      class="inline-flex items-center justify-center w-8 h-8 rounded-full border border-blue-200 dark:border-blue-700/40 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+      variant="outline"
+      size="icon-sm"
+      class="rounded-full text-blue-500 dark:text-blue-400"
       :title="revealLabel"
       :aria-label="revealLabel"
       @click="showAgain"
     >
-      <Info class="w-4 h-4" />
-    </button>
+      <Info />
+    </Button>
   </div>
   <div
     v-else
@@ -17,32 +19,40 @@
   >
     <component :is="icons[variant]" class="w-5 h-5 shrink-0 mt-0.5" :class="iconColors[variant]" />
     <div class="min-w-0 flex-1 pr-6" :class="textColors[variant]">
-      <p v-if="title" class="font-semibold mb-1">{{ title }}</p>
+      <p v-if="title" class="font-semibold mb-1 flex items-center gap-1.5 flex-wrap">
+        {{ title }}
+        <ExperimentalBadge v-if="experimental" />
+      </p>
       <slot />
     </div>
     <slot name="action" />
-    <button
+    <Button
       v-if="dismissKey"
       type="button"
-      class="absolute top-2.5 right-2.5 p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+      variant="ghost"
+      size="icon-xs"
+      class="absolute top-2.5 right-2.5 text-muted-foreground"
       :title="dismissLabel"
       :aria-label="dismissLabel"
       @click="dismiss"
     >
-      <X class="w-4 h-4" />
-    </button>
+      <X />
+    </Button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { Info, AlertTriangle, CheckCircle2, XCircle, X } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
+import ExperimentalBadge from './ExperimentalBadge.vue';
 
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps({
   variant: { type: String, default: 'info' },
   title: { type: String, default: '' },
+  experimental: { type: Boolean, default: false },
   /** When set, the callout can be dismissed and the state is stored in localStorage. */
   dismissKey: { type: String, default: '' },
 });
