@@ -105,24 +105,6 @@
     display: none !important;
   }
 
-  .btn-primary {
-    @apply px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg
-      shadow-[0_0_20px_rgba(37,99,235,0.35)] dark:shadow-[0_0_24px_rgba(59,130,246,0.25)]
-      transition-all transform hover:scale-[1.02] active:scale-[0.98];
-  }
-
-  .btn-secondary {
-    @apply px-6 py-3 bg-slate-200/80 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/15
-      text-slate-800 dark:text-white font-semibold rounded-lg
-      border border-slate-300/80 dark:border-white/10 transition-all;
-  }
-
-  .form-input {
-    @apply w-full bg-white/60 dark:bg-black/25 border border-slate-300/80 dark:border-white/10
-      rounded-lg px-4 py-3 text-slate-900 dark:text-white
-      focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all backdrop-blur-sm;
-  }
-
   .metadata-field {
     @apply rounded-lg p-3 border border-slate-200/70 dark:border-white/10
       bg-slate-50/80 dark:bg-white/[0.03] backdrop-blur-sm
@@ -133,49 +115,6 @@
     @apply flex items-center gap-3 w-full bg-white/60 dark:bg-black/25 border border-slate-300/80 dark:border-white/10
       rounded-lg px-4 py-2 text-slate-900 dark:text-white
       focus-within:ring-2 focus-within:ring-blue-500/40 transition-all backdrop-blur-sm;
-  }
-
-  .file-picker-btn {
-    @apply inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold
-      bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300
-      hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-pointer outline-none
-      disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .segment-pills {
-    @apply flex bg-slate-100 dark:bg-black/30 p-1 rounded-lg gap-0.5;
-  }
-
-  .segment-pill {
-    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold
-      transition-all cursor-pointer outline-none text-slate-500 dark:text-slate-400
-      hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400;
-  }
-
-  .segment-pill.active {
-    @apply bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm;
-  }
-
-  .format-toggle {
-    @apply flex rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 w-full;
-  }
-
-  .format-toggle-btn {
-    @apply flex-1 py-3 px-4 text-sm font-semibold transition-all flex flex-col items-start gap-0.5 outline-none
-      disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .format-toggle-btn.active-geotiff {
-    @apply bg-blue-600 text-white;
-  }
-
-  .format-toggle-btn.active-tiles {
-    @apply bg-slate-700 text-white dark:bg-white/20;
-  }
-
-  .format-toggle-btn.inactive {
-    @apply bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300
-      hover:bg-slate-200 dark:hover:bg-white/10;
   }
 
   .doc-link {
@@ -210,11 +149,6 @@
 
   .section-sub {
     @apply text-slate-500 dark:text-slate-400 text-sm;
-  }
-
-  .record-action-btn {
-    @apply inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold
-      transition-colors cursor-pointer outline-none disabled:opacity-50;
   }
 }
 
@@ -277,6 +211,8 @@
   --border: oklch(0.9 0.01 250);
   --input: oklch(0.92 0.01 250);
   --ring: oklch(0.55 0.19 255);
+  --brand-from: #2563eb;
+  --brand-to: #10b981;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -325,4 +261,13 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
