@@ -7,6 +7,7 @@ import {
   buildUploadSettings,
   buildRtiMetadata,
 } from './processingPipeline.js';
+import { getDefaultRecordType, schemaForRecordTypeId } from './catalog.js';
 import { normalizeMetadata } from './metadataFields.js';
 import { assignSlugForRecord } from './slug.js';
 import { sendError } from './httpErrors.js';
@@ -96,7 +97,11 @@ export async function handleRtiUpload(
   }
 
   const { options, resolvedOutputType, isNeural, isGeoTiff } = buildUploadSettings(req.body);
-  const metadataBase = target.existingMetadata ?? normalizeMetadata(null);
+  const typeId = target.recordId
+    ? undefined
+    : (Number(req.body?.recordTypeId) || getDefaultRecordType(ctx.db, ctx.schema)?.id || null);
+  const metadataBase = target.existingMetadata
+    ?? normalizeMetadata(null, schemaForRecordTypeId(ctx.db, ctx.schema, typeId));
   const metadata = buildRtiMetadata(parsed.uploadedFileName, options, isNeural, isGeoTiff, metadataBase);
 
   let recordId = target.recordId;
@@ -120,6 +125,7 @@ export async function handleRtiUpload(
       tileSize: options.tileSize,
       format: options.format,
       metadata,
+      recordTypeId: typeId,
     }).returning({ id: ctx.schema.records.id }).get();
 
     recordId = inserted.id;

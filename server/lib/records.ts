@@ -1,7 +1,9 @@
 import type { Request } from 'express';
 import type { ParsedQs } from 'qs';
 import { getConfig } from '../config.js';
-import { normalizeMetadata, getFilledMetadata, ALL_METADATA_KEYS, parseGpsPosition, type CatalogMetadata, type CatalogMetadataKey, type StoredMetadata } from './metadataFields.js';
+import { normalizeMetadata, getFilledMetadata, parseGpsPosition, type CatalogMetadata, type StoredMetadata } from './metadataFields.js';
+import { DEFAULT_CATALOG_SCHEMA } from '@rtidb/shared/metadataFields';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 import { recordPublicPath } from './slug.js';
 import type { DbRecord } from '../types/index.js';
 import { parseScaleCalibration } from '@rtidb/shared/scaleCalibration';
@@ -30,6 +32,7 @@ export type RecordViewSource = Pick<
   | 'tiffUrl'
   | 'folderUrl'
   | 'outputType'
+  | 'recordTypeId'
 >;
 
 /** Friendly aliases for common filter query params (non-technical API consumers). */
@@ -51,6 +54,8 @@ const RESERVED_QUERY_KEYS = new Set([
   'filters',
   'bbox',
   'format',
+  'recordTypeId',
+  'view',
 ]);
 
 export type NormalizedRecord = RecordViewSource & {
@@ -86,7 +91,7 @@ export function parseMetadataFiltersFromQuery(query: ParsedQs = {}): Record<stri
   for (const [key, value] of Object.entries(query)) {
     if (RESERVED_QUERY_KEYS.has(key) || value == null || value === '') continue;
     const metaKey = (METADATA_FILTER_ALIASES as Record<string, string>)[key] || key;
-    if (ALL_METADATA_KEYS.includes(metaKey as CatalogMetadataKey) || (METADATA_FILTER_ALIASES as Record<string, string>)[key]) {
+    if (/^[a-zA-Z][a-zA-Z0-9_]*$/.test(metaKey)) {
       const coerced = coerceFilterValue(value);
       if (coerced != null) filters[metaKey] = coerced;
     }
@@ -96,7 +101,9 @@ export function parseMetadataFiltersFromQuery(query: ParsedQs = {}): Record<stri
 }
 
 /** List/detail payload: keep admin-useful URLs, omit filesystem paths and embeddings. */
-export function toClientRecordRow(record: DbRecord): RecordRow {
+export function toClientRecordRow(record: DbRecord, types?: Map<number, RecordType>): RecordRow {
+  const type = record.recordTypeId ? types?.get(record.recordTypeId) : undefined;
+  const catalogSchema = type?.schema ?? DEFAULT_CATALOG_SCHEMA;
   return {
     id: record.id,
     slug: record.slug ?? null,
@@ -115,8 +122,11 @@ export function toClientRecordRow(record: DbRecord): RecordRow {
     quality: record.quality ?? null,
     tileSize: record.tileSize ?? null,
     format: record.format ?? null,
-    metadata: normalizeMetadata(record.metadata),
+    metadata: normalizeMetadata(record.metadata, catalogSchema),
     scaleCalibration: parseScaleCalibration(record.scaleCalibration),
+    recordTypeId: record.recordTypeId ?? null,
+    recordTypeName: type?.name ?? null,
+    recordTypeSlug: type?.slug ?? null,
   };
 }
 

@@ -1,6 +1,8 @@
 export {
   METADATA_SECTIONS,
   ALL_METADATA_KEYS,
+  DEFAULT_CATALOG_SCHEMA,
+  getDefaultCatalogSchema,
   formatCatalogDate,
   formatCatalogDateTime,
   formatRecordDate,

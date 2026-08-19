@@ -10,6 +10,7 @@ import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '.
 import { sendError } from '../lib/httpErrors.js';
 import { resolveThumbnailPath } from '../lib/recordEmbeddings.js';
 import { sendDatabaseError } from '../lib/userResources.js';
+import { getDefaultRecordType, schemaForRecordTypeId, getRecordTypeById } from '../lib/catalog.js';
 import type { ServerContext } from '../types/index.js';
 
 export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
@@ -26,10 +27,13 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
   } = ctx;
 
   app.post('/api/records', authMiddleware, requirePermission('edit_record'), (req, res) => {
-    const { name, description, direction, metadata } = req.body;
+    const { name, description, direction, metadata, recordTypeId } = req.body;
     if (!name) return sendError(res, 400, 'Name is required');
 
     try {
+      const recordType = (recordTypeId ? getRecordTypeById(db, schema, Number(recordTypeId)) : null)
+        ?? getDefaultRecordType(db, schema);
+      const catalogSchema = recordType?.schema;
       const now = formatCatalogDateTime(new Date().toISOString());
       const initialMetadata = normalizeMetadata({
         ...(metadata && typeof metadata === 'object' ? metadata : {}),
@@ -39,7 +43,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         ),
         lastEdit: now,
         editHistory: metadata?.editHistory || `[${formatCatalogDate(new Date().toISOString().slice(0, 10))}: Catalog record created]`,
-      });
+      }, catalogSchema);
 
       const inserted = db.insert(schema.records).values({
         name,
@@ -48,6 +52,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         status: 'draft',
         direction: direction || 'ltr',
         metadata: initialMetadata,
+        recordTypeId: recordType?.id ?? null,
       }).returning({ id: schema.records.id }).get();
 
       const created = db.select().from(schema.records).where(eq(schema.records.id, inserted.id)).get();
@@ -68,7 +73,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
 
     await handleRtiUpload(ctx, req, res, {
       recordId: record.id,
-      existingMetadata: normalizeMetadata(record.metadata),
+      existingMetadata: normalizeMetadata(record.metadata, schemaForRecordTypeId(db, schema, record.recordTypeId)),
       snapshotAction: 'upload_started',
       snapshotComment: 'RTI upload started',
     });
@@ -86,18 +91,20 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
   });
 
   app.put('/api/records/:id', authMiddleware, requirePermission('edit_record'), (req, res) => {
-    const { name, description, direction, metadata } = req.body;
+    const { name, description, direction, metadata, recordTypeId } = req.body;
     if (!name) return sendError(res, 400, 'Name is required');
 
     try {
       const existing = fetchRecordOr404(req, res);
       if (!existing) return;
 
+      const nextTypeId = recordTypeId != null ? Number(recordTypeId) : existing.recordTypeId;
+      const catalogSchema = schemaForRecordTypeId(db, schema, nextTypeId);
       const now = formatCatalogDateTime(new Date().toISOString());
-      let updatedMetadata = normalizeMetadata(existing.metadata);
+      let updatedMetadata = normalizeMetadata(existing.metadata, catalogSchema);
 
       if (metadata && typeof metadata === 'object') {
-        updatedMetadata = normalizeMetadata({ ...updatedMetadata, ...metadata, lastEdit: now });
+        updatedMetadata = normalizeMetadata({ ...updatedMetadata, ...metadata, lastEdit: now }, catalogSchema);
       }
 
       db.update(schema.records).set({
@@ -105,6 +112,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
         description: description ?? existing.description,
         direction: direction || 'ltr',
         metadata: updatedMetadata,
+        recordTypeId: Number.isInteger(nextTypeId) ? nextTypeId : existing.recordTypeId,
       }).where(eq(schema.records.id, existing.id)).run();
 
       if (!existing.slug) {
@@ -131,12 +139,13 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
       const existing = fetchRecordOr404(req, res);
       if (!existing) return;
 
+      const catalogSchema = schemaForRecordTypeId(db, schema, existing.recordTypeId);
       const now = formatCatalogDateTime(new Date().toISOString());
       const updatedMetadata = normalizeMetadata({
-        ...normalizeMetadata(existing.metadata),
+        ...normalizeMetadata(existing.metadata, catalogSchema),
         ...patch,
         lastEdit: now,
-      });
+      }, catalogSchema);
 
       db.update(schema.records).set({ metadata: updatedMetadata }).where(eq(schema.records.id, existing.id)).run();
       refreshSlugIfAuto(db, schema, { ...existing, metadata: updatedMetadata });

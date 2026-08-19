@@ -14,6 +14,7 @@ import { ensureRecordViewAccess } from '../lib/recordAccess.js';
 import { enqueueAutoAnnotate, getAutoAnnotateJob } from '../lib/autoAnnotateQueue.js';
 import { consumeRateLimit } from '../lib/rateLimit.js';
 import { routeParam } from '../lib/httpParams.js';
+import { loadRecordTypeMap } from '../lib/catalog.js';
 import type { ServerContext } from '../types/index.js';
 
 export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
@@ -91,7 +92,7 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
       fileCount = stats.fileCount;
     }
     res.json({
-      ...toClientRecordRow(record),
+      ...toClientRecordRow(record, loadRecordTypeMap(db, schema)),
       folderSize,
       fileCount,
       revisionNumber: getLatestRevision(db, schema, record.id)?.revisionNumber ?? 0,

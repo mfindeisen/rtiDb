@@ -27,6 +27,7 @@ export async function createRecord(payload: {
   name: string;
   description?: string;
   direction?: string;
+  recordTypeId?: number;
   metadata?: Partial<CatalogMetadata>;
 }): Promise<CreateRecordResponse> {
   return request<CreateRecordResponse>('/api/records', {

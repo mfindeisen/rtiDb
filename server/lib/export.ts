@@ -1,5 +1,8 @@
 import type { Request } from 'express';
 import { ALL_METADATA_KEYS, getFilledMetadata, normalizeMetadata, type CatalogMetadata } from './metadataFields.js';
+import { DEFAULT_SITE_CONFIG } from '@rtidb/shared/siteConfig';
+import { getDb, schema } from '../db.js';
+import { getSiteConfig } from './catalog.js';
 import {
   buildPublicRecord,
   buildRtiAssets,
@@ -9,6 +12,14 @@ import {
   recordGps,
   type RecordViewSource,
 } from './records.js';
+
+function citationName(): string {
+  try {
+    return getSiteConfig(getDb(), schema).citationName || DEFAULT_SITE_CONFIG.citationName;
+  } catch {
+    return DEFAULT_SITE_CONFIG.citationName;
+  }
+}
 
 function escapeXml(str: unknown): string {
   return String(str ?? '')
@@ -61,6 +72,13 @@ ${metaEntries}
 }
 
 export function exportRecordsCsv(records: RecordViewSource[]): string {
+  const metas = records.map((r) => normalizeMetadata(r.metadata));
+  const keySet = new Set<string>(ALL_METADATA_KEYS);
+  for (const meta of metas) {
+    for (const key of Object.keys(meta)) keySet.add(key);
+  }
+  const metaKeys = [...keySet];
+
   const columns = [
     'id',
     'name',
@@ -69,12 +87,13 @@ export function exportRecordsCsv(records: RecordViewSource[]): string {
     'status',
     'isPublished',
     'registrationNumber',
-    ...ALL_METADATA_KEYS,
+    'recordTypeId',
+    ...metaKeys,
   ];
 
   const header = columns.map(csvEscape).join(',');
-  const rows = records.map((r) => {
-    const meta = normalizeMetadata(r.metadata);
+  const rows = records.map((r, index) => {
+    const meta = metas[index]!;
     const reg = meta.primaryRegistrationNumber || meta.rtiFileName || '';
     const values = [
       r.id,
@@ -84,7 +103,8 @@ export function exportRecordsCsv(records: RecordViewSource[]): string {
       r.status,
       r.isPublished === 1 ? 'yes' : 'no',
       reg,
-      ...ALL_METADATA_KEYS.map((k) => meta[k] || ''),
+      r.recordTypeId ?? '',
+      ...metaKeys.map((k) => meta[k] || ''),
     ];
     return values.map(csvEscape).join(',');
   });
@@ -101,9 +121,9 @@ export function exportRecordBibtex(record: RecordViewSource, req: Request): stri
   const lines = [
     `@misc{${key},`,
     `  title = {${escapeBibtex(title)}},`,
-    `  author = {${escapeBibtex(meta.metadataAuthor || meta.documenter || 'RTI Database')}},`,
+    `  author = {${escapeBibtex(meta.metadataAuthor || meta.documenter || citationName())}},`,
     `  year = {${year}},`,
-    `  howpublished = {RTI Database},`,
+    `  howpublished = {${escapeBibtex(citationName())}},`,
     `  note = {Reflectance Transformation Imaging catalog record. Registration: ${escapeBibtex(pub.registrationNumber || pub.id)}},`,
     `  url = {${pub.links.viewer}},`,
   ];
@@ -119,7 +139,7 @@ export function exportRecordRis(record: RecordViewSource, req: Request): string 
   const lines = [
     'TY  - GEN',
     `TI  - ${recordCitationTitle(record)}`,
-    `AU  - ${meta.metadataAuthor || meta.documenter || 'RTI Database'}`,
+    `AU  - ${meta.metadataAuthor || meta.documenter || citationName()}`,
     `PY  - ${(pub.date || '').slice(0, 4)}`,
     `N1  - RTI catalog record ${pub.registrationNumber || pub.id}`,
     `UR  - ${pub.links.viewer}`,
@@ -202,7 +222,7 @@ export function exportRecordIiifManifest(record: RecordViewSource, req: Request)
 
   const metadataPairs = Object.entries(meta).slice(0, 20).map(([k, v]) => ({
     label: { en: [k] },
-    value: { en: [v] },
+    value: { en: [String(v ?? '')] },
   }));
 
   const manifest: IiifManifest = {
@@ -212,7 +232,7 @@ export function exportRecordIiifManifest(record: RecordViewSource, req: Request)
     label: { en: [label] },
     metadata: metadataPairs,
     thumbnail,
-    homepage: [{ id: pub.links.viewer, type: 'Text', label: { en: ['Open in RTI Database viewer'] } }],
+    homepage: [{ id: pub.links.viewer, type: 'Text', label: { en: [`Open in ${citationName()} viewer`] } }],
     seeAlso: [
       { id: pub.links.metadata, type: 'Dataset', format: 'application/json', label: { en: ['Catalog metadata (JSON)'] } },
     ],

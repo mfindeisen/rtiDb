@@ -28,6 +28,7 @@ export interface RecordSnapshot {
   tiffUrl: string | null;
   thumbnailUrl: string | null;
   scaleCalibration: ScaleCalibration | null;
+  recordTypeId: number | null;
 }
 
 export interface RevisionUser {
@@ -51,6 +52,7 @@ export function recordToSnapshot(record: DbRecord): RecordSnapshot {
     tiffUrl: record.tiffUrl || null,
     thumbnailUrl: record.thumbnailUrl || null,
     scaleCalibration: parseScaleCalibration(record.scaleCalibration),
+    recordTypeId: record.recordTypeId ?? null,
   };
 }
 

@@ -54,6 +54,9 @@ export interface RecordRow {
   format: string | null;
   metadata: CatalogMetadata;
   scaleCalibration: ScaleCalibration | null;
+  recordTypeId: number | null;
+  recordTypeName: string | null;
+  recordTypeSlug: string | null;
 }
 
 export interface RecordDetail extends RecordRow {

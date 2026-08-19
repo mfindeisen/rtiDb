@@ -11,15 +11,16 @@ import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.j
 import { getCachedImageSearch, hashImageFile } from '../lib/imageSearchCache.js';
 import { consumeRateLimit, imageSearchRateLimitKey, IMAGE_SEARCH_RATE_LIMIT } from '../lib/rateLimit.js';
 import { parseMetadataFiltersFromQuery, toClientRecordRow } from '../lib/records.js';
+import { loadRecordTypeMap } from '../lib/catalog.js';
 import { sendExport } from '../lib/recordHelpers.js';
 import { queryNumber, routeParam } from '../lib/httpParams.js';
 import { listRecordsByPublish, resolvePublishedFilter } from '../lib/userResources.js';
 import { publishedImageSearchMatches, type ImageSearchMatch } from '../lib/imageSearch.js';
 import type { ServerContext } from '../types/index.js';
 
-function toClientImageSearchMatch(record: ImageSearchMatch) {
+function toClientImageSearchMatch(record: ImageSearchMatch, types?: Map<number, import('@rtidb/shared/api/catalog').RecordType>) {
   return {
-    ...toClientRecordRow(record),
+    ...toClientRecordRow(record, types),
     similarity: record.similarity,
   };
 }
@@ -35,6 +36,7 @@ function searchOptionsFromQuery(req: import('express').Request) {
     publishedOnly: resolvePublishedFilter(req) === 'published',
     page: queryNumber(req.query.page),
     limit: queryNumber(req.query.limit),
+    recordTypeId: queryNumber(req.query.recordTypeId),
   };
 }
 
@@ -47,8 +49,9 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         req.query.q ||
         req.query.filters ||
         req.query.bbox ||
-        Object.keys(req.query).some((k) => !['published', 'page', 'limit'].includes(k));
+        Object.keys(req.query).some((k) => !['published', 'page', 'limit', 'recordTypeId'].includes(k));
       const wantsPaging = req.query.page != null || req.query.limit != null;
+      const types = loadRecordTypeMap(db, schema);
 
       if (hasFilters || wantsPaging) {
         const filter = resolvePublishedFilter(req);
@@ -58,12 +61,12 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
           filter,
           String(req.query.q || ''),
         );
-        const result = searchRecords(candidates, searchOptionsFromQuery(req));
+        const result = searchRecords(candidates, searchOptionsFromQuery(req), types);
         return res.json(result);
       }
 
       const records = listRecordsByPublish(db, schema, resolvePublishedFilter(req));
-      const results = records.map(enrichRecord);
+      const results = records.map((record) => enrichRecord(record, types));
       res.json({
         total: results.length,
         page: 1,
@@ -98,7 +101,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         ...searchOptionsFromQuery(req),
         page: 1,
         limit: 10000,
-      });
+      }, loadRecordTypeMap(db, schema));
 
       sendExport(res, result.results, format, req);
     } catch (err) {
@@ -117,7 +120,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         filter,
         String(req.query.q || ''),
       );
-      const result = searchRecords(records, searchOptionsFromQuery(req));
+      const result = searchRecords(records, searchOptionsFromQuery(req), loadRecordTypeMap(db, schema));
       res.json(result);
     } catch (err) {
       console.error('Search error:', err);
@@ -138,7 +141,8 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
         const cached = getCachedImageSearch(contentHash, limit);
         if (cached) {
           await fs.unlink(req.file.path);
-          const results = publishedImageSearchMatches(cached.results).map(toClientImageSearchMatch);
+          const types = loadRecordTypeMap(db, schema);
+          const results = publishedImageSearchMatches(cached.results).map((row) => toClientImageSearchMatch(row, types));
           return res.json({
             cached: true,
             status: 'done',
@@ -185,7 +189,8 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
     if (!job) {
       return res.status(404).json({ error: 'Job not found or expired' });
     }
-    const results = job.results ? publishedImageSearchMatches(job.results).map(toClientImageSearchMatch) : null;
+    const types = loadRecordTypeMap(db, schema);
+    const results = job.results ? publishedImageSearchMatches(job.results).map((row) => toClientImageSearchMatch(row, types)) : null;
     res.json({
       ...job,
       results,

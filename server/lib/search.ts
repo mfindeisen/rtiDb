@@ -3,6 +3,7 @@ import { inArray, sql } from 'drizzle-orm';
 import type { AppDb, AppSchema, DbRecord, RecordMetadata } from '../types/index.js';
 import { listAllRecords, listRecordsByPublish, type PublishedFilter } from './userResources.js';
 import { coerceFilterValue, toClientRecordRow } from './records.js';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 import type { EnrichedRecord, SearchResults } from '@rtidb/shared/api/search';
 
 function getMetadata(record: DbRecord): CatalogMetadata {
@@ -62,10 +63,11 @@ export interface SearchOptions {
   publishedOnly?: boolean;
   page?: number;
   limit?: number;
+  recordTypeId?: number;
 }
 
-export function enrichRecord(record: DbRecord): EnrichedRecord {
-  const row = toClientRecordRow(record);
+export function enrichRecord(record: DbRecord, types?: Map<number, RecordType>): EnrichedRecord {
+  const row = toClientRecordRow(record, types);
   const coords = parseGpsPosition(row.metadata.gpsPosition);
   return {
     ...row,
@@ -74,7 +76,11 @@ export function enrichRecord(record: DbRecord): EnrichedRecord {
   };
 }
 
-export function searchRecords(records: DbRecord[], options: SearchOptions = {}): SearchResults {
+export function searchRecords(
+  records: DbRecord[],
+  options: SearchOptions = {},
+  types?: Map<number, RecordType>,
+): SearchResults {
   const {
     q = '',
     filters = {},
@@ -82,11 +88,15 @@ export function searchRecords(records: DbRecord[], options: SearchOptions = {}):
     publishedOnly = true,
     page = 1,
     limit = 20,
+    recordTypeId,
   } = options;
 
   let results = records;
   if (publishedOnly) {
     results = results.filter((r) => r.isPublished === 1);
+  }
+  if (recordTypeId) {
+    results = results.filter((r) => r.recordTypeId === recordTypeId);
   }
 
   results = results.filter((r) => matchesQuery(r, q));
@@ -97,7 +107,7 @@ export function searchRecords(records: DbRecord[], options: SearchOptions = {}):
   const safePage = Math.max(1, Number(page) || 1);
   const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
   const offset = (safePage - 1) * safeLimit;
-  const pageResults = results.slice(offset, offset + safeLimit).map(enrichRecord);
+  const pageResults = results.slice(offset, offset + safeLimit).map((record) => enrichRecord(record, types));
 
   return {
     total,
