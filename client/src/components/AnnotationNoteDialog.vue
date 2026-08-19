@@ -25,25 +25,23 @@
 
         <div v-if="mode === 'create' || mode === 'edit'" class="space-y-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Visibility</span>
-          <div class="flex flex-wrap gap-2">
-            <label
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            class="flex-wrap h-auto"
+            :model-value="selectedVisibility"
+            @update:model-value="onVisibilityChange"
+          >
+            <ToggleGroupItem
               v-for="option in visibilityOptions"
               :key="option.value"
-              class="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border cursor-pointer transition-colors"
-              :class="selectedVisibility === option.value
-                ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-800 dark:text-blue-200'
-                : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'"
+              :value="option.value"
+              class="h-auto flex-col items-start gap-0 px-3 py-2"
             >
-              <input
-                v-model="selectedVisibility"
-                type="radio"
-                class="sr-only"
-                :value="option.value"
-              />
               <span class="font-semibold">{{ option.label }}</span>
-              <span class="text-slate-400">{{ option.hint }}</span>
-            </label>
-          </div>
+              <span class="text-muted-foreground font-normal">{{ option.hint }}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
         <div class="space-y-2">
@@ -100,6 +98,7 @@ import AnnotationStrokePicker from './AnnotationStrokePicker.vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { loadAnnotationColor, saveAnnotationColor, DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
 import {
   DEFAULT_ANNOTATION_STROKE_WIDTH,
@@ -149,6 +148,10 @@ watch(() => props.open, (isOpen) => {
     nextTick(() => inputRef.value?.$el?.focus());
   }
 });
+
+function onVisibilityChange(value: string | string[] | undefined) {
+  if (typeof value === 'string' && value) selectedVisibility.value = value as AnnotationVisibility;
+}
 
 function save() {
   saveAnnotationColor(selectedColor.value);

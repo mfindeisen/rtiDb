@@ -38,12 +38,13 @@
       <div v-else-if="notes.length === 0" class="text-xs text-slate-500 dark:text-slate-400 py-1">
         No notes yet for this record.
       </div>
-      <ul v-else class="space-y-3" :class="embedded ? '' : 'max-h-80 overflow-y-auto [scrollbar-gutter:stable]'">
-        <li
-          v-for="note in notes"
-          :key="note.id"
-          class="rounded-lg border border-violet-200/80 dark:border-violet-500/20 bg-white/70 dark:bg-white/[0.03] p-3"
-        >
+      <ScrollArea v-else :class="embedded ? '' : 'h-80'">
+        <ul class="space-y-3 pr-2">
+          <li
+            v-for="note in notes"
+            :key="note.id"
+            class="rounded-lg border border-violet-200/80 dark:border-violet-500/20 bg-white/70 dark:bg-white/[0.03] p-3"
+          >
           <template v-if="editingId === note.id">
             <Textarea v-model="editBody" rows="3" class="text-sm w-full" />
             <div class="flex gap-2 mt-2">
@@ -62,7 +63,8 @@
             </div>
           </template>
         </li>
-      </ul>
+        </ul>
+      </ScrollArea>
     </template>
   </div>
 </template>
@@ -72,6 +74,7 @@ import { ref, onMounted, watch } from 'vue';
 import { StickyNote } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { canCollaborate as checkCanCollaborate } from '@/composables/useAuth';
 import { formatCatalogDateTime } from '@rtidb/shared';
 import type { RecordNote } from '@rtidb/shared/api/notes';

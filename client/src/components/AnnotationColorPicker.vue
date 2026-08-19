@@ -2,22 +2,26 @@
   <div class="space-y-2">
     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Color</span>
     <div class="flex flex-wrap gap-2">
-      <button
+      <Button
         v-for="color in ANNOTATION_COLOR_PRESETS"
         :key="color"
         type="button"
-        class="w-8 h-8 rounded-full border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-        :class="modelValue === color ? 'border-slate-800 dark:border-white scale-105 shadow-md' : 'border-slate-200/80 dark:border-white/20'"
+        variant="ghost"
+        size="icon"
+        class="rounded-full border-2 hover:scale-105"
+        :class="modelValue === color ? 'border-foreground scale-105 shadow-md' : 'border-border'"
         :style="{ backgroundColor: color }"
         :title="color"
         :aria-label="`Color ${color}`"
         :aria-pressed="modelValue === color"
         @click="selectPreset(color)"
       />
-      <button
+      <Button
         type="button"
-        class="w-8 h-8 rounded-full p-[2px] border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-        :class="customColorActive ? 'border-slate-800 dark:border-white scale-105 shadow-md' : 'border-slate-200/80 dark:border-white/20'"
+        variant="ghost"
+        size="icon"
+        class="rounded-full p-[2px] border-2 hover:scale-105"
+        :class="customColorActive ? 'border-foreground scale-105 shadow-md' : 'border-border'"
         :style="{ background: RAINBOW_SWATCH }"
         title="Custom color"
         aria-label="Custom color"
@@ -28,7 +32,7 @@
           class="block w-full h-full rounded-full border border-white/40 dark:border-slate-900/40"
           :style="{ backgroundColor: customColorActive ? modelValue : 'var(--background, #fff)' }"
         />
-      </button>
+      </Button>
     </div>
     <AnnotationHsvPicker
       v-if="customPickerOpen"
@@ -42,6 +46,7 @@
 import { computed, ref } from 'vue';
 import { ANNOTATION_COLOR_PRESETS, isPresetAnnotationColor } from '@/lib/annotationColors';
 import AnnotationHsvPicker from './AnnotationHsvPicker.vue';
+import { Button } from '@/components/ui/button';
 
 const props = defineProps({
   modelValue: { type: String, required: true },

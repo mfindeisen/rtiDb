@@ -10,17 +10,18 @@
           <span v-if="currentRevision">Current revision: <strong class="font-mono">v{{ currentRevision }}</strong></span>
         </p>
       </div>
-      <button
+      <Button
         v-if="selectedRevision && compareTarget"
         type="button"
-        class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/10"
+        variant="outline"
+        size="xs"
         @click="clearSelection"
       >
         Clear comparison
-      </button>
+      </Button>
     </div>
 
-    <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400 py-4">Loading revision historyÔÇª</div>
+    <div v-if="loading" class="text-xs text-slate-500 dark:text-slate-400 py-4">Loading revision history…</div>
     <div v-else-if="forbidden" class="text-xs text-slate-500 dark:text-slate-400 py-2">
       Version history is only available for published records unless you are signed in as an editor.
     </div>
@@ -34,7 +35,8 @@
         <h5 class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
           Comparison: v{{ compareFrom }} & {{ compareToLabel }}
         </h5>
-        <div class="space-y-2 max-h-64 overflow-y-auto [scrollbar-gutter:stable]">
+        <ScrollArea class="h-64">
+          <div class="space-y-2 pr-2">
           <div
             v-for="item in diffItems"
             :key="item.key"
@@ -52,7 +54,8 @@
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </ScrollArea>
       </div>
 
       <div v-if="revisions.length === 0" class="text-xs text-slate-500 dark:text-slate-400 py-2">
@@ -94,21 +97,23 @@
             </div>
 
             <div class="flex flex-wrap gap-2 pt-1">
-              <button
+              <Button
                 type="button"
-                class="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400"
+                variant="outline"
+                size="xs"
                 @click="compareWithCurrent(revision.revisionNumber)"
               >
                 Compare with current
-              </button>
-              <button
+              </Button>
+              <Button
                 v-if="revision.revisionNumber > 1"
                 type="button"
-                class="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400"
+                variant="outline"
+                size="xs"
                 @click="compareWithPrevious(revision.revisionNumber)"
               >
                 Compare with previous
-              </button>
+              </Button>
             </div>
           </div>
         </li>
@@ -120,6 +125,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { History } from '@lucide/vue';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { formatCatalogDateTime } from '@rtidb/shared';
 import {
   revisionActionLabel,
