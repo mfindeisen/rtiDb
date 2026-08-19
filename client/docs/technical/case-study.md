@@ -23,23 +23,7 @@ The test subject is a fictional demo RTI dataset of a clay sealing (not a real c
 
 ---
 
-## 3. Reconstructed Previews
-
-Below are the 800px downsampled visual previews generated from our optimized representation.
-
-### Original Reconstruction (Light from Above)
-This preview is rendered by passing the downsampled latent map through the Decoder MLP in PyTorch at light direction [0, 0, 1]:
-
-![Reconstructed Preview](/reconstruction_preview.jpg)
-
-### Raw Latent Map
-This is the corresponding 4D latent representation (visualized as an RGB image) learned by the network:
-
-![Latent Map Preview](/latent_map_preview.png)
-
----
-
-## 4. Quantitative Metric Performance
+## 3. Quantitative Metric Performance
 
 A sample of **1,000,000 pixels** was evaluated across all training lights (64 lights) and a validation set of unseen light directions (10 random lights on the hemisphere).
 
@@ -56,7 +40,7 @@ A sample of **1,000,000 pixels** was evaluated across all training lights (64 li
 
 ---
 
-## 5. Core Findings & Learnings
+## 4. Core Findings & Learnings
 
 ### 1. Flawless Generalization
 The most outstanding feature of this run is that the **Validation PSNR matches the Training PSNR exactly at 31.91 dB**.
@@ -80,7 +64,7 @@ For web-based sharing databases (like `rtiDb`), this compression is a game-chang
 
 ---
 
-## 6. Web Viewer & WebGL Rendering Implementation
+## 5. Web Viewer & WebGL Rendering Implementation
 
 Because the decoder MLP is extremely lightweight (3 linear layers with 16 hidden units, totaling only **448 parameters**), it is ideal for real-time client-side rendering.
 
