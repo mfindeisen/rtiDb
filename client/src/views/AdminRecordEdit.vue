@@ -34,11 +34,20 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="flex flex-col text-left lg:col-span-2">
               <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Record Name</Label>
-              <Input v-model="name" required class="form-input !px-4 !py-3" :disabled="saving" />
+              <Input v-model="name" required :disabled="saving" />
+            </div>
+            <div class="flex flex-col text-left">
+              <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Record type</Label>
+              <Select :model-value="recordTypeId ? String(recordTypeId) : ''" :disabled="saving" @update:model-value="onTypeChange">
+                <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="type in recordTypes" :key="type.id" :value="String(type.id)">{{ type.name }}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div class="flex flex-col text-left lg:col-span-2">
               <Label class="mb-2 font-medium text-slate-700 dark:text-slate-200">Description</Label>
-              <Textarea v-model="description" rows="5" class="form-input !px-4 !py-3" :disabled="saving" :dir="direction" />
+              <Textarea v-model="description" rows="5" :disabled="saving" :dir="direction" />
               <SegmentPills v-model="direction" class="mt-2" :options="directionOptions" :disabled="saving" />
             </div>
           </div>
@@ -53,6 +62,7 @@
           </div>
           <MetadataForm
             v-model="metadata"
+            :schema="activeSchema"
             :text-direction="direction"
             :disabled="saving"
             :open-sections="openSections"
@@ -76,7 +86,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeft } from '@lucide/vue';
-import { METADATA_SECTIONS, normalizeMetadata, emptyMetadata } from '@rtidb/shared';
+import { DEFAULT_CATALOG_SCHEMA, emptyMetadata, normalizeMetadata } from '@rtidb/shared';
 import FancyCard from '../components/FancyCard.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import MetadataForm from '../components/MetadataForm.vue';
@@ -86,9 +96,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ApiError } from '@/api/client';
 import { getRecord, updateRecord } from '@/api/records';
+import { listRecordTypes } from '@/api/catalog';
 import { logout as authLogout } from '@/composables/useAuth';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 
 const route = useRoute();
 const router = useRouter();
@@ -98,7 +111,7 @@ const directionOptions = [
   { value: 'rtl', label: 'Right to Left (RTL)' },
 ];
 
-const openSections = METADATA_SECTIONS.map((section) => section.id);
+const openSections = computed(() => activeSchema.value.map((section) => section.id));
 
 const loading = ref(true);
 const saving = ref(false);
@@ -110,6 +123,13 @@ const name = ref('');
 const description = ref('');
 const direction = ref('ltr');
 const metadata = ref(emptyMetadata());
+const recordTypes = ref<RecordType[]>([]);
+const recordTypeId = ref<number | null>(null);
+
+const activeSchema = computed(() => {
+  const type = recordTypes.value.find((item) => item.id === recordTypeId.value);
+  return type?.schema?.length ? type.schema : DEFAULT_CATALOG_SCHEMA;
+});
 
 const recordId = computed(() => Number.parseInt(String(route.params.id), 10));
 
@@ -135,7 +155,9 @@ async function load() {
     name.value = rec.name || '';
     description.value = rec.description || '';
     direction.value = rec.direction || 'ltr';
-    metadata.value = normalizeMetadata(rec.metadata);
+    recordTypeId.value = rec.recordTypeId;
+    const type = recordTypes.value.find((item) => item.id === rec.recordTypeId);
+    metadata.value = normalizeMetadata(rec.metadata, type?.schema);
   } catch (err) {
     if (await handleUnauthorized(err)) return;
     loadError.value = err instanceof ApiError ? (err.body || 'Record not found.') : 'Failed to load record.';
@@ -154,8 +176,9 @@ async function save() {
       description: description.value,
       direction: direction.value,
       metadata: metadata.value,
+      recordTypeId: recordTypeId.value,
     });
-    if (data.metadata) metadata.value = normalizeMetadata(data.metadata);
+    if (data.metadata) metadata.value = normalizeMetadata(data.metadata, activeSchema.value);
     saveSuccess.value = 'Record saved.';
   } catch (err) {
     if (await handleUnauthorized(err)) return;
@@ -165,5 +188,17 @@ async function save() {
   }
 }
 
-onMounted(load);
+function onTypeChange(value: unknown) {
+  recordTypeId.value = Number(value) || null;
+  metadata.value = normalizeMetadata(metadata.value, activeSchema.value);
+}
+
+onMounted(async () => {
+  try {
+    recordTypes.value = await listRecordTypes();
+  } catch {
+    recordTypes.value = [];
+  }
+  await load();
+});
 </script>

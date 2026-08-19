@@ -1,13 +1,14 @@
 <template>
   <div class="page-shell space-y-4">
-    <button
+    <Button
       type="button"
-      class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-colors"
+      variant="ghost"
+      class="text-slate-500 dark:text-slate-400 justify-start"
       :class="{ 'max-lg:hidden': activeTab === 'viewer' && !showHistory }"
       @click="goBack"
     >
       <ArrowLeft class="w-5 h-5" /> Back
-    </button>
+    </Button>
 
     <div
       v-if="loading"
@@ -32,6 +33,10 @@
           <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white break-words">
             {{ record.name }}
             <RecordOutputBadge v-if="record" :record="record" class="ml-2 align-middle" />
+            <span
+              v-if="record.recordTypeName"
+              class="ml-2 align-middle text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10"
+            >{{ record.recordTypeName }}</span>
             <span
               v-if="record.revisionNumber"
               class="ml-2 align-middle text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10"
@@ -63,36 +68,39 @@
           class="flex-1 min-w-0"
           :options="recordTabOptions"
         />
-        <button
+        <Button
           type="button"
-          class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors shrink-0 self-stretch"
-          :class="showHistory
-            ? 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-white/20'
-            : 'bg-transparent text-slate-400 dark:text-slate-500 border-slate-200/80 dark:border-white/10 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'"
+          variant="outline"
+          size="sm"
+          class="shrink-0 self-stretch h-auto"
+          :class="showHistory ? 'bg-muted' : ''"
           title="Version history"
           @click="toggleHistory"
         >
           <History class="w-3.5 h-3.5" />
           <span class="hidden sm:inline">History</span>
-        </button>
+        </Button>
       </div>
 
       <!-- Version history (secondary panel) -->
-      <div
+      <ScrollArea
         v-show="showHistory"
-        class="glass-card p-4 sm:p-6 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto [scrollbar-gutter:stable]"
+        class="glass-card !p-0 xl:h-[calc(100vh-220px)]"
       >
-        <RecordHistoryPanel
-          :record-id="record.id"
-          :record-slug="record.slug || ''"
-        />
-      </div>
+        <div class="p-4 sm:p-6">
+          <RecordHistoryPanel
+            :record-id="record.id"
+            :record-slug="record.slug || ''"
+          />
+        </div>
+      </ScrollArea>
 
       <!-- Tab: Metadata -->
-      <div
+      <ScrollArea
         v-show="!showHistory && activeTab === 'metadata'"
-        class="glass-card p-4 sm:p-6 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto [scrollbar-gutter:stable] space-y-6"
+        class="glass-card !p-0 xl:h-[calc(100vh-220px)]"
       >
+        <div class="p-4 sm:p-6 space-y-6">
           <p
             v-if="record.description"
             class="text-slate-600 dark:text-slate-300 leading-relaxed text-sm border-l-2 border-blue-500/30 pl-4"
@@ -106,36 +114,42 @@
               <Download class="w-3.5 h-3.5" /> Data Export
             </h4>
             <div class="flex flex-wrap gap-2">
-              <a
-                v-for="fmt in exportFormats"
-                :key="fmt.id"
-                :href="exportUrl(fmt.id)"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:border-blue-400 dark:hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                :download="fmt.download"
-              >
-                <component :is="fmt.icon" class="w-3.5 h-3.5" />
-                {{ fmt.label }}
-              </a>
+                <Button
+                  v-for="fmt in exportFormats"
+                  :key="fmt.id"
+                  as-child
+                  variant="outline"
+                  size="xs"
+                >
+                  <a :href="exportUrl(fmt.id)" :download="fmt.download">
+                    <component :is="fmt.icon" class="w-3.5 h-3.5" />
+                    {{ fmt.label }}
+                  </a>
+                </Button>
             </div>
           </div>
 
           <MetadataDisplay
             title="Catalog Record"
             :metadata="record.metadata"
+            :schema="recordSchema"
             :text-direction="record.direction || 'ltr'"
           />
-      </div>
+        </div>
+      </ScrollArea>
 
       <!-- Tab: Discussion -->
-      <div
+      <ScrollArea
         v-show="!showHistory && activeTab === 'discussion'"
-        class="glass-card p-4 sm:p-6 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto [scrollbar-gutter:stable]"
+        class="glass-card !p-0 xl:h-[calc(100vh-220px)]"
       >
-        <RecordCommentsPanel
-          :record-id="record.id"
-          :record-slug="record.slug || ''"
-        />
-      </div>
+        <div class="p-4 sm:p-6">
+          <RecordCommentsPanel
+            :record-id="record.id"
+            :record-slug="record.slug || ''"
+          />
+        </div>
+      </ScrollArea>
 
       <!-- Tab: RTI + annotations -->
       <div v-show="!showHistory && activeTab === 'viewer'" class="flex flex-col gap-4">
@@ -144,20 +158,23 @@
             <!-- Help sidebar -->
             <div
               v-if="showGuide"
-              class="w-full lg:w-72 shrink-0 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-6 shadow-sm max-lg:max-h-[35svh] max-lg:overflow-y-auto lg:max-h-[calc(100svh-15rem)] lg:overflow-y-auto"
+              class="w-full lg:w-72 shrink-0 flex flex-col overflow-hidden bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm max-lg:h-[35svh] lg:h-[calc(100svh-15rem)]"
             >
-        <h3 class="font-bold text-slate-800 dark:text-white text-base border-b border-slate-200 dark:border-white/10 pb-2 flex items-center justify-between w-full">
+        <h3 class="font-bold text-slate-800 dark:text-white text-base border-b border-slate-200 dark:border-white/10 pb-2 flex items-center justify-between w-full shrink-0 px-5 pt-5">
           <span class="flex items-center gap-2">
             <HelpCircle class="w-5 h-5 text-blue-500" /> Viewer Help Guide
           </span>
-          <button
+          <Button
             type="button"
-            class="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white px-2.5 py-1 rounded bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 transition-all"
+            variant="outline"
+            size="xs"
             @click="toggleGuide"
           >
             Hide
-          </button>
+          </Button>
         </h3>
+        <ScrollArea class="flex-1 min-h-0">
+        <div class="px-5 pb-5 pt-4 space-y-6">
 
         <template v-if="viewerMode === 'modern' || record.tiffUrl">
         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -336,6 +353,8 @@
             </div>
           </div>
         </div>
+        </div>
+        </ScrollArea>
             </div>
 
             <!-- Viewer — full remaining width & height -->
@@ -346,19 +365,16 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/50 dark:bg-white/[0.02]">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">RTI Viewer</span>
-                    <button
+                    <Button
                       type="button"
-                      :class="[
-                        'px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 border',
-                        showGuide
-                          ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30'
-                          : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/5',
-                      ]"
+                      variant="outline"
+                      size="xs"
+                      :class="showGuide ? 'bg-accent' : ''"
                       @click="toggleGuide"
                     >
                       <HelpCircle class="w-3.5 h-3.5" />
                       {{ showGuide ? 'Hide Help' : 'Help Guide' }}
-                    </button>
+                    </Button>
                     <span
                       v-if="record.tiffUrl"
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30"
@@ -367,32 +383,21 @@
                     </span>
                   </div>
 
-                  <div v-if="!record.tiffUrl" class="inline-flex rounded-lg p-0.5 bg-slate-200/80 dark:bg-white/5 border border-slate-300/50 dark:border-white/10 shrink-0">
-                    <button
-                      type="button"
-                      :class="[
-                        'px-4 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap',
-                        viewerMode === 'modern'
-                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-300/30 dark:border-white/5'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
-                      ]"
-                      @click="viewerMode = 'modern'"
-                    >
+                  <ToggleGroup
+                    v-if="!record.tiffUrl"
+                    type="single"
+                    size="sm"
+                    class="bg-muted p-0.5 rounded-lg"
+                    :model-value="viewerMode"
+                    @update:model-value="onViewerModeChange"
+                  >
+                    <ToggleGroupItem value="modern" class="px-4 text-xs">
                       Modern
-                    </button>
-                    <button
-                      type="button"
-                      :class="[
-                        'px-4 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap',
-                        viewerMode === 'legacy'
-                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-300/30 dark:border-white/5'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
-                      ]"
-                      @click="viewerMode = 'legacy'"
-                    >
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="legacy" class="px-4 text-xs">
                       Legacy
-                    </button>
-                  </div>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
 
                 <div ref="viewerHostRef" class="flex-1 min-h-0 flex flex-col relative bg-slate-100 dark:bg-black/40 lg:min-h-[49rem]">
@@ -527,21 +532,31 @@ import RecordHistoryPanel from '../components/RecordHistoryPanel.vue';
 import AnnotationNoteDialog from '../components/AnnotationNoteDialog.vue';
 import SegmentPills from '../components/SegmentPills.vue';
 import RtiViewerHost from '../components/RtiViewerHost.vue';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { canAnnotate, getCurrentUser, hasPermission } from '@/composables/useAuth';
 import { userCanViewRecord } from '@rtidb/shared/authorization';
 import { useViewer } from '@/composables/useViewer';
 import { getRecord, exportRecordUrl, updateScaleCalibration } from '@/api/records';
 import { createAnnotation, updateAnnotation, deleteAnnotation } from '@/api/annotations';
-import { setViewerAnnotations, selectViewerAnnotation, setViewerScale } from '@/lib/viewerCommands';
+import { setViewerAnnotations, setViewerAnnotationOverlaysVisible, selectViewerAnnotation, setViewerScale } from '@/lib/viewerCommands';
 import { DEFAULT_ANNOTATION_COLOR } from '@/lib/annotationColors';
 import { recordPath } from '@/lib/recordPath';
 import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
-import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
+import { formatRecordDateTime, getRecordUpdatedAt, DEFAULT_CATALOG_SCHEMA } from '@rtidb/shared';
+import { listRecordTypes } from '@/api/catalog';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 
 const route = useRoute();
 const router = useRouter();
 const record = ref(null);
+const recordTypes = ref<RecordType[]>([]);
+const recordSchema = computed(() => {
+  const type = recordTypes.value.find((item) => item.id === record.value?.recordTypeId);
+  return type?.schema?.length ? type.schema : DEFAULT_CATALOG_SCHEMA;
+});
 
 const goBack = () => {
   if (window.history.state && window.history.state.back) {
@@ -557,6 +572,10 @@ const activeTab = ref('metadata');
 const viewerMounted = ref(false);
 const showHistory = ref(false);
 const viewerMode = ref<'modern' | 'legacy'>('modern');
+
+function onViewerModeChange(value: string | string[] | undefined) {
+  if (value === 'modern' || value === 'legacy') viewerMode.value = value;
+}
 const viewerHostComponentRef = ref(null);
 const viewerHostRef = ref(null);
 const viewerRef = computed(() => viewerHostComponentRef.value?.viewerRef ?? null);
@@ -569,7 +588,7 @@ const annotationSaving = ref(false);
 const annotationDeleting = ref(false);
 
 const showModernViewer = computed(() =>
-  record.value?.status === 'done' && (record.value.tiffUrl || viewerMode.value === 'modern')
+  record.value?.status === 'done' && !!(record.value.tiffUrl || viewerMode.value === 'modern'),
 );
 
 const canAnnotateViewer = computed(() => canAnnotate() && showModernViewer.value);
@@ -588,6 +607,7 @@ const syncViewerAnnotations = async () => {
   const list = panel.annotations || [];
   if (!list.length && panel.loading) return;
   setViewerAnnotations(el, list);
+  setViewerAnnotationOverlaysVisible(el, panel.overlaysVisible !== false);
 };
 
 const { showGuide, toggleGuide: toggleGuidePanel, triggerResize, onRtiLoaded, jumpToAnnotation } = useViewer({
@@ -823,6 +843,11 @@ onMounted(async () => {
   try {
     const param = Array.isArray(route.params.slug) ? route.params.slug[0]! : route.params.slug;
     record.value = await getRecord(param);
+    try {
+      recordTypes.value = await listRecordTypes();
+    } catch {
+      recordTypes.value = [];
+    }
 
     if (record.value.slug && param !== record.value.slug) {
       router.replace(recordPath(record.value));

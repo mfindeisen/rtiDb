@@ -25,19 +25,19 @@
         </ul>
       </InfoCallout>
 
-      <div class="glass-card !p-6 space-y-4">
+      <div class="glass-card !p-6 space-y-4 relative z-10 !overflow-visible">
         <div class="relative">
           <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
           <Input
             v-model="query"
             type="text"
             placeholder="Full-text search across all catalog fields…"
-            class="form-input pl-10 w-full"
+              class="pl-10 w-full"
             @keydown.enter="runSearch"
           />
         </div>
 
-        <details open class="rounded-xl border border-slate-200/70 dark:border-white/10 overflow-hidden">
+        <details open class="relative z-10 rounded-xl border border-slate-200/70 dark:border-white/10 overflow-visible">
           <summary class="cursor-pointer text-sm font-semibold select-none flex items-center gap-2 px-4 py-3 bg-slate-100/80 dark:bg-white/[0.04] text-slate-800 dark:text-white list-none [&::-webkit-details-marker]:hidden">
             Filters
             <span
@@ -48,7 +48,17 @@
             </span>
           </summary>
           <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 bg-slate-50/50 dark:bg-white/[0.02]">
-            <div v-for="field in SEARCH_FILTER_FIELDS" :key="field.key" class="flex flex-col">
+            <div class="flex flex-col">
+              <Label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">Record type</Label>
+              <Select :model-value="recordTypeId || '__all__'" @update:model-value="onSearchTypeChange">
+                <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent position="popper" class="z-[1100]">
+                  <SelectItem value="__all__">Any type</SelectItem>
+                  <SelectItem v-for="type in recordTypes" :key="type.id" :value="String(type.id)">{{ type.name }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div v-for="field in searchFields" :key="field.key" class="flex flex-col">
               <Label class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">{{ field.label }}</Label>
               <Select
                 v-if="field.type === 'select'"
@@ -58,16 +68,21 @@
                 <SelectTrigger class="w-full">
                   <SelectValue placeholder="Any" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" class="z-[1100]">
                   <SelectItem value="__any__">Any</SelectItem>
                   <SelectItem v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</SelectItem>
                 </SelectContent>
               </Select>
+              <DatePicker
+                v-else-if="field.type === 'date'"
+                v-model="filters[field.key]"
+                :placeholder="field.placeholder || 'Pick a date'"
+              />
               <Input
                 v-else
                 v-model="filters[field.key]"
                 type="text"
-                class="form-input py-2 text-sm"
+                class="text-sm"
                 :placeholder="field.placeholder || ''"
               />
             </div>
@@ -164,7 +179,7 @@
           </div>
         </div>
 
-        <div v-if="viewMode !== 'list'" class="h-[480px] lg:h-auto lg:min-h-[480px] rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 relative">
+        <div v-if="viewMode !== 'list'" class="h-[480px] lg:h-auto lg:min-h-[480px] rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 relative z-0">
           <div
             v-if="loading && viewMode === 'map'"
             class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-slate-950/70"
@@ -184,9 +199,10 @@
 
     <div v-else class="space-y-4">
       <div class="glass-card !p-6 space-y-4">
-        <div class="flex items-center gap-2 mb-1">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
           <ScanIcon class="w-5 h-5 text-blue-500" />
           <h3 class="text-lg font-bold text-slate-800 dark:text-white">Image Search</h3>
+          <ExperimentalBadge />
         </div>
         <p class="section-sub">
           Upload a photograph or scan of a sealing motif to find visually similar entries in the catalog.
@@ -335,12 +351,16 @@ import { recordPath } from '@/lib/recordPath';
 import SearchMap from '../components/SearchMap.vue';
 import InfoCallout from '../components/InfoCallout.vue';
 import SegmentPills from '../components/SegmentPills.vue';
+import ExperimentalBadge from '../components/ExperimentalBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SEARCH_FILTER_FIELDS } from '@rtidb/shared';
+import { DatePicker } from '@/components/ui/date-picker';
+import { searchFilterFieldsFromSchema, unionCatalogSchemas, SEARCH_FILTER_FIELDS, formatRecordDateTime } from '@rtidb/shared';
+import { listRecordTypes } from '@/api/catalog';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 import type { EnrichedRecord } from '@rtidb/shared/api/search';
 import { searchRecords, searchByImage, getImageSearchJob, bulkExportUrl } from '@/api/search';
 import { ApiError } from '@/api/client';
@@ -358,7 +378,7 @@ const goBack = () => {
 
 const tabOptions = [
   { value: 'search', label: 'Search & Map', icon: MapIcon },
-  { value: 'image', label: 'Image Search', icon: ScanIcon },
+  { value: 'image', label: 'Image Search', icon: ScanIcon, experimental: true },
 ];
 
 const viewModeOptions = [
@@ -370,7 +390,15 @@ const viewModeOptions = [
 const activeTab = ref('search');
 const viewMode = ref('split');
 const query = ref('');
-const filters = reactive(Object.fromEntries(SEARCH_FILTER_FIELDS.map((f) => [f.key, ''])));
+const recordTypes = ref<RecordType[]>([]);
+const recordTypeId = ref('');
+const searchFields = computed(() => {
+  const selected = recordTypes.value.filter((type) => !recordTypeId.value || String(type.id) === recordTypeId.value);
+  const schemas = selected.map((type) => type.schema).filter((schema) => schema?.length);
+  if (!schemas.length) return SEARCH_FILTER_FIELDS;
+  return searchFilterFieldsFromSchema(unionCatalogSchemas(schemas));
+});
+const filters = reactive<Record<string, string>>({});
 const spatialFilter = ref(false);
 
 function setFilterSelect(key: string, value: unknown) {
@@ -415,11 +443,7 @@ const imageCatalogChanged = ref(false);
 
 function formatCachedDate(iso) {
   if (!iso) return '';
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
+  return formatRecordDateTime(iso) || iso;
 }
 
 const imageStatusTitle = computed(() => {
@@ -500,7 +524,12 @@ function buildSearchParams(): Record<string, string> {
     const { west, south, east, north } = mapBounds.value;
     params.bbox = `${west},${south},${east},${north}`;
   }
+  if (recordTypeId.value) params.recordTypeId = recordTypeId.value;
   return params;
+}
+
+function onSearchTypeChange(value: unknown) {
+  recordTypeId.value = !value || value === '__all__' ? '' : String(value);
 }
 
 const exportCsvUrl = bulkExportUrl({ format: 'csv', published: '1' });
@@ -530,6 +559,7 @@ async function runSearch() {
 
 function clearFilters() {
   for (const key of Object.keys(filters)) filters[key] = '';
+  recordTypeId.value = '';
   query.value = '';
   spatialFilter.value = false;
   page.value = 1;
@@ -675,5 +705,12 @@ function runImageSearchForced() {
 
 onUnmounted(clearImagePoll);
 
-onMounted(runSearch);
+onMounted(async () => {
+  try {
+    recordTypes.value = await listRecordTypes();
+  } catch {
+    recordTypes.value = [];
+  }
+  runSearch();
+});
 </script>

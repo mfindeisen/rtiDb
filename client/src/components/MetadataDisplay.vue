@@ -5,30 +5,22 @@
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
     >
       <h4 v-if="title" class="section-label" :class="compact ? 'text-[10px] mb-0' : 'mb-0'">{{ title }}</h4>
-      <div
-        class="inline-flex rounded-lg p-0.5 bg-slate-200/80 dark:bg-white/5 border border-slate-300/50 dark:border-white/10 shrink-0 self-start sm:self-auto"
-        role="group"
-        aria-label="Metadata display mode"
+      <ToggleGroup
+        type="single"
+        size="sm"
+        class="bg-muted p-0.5 rounded-lg"
+        :model-value="viewMode"
+        @update:model-value="onViewModeChange"
       >
-        <button
-          type="button"
-          :class="viewModeButtonClass('cards')"
-          title="Section cards"
-          @click="setViewMode('cards')"
-        >
+        <ToggleGroupItem value="cards" class="gap-1.5 px-3 text-xs" title="Section cards">
           <LayoutGrid class="w-3.5 h-3.5" />
           Sections
-        </button>
-        <button
-          type="button"
-          :class="viewModeButtonClass('table')"
-          title="Classic table"
-          @click="setViewMode('table')"
-        >
+        </ToggleGroupItem>
+        <ToggleGroupItem value="table" class="gap-1.5 px-3 text-xs" title="Classic table">
           <Table2 class="w-3.5 h-3.5" />
           Table
-        </button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroup>
     </div>
 
     <!-- Card / section view -->
@@ -119,7 +111,9 @@ import { computed, ref } from 'vue';
 import { LayoutGrid, Table2 } from '@lucide/vue';
 import MetadataFieldValue from './MetadataFieldValue.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { METADATA_SECTIONS, normalizeMetadata, gpsMapsUrl, parseHexColor, formatCatalogDate, formatCatalogDateTime } from '@rtidb/shared';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { DEFAULT_CATALOG_SCHEMA, normalizeMetadata, gpsMapsUrl, parseHexColor, formatCatalogDate, formatCatalogDateTime } from '@rtidb/shared';
+import type { CatalogSchema } from '@rtidb/shared';
 
 const VIEW_MODE_KEY = 'metadataViewMode';
 
@@ -128,6 +122,7 @@ const props = defineProps({
   textDirection: { type: String, default: 'ltr' },
   title: { type: String, default: '' },
   compact: { type: Boolean, default: false },
+  schema: { type: Array as () => CatalogSchema | null, default: null },
 });
 
 const viewMode = ref(
@@ -141,17 +136,15 @@ const setViewMode = (mode) => {
   localStorage.setItem(VIEW_MODE_KEY, mode);
 };
 
-const viewModeButtonClass = (mode) => [
-  'px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap',
-  viewMode.value === mode
-    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-300/30 dark:border-white/5'
-    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
-];
+function onViewModeChange(value) {
+  if (value === 'cards' || value === 'table') setViewMode(value);
+}
 
-const normalized = computed(() => normalizeMetadata(props.metadata));
+const normalized = computed(() => normalizeMetadata(props.metadata, props.schema));
 
 const sections = computed(() => {
-  return METADATA_SECTIONS.map((section) => {
+  const source = props.schema?.length ? props.schema : DEFAULT_CATALOG_SCHEMA;
+  return source.map((section) => {
     const fields = section.fields.map((f) => {
       const value = normalized.value[f.key] || '';
       const trimmed = value.trim();

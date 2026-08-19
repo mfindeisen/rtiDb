@@ -46,11 +46,10 @@
               :dir="textDirection"
             />
 
-            <Input
+            <DatePicker
               v-else-if="field.type === 'date'"
-              :model-value="dateToIso(model[field.key])"
-              type="date"
-              :placeholder="metadataFieldPlaceholder(field)"
+              :model-value="model[field.key] || ''"
+              :placeholder="metadataFieldPlaceholder(field) || 'Pick a date'"
               :disabled="disabled || metadataFieldReadonly(field)"
               @update:model-value="(v) => setDateField(field.key, v)"
             />
@@ -71,32 +70,35 @@
 </template>
 
 <script setup lang="ts">
-import { METADATA_SECTIONS, dateToIso, formatCatalogDate, metadataFieldPlaceholder, metadataFieldReadonly } from '@rtidb/shared';
-import type { MetadataFieldDef } from '@rtidb/shared';
+import { computed } from 'vue';
+import { DEFAULT_CATALOG_SCHEMA, formatCatalogDate, metadataFieldPlaceholder, metadataFieldReadonly } from '@rtidb/shared';
+import type { CatalogSchema, MetadataFieldDef } from '@rtidb/shared';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const SELECT_EMPTY = '__empty__';
 
 const model = defineModel({ type: Object, required: true });
 
-defineProps({
+const props = defineProps({
   disabled: { type: Boolean, default: false },
   textDirection: { type: String, default: 'ltr' },
   openSections: { type: Array, default: () => ['identification'] },
+  schema: { type: Array as () => CatalogSchema | null, default: null },
 });
 
-const sections = METADATA_SECTIONS;
+const sections = computed(() => (props.schema?.length ? props.schema : DEFAULT_CATALOG_SCHEMA));
 
-function setField(key, value) {
+function setField(key: string, value: unknown) {
   model.value[key] = value === SELECT_EMPTY ? '' : value;
 }
 
-function setDateField(key, value) {
+function setDateField(key: string, value: string) {
   model.value[key] = value ? formatCatalogDate(value) : '';
 }
 
@@ -105,6 +107,6 @@ function inputType(field: MetadataFieldDef): string {
   return 'text';
 }
 
-const filledCount = (section) =>
+const filledCount = (section: { fields: MetadataFieldDef[] }) =>
   section.fields.filter((f) => model.value[f.key]?.trim?.()).length;
 </script>
