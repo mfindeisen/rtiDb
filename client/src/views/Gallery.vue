@@ -25,8 +25,8 @@
             <Input
               v-model="searchQuery"
               type="text"
-              placeholder="Search scans..."
-              class="form-input pl-10 w-full"
+              placeholder="Search visible columns..."
+              class="pl-10 w-full"
             />
           </div>
           <Button as-child variant="outline">
@@ -38,7 +38,20 @@
         </div>
 
         <div class="flex items-center gap-3">
-          <GalleryColumnPicker class="hidden md:block" @change="onColumnPrefsChange" />
+          <Select v-if="galleryViews.length" :model-value="selectedViewSlug" @update:model-value="onViewChange">
+            <SelectTrigger class="w-[12rem]">
+              <SelectValue placeholder="View" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="view in galleryViews" :key="view.slug" :value="view.slug">{{ view.name }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <GalleryColumnPicker
+            :prefs="columnPrefs"
+            :extra-fields="viewFields"
+            @change="onColumnPrefsChange"
+            @reset="onColumnReset"
+          />
           <div class="flex items-center gap-2">
             <Label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</Label>
             <Select :model-value="String(itemsPerPage)" @update:model-value="onItemsPerPageChange">
@@ -55,11 +68,11 @@
 
       <!-- Mobile card list -->
       <div class="md:hidden space-y-3 px-4 sm:px-6 pb-4 sm:pb-6">
-        <article
+        <router-link
           v-for="rec in paginatedRecords"
           :key="rec.id"
-          class="rounded-xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 p-4 flex gap-3 cursor-pointer active:bg-slate-50 dark:active:bg-white/5"
-          @click="$router.push(recordPath(rec))"
+          :to="recordPath(rec)"
+          class="rounded-xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 p-4 flex gap-3 active:bg-slate-50 dark:active:bg-white/5 no-underline text-inherit"
         >
           <div class="w-16 h-16 shrink-0 bg-slate-200 dark:bg-slate-800 rounded-md overflow-hidden border border-slate-300 dark:border-slate-700">
             <img v-if="rec.thumbnailUrl" :src="rec.thumbnailUrl" alt="" class="w-full h-full object-cover" />
@@ -70,36 +83,62 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="font-bold text-slate-800 dark:text-white leading-snug">{{ rec.name }}</h3>
+              <span v-if="rec.recordTypeName" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/10">{{ rec.recordTypeName }}</span>
               <RecordOutputBadge :record="rec" />
             </div>
             <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mt-1" :dir="rec.direction">{{ rec.description }}</p>
             <p class="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">{{ formatRecordDateTime(rec.date) }}</p>
           </div>
-        </article>
+        </router-link>
         <p v-if="paginatedRecords.length === 0" class="text-center py-8 text-slate-500 dark:text-slate-400">
           No scans match your search.
         </p>
       </div>
 
       <!-- Desktop table -->
-      <div class="hidden md:block overflow-x-auto border-t border-slate-200 dark:border-white/10">
-        <table class="w-full table-fixed text-left border-collapse">
-          <colgroup>
-            <col
-              v-for="col in visibleColumns"
-              :key="`col-${col.id}`"
-              :class="columnColClass(col)"
-            />
-          </colgroup>
+      <ScrollArea
+        type="auto"
+        class="hidden md:block border-t border-slate-200 dark:border-white/10 [&_[data-slot=scroll-area-viewport]]:h-auto [&_[data-slot=scroll-area-viewport]]:w-full [&_[data-slot=scroll-area-viewport]>div]:min-w-max [&_[data-slot=scroll-area-viewport]>div]:pb-2.5"
+      >
+        <table class="min-w-full w-max text-left border-collapse">
           <thead>
             <tr class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm border-b border-slate-200 dark:border-white/10">
               <th
                 v-for="col in visibleColumns"
                 :key="col.id"
-                class="p-4 font-semibold"
-                :class="col.align === 'center' ? 'text-center' : ''"
+                class="p-4 font-semibold whitespace-nowrap sticky top-0 z-20 bg-slate-100 dark:bg-slate-800"
+                :class="[columnSizeClass(col), col.align === 'center' ? 'text-center' : '']"
+                :aria-sort="ariaSortForColumn(col)"
               >
-                {{ col.label }}
+                <button
+                  v-if="sortFieldForColumn(col)"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 font-semibold text-inherit hover:text-slate-900 dark:hover:text-white transition-colors select-none whitespace-nowrap"
+                  :class="[
+                    col.align === 'center' ? 'justify-center w-full' : '',
+                    isColumnSorted(col) ? 'text-slate-900 dark:text-white' : '',
+                  ]"
+                  :aria-label="`Sort by ${col.label}`"
+                  @click="toggleSort(col)"
+                >
+                  <span>{{ col.label }}</span>
+                  <ChevronUpIcon
+                    v-if="isColumnSorted(col) && activeSort?.dir === 'asc'"
+                    class="w-3.5 h-3.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <ChevronDownIcon
+                    v-else-if="isColumnSorted(col) && activeSort?.dir === 'desc'"
+                    class="w-3.5 h-3.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <ArrowUpDownIcon
+                    v-else
+                    class="w-3.5 h-3.5 shrink-0 opacity-40"
+                    aria-hidden="true"
+                  />
+                </button>
+                <span v-else>{{ col.label }}</span>
               </th>
             </tr>
           </thead>
@@ -107,15 +146,21 @@
             <tr
               v-for="rec in paginatedRecords"
               :key="rec.id"
-              class="border-b border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
-              @click="$router.push(recordPath(rec))"
+              class="border-b border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 focus-within:bg-slate-50 dark:focus-within:bg-white/5 transition-colors group"
             >
               <td
-                v-for="col in visibleColumns"
+                v-for="(col, colIndex) in visibleColumns"
                 :key="col.id"
-                class="p-4 align-middle"
-                :class="col.align === 'center' ? 'text-center' : ''"
+                class="p-4 align-middle relative overflow-hidden"
+                :class="[columnSizeClass(col), col.align === 'center' ? 'text-center' : '']"
               >
+                <router-link
+                  :to="recordPath(rec)"
+                  class="absolute inset-0 z-10 block outline-none"
+                  :aria-label="colIndex === 0 ? rec.name : undefined"
+                  :aria-hidden="colIndex !== 0"
+                  :tabindex="colIndex === 0 ? undefined : -1"
+                />
                 <template v-if="col.kind === 'preview'">
                   <div class="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-md overflow-hidden relative shadow-sm border border-slate-300 dark:border-slate-700">
                     <img
@@ -176,31 +221,34 @@
                 </template>
 
                 <template v-else-if="col.kind === 'dateCreated'">
-                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                     {{ formatRecordDateTime(rec.date) }}
                   </span>
                 </template>
 
                 <template v-else-if="col.kind === 'dateUpdated'">
-                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300">
+                  <span class="font-mono text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                     {{ getRecordUpdatedAt(rec) || '—' }}
                   </span>
                 </template>
 
+                <template v-else-if="col.kind === 'recordType'">
+                  <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">{{ rec.recordTypeName || '—' }}</span>
+                </template>
+
                 <template v-else-if="col.kind === 'metadata'">
-                  <span class="text-sm text-slate-600 dark:text-slate-300">
+                  <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
                     {{ getMetadataValue(rec, col.metadataKey!) || '—' }}
                   </span>
                 </template>
 
                 <template v-else-if="col.kind === 'action'">
-                  <button
-                    type="button"
-                    class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 transition-colors shadow-sm"
-                    @click.stop="$router.push(recordPath(rec))"
+                  <span
+                    class="inline-flex p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white dark:group-hover:bg-blue-500 transition-colors shadow-sm pointer-events-none"
+                    aria-hidden="true"
                   >
                     <EyeIcon class="w-5 h-5" />
-                  </button>
+                  </span>
                 </template>
               </td>
             </tr>
@@ -211,7 +259,7 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
 
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 sm:p-6 pt-4 border-t border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400">
         <div>
@@ -265,19 +313,33 @@ import { recordPath } from '@/lib/recordPath';
 import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
 import type { RecordRow } from '@rtidb/shared/api/records';
 import { listRecords } from '@/api/records';
+import { listCatalogViews, listRecordTypes } from '@/api/catalog';
+import type { CatalogView } from '@rtidb/shared/api/catalog';
+import type { RecordType } from '@rtidb/shared/api/catalog';
 import RecordOutputBadge from '@/components/RecordOutputBadge.vue';
 import GalleryColumnPicker from '@/components/GalleryColumnPicker.vue';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  DEFAULT_VISIBLE_COLUMN_IDS,
+  clearColumnOverride,
+  getColumnOverride,
   getMetadataValue,
+  hasStoredGalleryColumnPrefs,
+  recordMatchesGallerySearch,
   loadGalleryColumnPrefs,
-  resolveVisibleColumns,
+  resolveColumnsByIds,
+  sanitizeColumnIds,
+  saveGalleryColumnPrefs,
+  setColumnOverride,
+  sortFieldForColumn,
   type GalleryColumnDef,
   type GalleryColumnPrefs,
 } from '@/lib/galleryColumns';
+import { flattenCatalogFields } from '@rtidb/shared';
 import {
   Search as SearchIcon,
   ScanSearch as ScanSearchIcon,
@@ -285,9 +347,16 @@ import {
   Eye as EyeIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  ChevronUp as ChevronUpIcon,
+  ChevronDown as ChevronDownIcon,
+  ArrowUpDown as ArrowUpDownIcon,
 } from '@lucide/vue';
 
+const GALLERY_VIEW_KEY = 'galleryViewSlug';
 const records = ref<RecordRow[]>([]);
+const galleryViews = ref<CatalogView[]>([]);
+const recordTypes = ref<RecordType[]>([]);
+const selectedViewSlug = ref('');
 const loading = ref(true);
 const error = ref('');
 const searchQuery = ref('');
@@ -295,11 +364,65 @@ const currentPage = ref(1);
 const pageSizeOptions = [5, 10, 20, 50] as const;
 const itemsPerPage = ref<(typeof pageSizeOptions)[number]>(10);
 const columnPrefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
-const visibleColumns = computed(() => resolveVisibleColumns(columnPrefs.value));
+const userSort = ref<{ field: string; dir: 'asc' | 'desc' } | null>(null);
+
+const selectedView = computed(() => galleryViews.value.find((view) => view.slug === selectedViewSlug.value) || galleryViews.value.find((view) => view.isDefault) || galleryViews.value[0] || null);
+
+const viewFields = computed(() => {
+  const type = recordTypes.value.find((item) => item.id === selectedView.value?.recordTypeId);
+  const fields = type
+    ? flattenCatalogFields(type.schema)
+    : recordTypes.value.flatMap((item) => flattenCatalogFields(item.schema).filter((field) => field.showInGallery));
+  const unique: Array<{ key: string; label: string }> = [];
+  const seen = new Set<string>();
+  for (const field of fields) {
+    if (seen.has(field.key)) continue;
+    seen.add(field.key);
+    unique.push(field);
+  }
+  return unique;
+});
+
+const viewColumnIds = computed(() =>
+  selectedView.value?.config.visibleColumnIds?.length
+    ? selectedView.value.config.visibleColumnIds
+    : [...DEFAULT_VISIBLE_COLUMN_IDS],
+);
+
+const visibleColumns = computed(() =>
+  resolveColumnsByIds(columnPrefs.value.visibleOrder, viewFields.value),
+);
+
+function applyColumnsForView(slug: string) {
+  const override = slug ? getColumnOverride(slug) : null;
+  const fallback = !slug && hasStoredGalleryColumnPrefs()
+    ? loadGalleryColumnPrefs().visibleOrder
+    : viewColumnIds.value;
+  columnPrefs.value = {
+    visibleOrder: sanitizeColumnIds(override ?? fallback, viewFields.value, viewColumnIds.value),
+  };
+}
 
 onMounted(async () => {
   try {
-    records.value = await listRecords({ published: '1' });
+    const [list, views, types] = await Promise.all([
+      listRecords({ published: '1' }),
+      listCatalogViews().catch(() => []),
+      listRecordTypes().catch(() => []),
+    ]);
+    records.value = list;
+    galleryViews.value = views;
+    recordTypes.value = types;
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(GALLERY_VIEW_KEY) : '';
+    const match = views.find((view) => view.slug === stored);
+    selectedViewSlug.value = match?.slug || views.find((view) => view.isDefault)?.slug || views[0]?.slug || '';
+    if (hasStoredGalleryColumnPrefs()) {
+      const defaultSlug = views.find((view) => view.isDefault)?.slug || views[0]?.slug || '';
+      if (defaultSlug && !getColumnOverride(defaultSlug)) {
+        setColumnOverride(defaultSlug, loadGalleryColumnPrefs().visibleOrder);
+      }
+    }
+    applyColumnsForView(selectedViewSlug.value);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to fetch records';
   } finally {
@@ -307,8 +430,25 @@ onMounted(async () => {
   }
 });
 
+function onViewChange(value: unknown) {
+  selectedViewSlug.value = String(value || '');
+  if (typeof localStorage !== 'undefined') localStorage.setItem(GALLERY_VIEW_KEY, selectedViewSlug.value);
+  applyColumnsForView(selectedViewSlug.value);
+  userSort.value = null;
+  currentPage.value = 1;
+}
+
 function onColumnPrefsChange(prefs: GalleryColumnPrefs) {
   columnPrefs.value = prefs;
+  if (selectedViewSlug.value) setColumnOverride(selectedViewSlug.value, prefs.visibleOrder);
+  else saveGalleryColumnPrefs(prefs);
+}
+
+function onColumnReset() {
+  if (selectedViewSlug.value) clearColumnOverride(selectedViewSlug.value);
+  columnPrefs.value = {
+    visibleOrder: sanitizeColumnIds(viewColumnIds.value, viewFields.value, [...DEFAULT_VISIBLE_COLUMN_IDS]),
+  };
 }
 
 function onItemsPerPageChange(value: unknown) {
@@ -318,20 +458,100 @@ function onItemsPerPageChange(value: unknown) {
   }
 }
 
-function columnColClass(col: GalleryColumnDef): string {
-  if (col.kind === 'preview' || col.kind === 'action') return 'w-24';
-  if (col.kind === 'outputType') return 'w-36';
-  if (col.kind === 'dates' || col.kind === 'dateCreated' || col.kind === 'dateUpdated') return 'w-52';
-  if (col.kind === 'metadata') return 'w-44';
-  return '';
+function columnSizeClass(col: GalleryColumnDef): string {
+  if (col.kind === 'preview' || col.kind === 'action') return 'min-w-24 w-24';
+  if (col.kind === 'outputType') return 'min-w-36';
+  if (col.kind === 'dates' || col.kind === 'dateCreated' || col.kind === 'dateUpdated') return 'min-w-52';
+  if (col.kind === 'recordType' || col.kind === 'metadata') return 'min-w-44';
+  if (col.kind === 'nameDescription') return 'min-w-72';
+  if (col.kind === 'name') return 'min-w-56';
+  if (col.kind === 'description') return 'min-w-64';
+  return 'min-w-40';
+}
+
+const activeSort = computed(() => userSort.value ?? selectedView.value?.config.sort ?? null);
+
+function isColumnSorted(col: GalleryColumnDef): boolean {
+  const field = sortFieldForColumn(col);
+  return !!field && activeSort.value?.field === field;
+}
+
+function ariaSortForColumn(col: GalleryColumnDef): 'ascending' | 'descending' | 'none' | undefined {
+  if (!sortFieldForColumn(col)) return undefined;
+  if (!isColumnSorted(col)) return 'none';
+  return activeSort.value?.dir === 'asc' ? 'ascending' : 'descending';
+}
+
+function toggleSort(col: GalleryColumnDef) {
+  const field = sortFieldForColumn(col);
+  if (!field) return;
+  const current = activeSort.value;
+  if (current?.field === field) {
+    userSort.value = { field, dir: current.dir === 'asc' ? 'desc' : 'asc' };
+  } else {
+    const dateField = field === 'date' || field === 'dateUpdated';
+    userSort.value = { field, dir: dateField ? 'desc' : 'asc' };
+  }
+  currentPage.value = 1;
+}
+
+function getSortValue(record: RecordRow, field: string): string {
+  switch (field) {
+    case 'name':
+      return record.name || '';
+    case 'description':
+      return record.description || '';
+    case 'date':
+      return record.date || '';
+    case 'dateUpdated':
+      return record.metadata?.lastEdit?.trim() || '';
+    case 'recordType':
+      return record.recordTypeName || '';
+    case 'outputType':
+      return record.outputType || '';
+    default:
+      return getMetadataValue(record, field);
+  }
+}
+
+function compareRecords(a: RecordRow, b: RecordRow, field: string): number {
+  const av = getSortValue(a, field);
+  const bv = getSortValue(b, field);
+  if (field === 'date' || field === 'dateUpdated') {
+    const at = Date.parse(av);
+    const bt = Date.parse(bv);
+    const aValid = !Number.isNaN(at);
+    const bValid = !Number.isNaN(bt);
+    if (aValid && bValid) return at - bt;
+    if (aValid) return 1;
+    if (bValid) return -1;
+  }
+  return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
 }
 
 const filteredRecords = computed(() => {
-  if (!searchQuery.value) return records.value;
-  const q = searchQuery.value.toLowerCase();
-  return records.value.filter(
-    (r) => r.name.toLowerCase().includes(q) || (r.description && r.description.toLowerCase().includes(q))
-  );
+  let list = records.value;
+  const view = selectedView.value;
+  if (view?.recordTypeId) {
+    list = list.filter((r) => r.recordTypeId === view.recordTypeId);
+  }
+  if (view?.config.filters) {
+    for (const [key, value] of Object.entries(view.config.filters)) {
+      if (!value) continue;
+      const needle = value.toLowerCase();
+      list = list.filter((r) => getMetadataValue(r, key).toLowerCase().includes(needle));
+    }
+  }
+  if (searchQuery.value) {
+    const columns = visibleColumns.value;
+    list = list.filter((r) => recordMatchesGallerySearch(r, searchQuery.value, columns));
+  }
+  const sort = activeSort.value;
+  if (sort?.field) {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    list = [...list].sort((a, b) => compareRecords(a, b, sort.field) * dir);
+  }
+  return list;
 });
 
 const totalPages = computed(() => Math.ceil(filteredRecords.value.length / itemsPerPage.value) || 1);

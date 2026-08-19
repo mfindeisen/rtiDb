@@ -7,7 +7,7 @@ test.describe('Public gallery', () => {
     await expect(page.getByRole('heading', { name: 'RTI Gallery' })).toBeVisible();
     await expect(
       page.getByText('No published scans found.')
-        .or(page.getByPlaceholder('Search scans...')),
+        .or(page.getByPlaceholder('Search visible columns...')),
     ).toBeVisible({ timeout: 15_000 });
   });
 

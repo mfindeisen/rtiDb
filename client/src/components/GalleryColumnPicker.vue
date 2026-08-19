@@ -24,9 +24,11 @@
         v-if="open"
         role="dialog"
         aria-label="Configure gallery columns"
-        class="fixed z-[210] w-[min(22rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-5rem))] overflow-y-auto rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl p-4 space-y-4"
+        class="fixed z-[210] w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl"
         :style="panelStyle"
       >
+        <ScrollArea class="h-[min(28rem,calc(100vh-5rem))]">
+          <div class="p-4 space-y-4">
         <div class="flex items-start justify-between gap-3">
           <div>
             <h3 class="text-sm font-semibold text-slate-800 dark:text-white">Table columns</h3>
@@ -117,6 +119,8 @@
             </li>
           </ul>
         </div>
+          </div>
+        </ScrollArea>
       </div>
     </Teleport>
   </div>
@@ -127,28 +131,35 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { Columns3 as Columns3Icon, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon } from '@lucide/vue';
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   getHiddenColumns,
-  loadGalleryColumnPrefs,
   moveColumn,
-  resetGalleryColumnPrefs,
   resolveVisibleColumns,
-  saveGalleryColumnPrefs,
   toggleColumn,
+  type GalleryColumnField,
   type GalleryColumnPrefs,
 } from '@/lib/galleryColumns';
 
+const props = withDefaults(defineProps<{
+  prefs: GalleryColumnPrefs;
+  extraFields?: GalleryColumnField[];
+}>(), {
+  extraFields: () => [],
+});
+
 const emit = defineEmits<{
   change: [prefs: GalleryColumnPrefs];
+  reset: [];
 }>();
 
+const extraFields = computed(() => props.extraFields ?? []);
 const open = ref(false);
 const buttonEl = ref<HTMLElement | null>(null);
 const panelStyle = ref<Record<string, string>>({});
-const prefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
 
-const visibleColumns = computed(() => resolveVisibleColumns(prefs.value));
-const hiddenColumns = computed(() => getHiddenColumns(prefs.value));
+const visibleColumns = computed(() => resolveVisibleColumns(props.prefs, extraFields.value));
+const hiddenColumns = computed(() => getHiddenColumns(props.prefs, extraFields.value));
 
 function updatePosition() {
   const el = buttonEl.value;
@@ -181,20 +192,18 @@ onUnmounted(() => {
 });
 
 function apply(next: GalleryColumnPrefs) {
-  prefs.value = next;
-  saveGalleryColumnPrefs(next);
   emit('change', next);
 }
 
 function setColumnVisible(columnId: string, visible: boolean) {
-  apply(toggleColumn(prefs.value, columnId, visible));
+  apply(toggleColumn(props.prefs, columnId, visible, extraFields.value));
 }
 
 function move(columnId: string, direction: -1 | 1) {
-  apply(moveColumn(prefs.value, columnId, direction));
+  apply(moveColumn(props.prefs, columnId, direction));
 }
 
 function resetColumns() {
-  apply(resetGalleryColumnPrefs());
+  emit('reset');
 }
 </script>
