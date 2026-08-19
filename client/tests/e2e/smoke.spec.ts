@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+function passwordInput(page: Page) {
+  return page.locator('#password');
+}
 
 test.describe('Public gallery', () => {
   test('loads the gallery shell', async ({ page }) => {
@@ -14,9 +18,10 @@ test.describe('Public gallery', () => {
   test('shows the login page for protected routes', async ({ page }) => {
     await page.goto('/search');
 
-    await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByText('Login to your account', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Username')).toBeVisible();
-    await expect(page.getByLabel('Password')).toBeVisible();
+    await expect(passwordInput(page)).toBeVisible();
   });
 });
 
@@ -25,8 +30,8 @@ test.describe('Authentication', () => {
     await page.goto('/login');
 
     await page.getByLabel('Username').fill('admin');
-    await page.getByLabel('Password').fill('e2e-admin');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await passwordInput(page).fill('e2e-admin');
+    await page.getByRole('button', { name: 'Login' }).click();
 
     await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Back to Gallery' })).toBeVisible();
@@ -37,8 +42,8 @@ test.describe('Authentication', () => {
     await page.goto('/login');
 
     await page.getByLabel('Username').fill('admin');
-    await page.getByLabel('Password').fill('wrong-password');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await passwordInput(page).fill('wrong-password');
+    await page.getByRole('button', { name: 'Login' }).click();
 
     await expect(page.getByText('Invalid credentials')).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
