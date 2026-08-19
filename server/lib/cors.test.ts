@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCorsOrigins } from './cors.js';
+import { parseCorsOrigins, buildCorsOptions } from './cors.js';
 
 describe('parseCorsOrigins', () => {
   it('parses comma-separated origins', () => {
@@ -15,5 +15,12 @@ describe('parseCorsOrigins', () => {
   it('defaults to local Vite origins in development', () => {
     expect(parseCorsOrigins(undefined, false, null))
       .toEqual(['http://localhost:5173', 'http://127.0.0.1:5173']);
+  });
+});
+
+describe('buildCorsOptions', () => {
+  it('exposes byte-range headers for GeoTIFF clients', () => {
+    const options = buildCorsOptions({ corsOrigins: ['http://localhost:5173'] } as Parameters<typeof buildCorsOptions>[0]);
+    expect(options.exposedHeaders).toEqual(['Accept-Ranges', 'Content-Range', 'Content-Length']);
   });
 });

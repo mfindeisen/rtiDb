@@ -27,5 +27,6 @@ export function buildCorsOptions(config: ServerConfig): CorsOptions {
       callback(null, false);
     },
     credentials: true,
+    exposedHeaders: ['Accept-Ranges', 'Content-Range', 'Content-Length'],
   };
 }
