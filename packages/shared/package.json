@@ -12,6 +12,10 @@
     "./annotationColors": "./src/annotationColors.ts",
     "./annotationStroke": "./src/annotationStroke.ts",
     "./scaleCalibration": "./src/scaleCalibration.ts",
+    "./catalogSchema": "./src/catalogSchema.ts",
+    "./catalogViews": "./src/catalogViews.ts",
+    "./siteConfig": "./src/siteConfig.ts",
+    "./dateTimeFormat": "./src/dateTimeFormat.ts",
     "./annotations": "./src/annotations.ts",
     "./recordRevisions": "./src/recordRevisions.ts",
     "./api/records": "./src/api/records.ts",
@@ -22,7 +26,8 @@
     "./api/comments": "./src/api/comments.ts",
     "./api/jobs": "./src/api/jobs.ts",
     "./api/auth": "./src/api/auth.ts",
-    "./api/revisions": "./src/api/revisions.ts"
+    "./api/revisions": "./src/api/revisions.ts",
+    "./api/catalog": "./src/api/catalog.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

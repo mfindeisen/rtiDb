@@ -1,4 +1,5 @@
-import { METADATA_SECTIONS, type CatalogMetadataKey } from './metadataFields.js';
+import { METADATA_SECTIONS, getDefaultCatalogSchema } from './metadataFields.js';
+import { catalogFieldLabelMap } from './catalogSchema.js';
 
 export const SNAPSHOT_FIELDS = [
   'name',
@@ -14,6 +15,7 @@ export const SNAPSHOT_FIELDS = [
   'tiffUrl',
   'thumbnailUrl',
   'scaleCalibration',
+  'recordTypeId',
 ] as const;
 
 export type SnapshotField = (typeof SNAPSHOT_FIELDS)[number];
@@ -68,11 +70,15 @@ export const RECORD_FIELD_LABELS: Record<string, string> = {
   tiffUrl: 'GeoTIFF',
   thumbnailUrl: 'Thumbnail',
   scaleCalibration: 'Image scale',
+  recordTypeId: 'Record type',
 };
 
-const metadataLabelByKey = Object.fromEntries(
-  METADATA_SECTIONS.flatMap((section) => section.fields.map((field) => [field.key, field.label])),
-) as Record<CatalogMetadataKey, string>;
+const metadataLabelByKey = {
+  ...catalogFieldLabelMap(getDefaultCatalogSchema()),
+  ...Object.fromEntries(
+    METADATA_SECTIONS.flatMap((section) => section.fields.map((field) => [field.key, field.label])),
+  ),
+} as Record<string, string>;
 
 export function countChanges(changes: SnapshotChanges = {}): number {
   let total = 0;
@@ -91,7 +97,7 @@ export function revisionActionLabel(action: string): string {
 }
 
 export function revisionFieldLabel(key: string): string {
-  return RECORD_FIELD_LABELS[key] || metadataLabelByKey[key as CatalogMetadataKey] || key;
+  return RECORD_FIELD_LABELS[key] || metadataLabelByKey[key] || key;
 }
 
 export function formatRevisionValue(value: unknown): string {
