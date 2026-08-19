@@ -1,110 +1,120 @@
 <template>
-  <div class="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-    <div class="w-full max-w-md space-y-8">
-      <div class="text-center space-y-2">
-        <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
-          RTI Database
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">
-          Sign in to browse catalog records, RTI scans, and annotations.
-        </p>
-      </div>
-
-      <div class="glass-card">
-        <div class="relative mb-6">
-          <h2 class="text-xl font-bold text-center text-slate-800 dark:text-white">Login</h2>
-          <div class="absolute inset-y-0 right-0 flex items-center">
-            <ThemeToggle />
-          </div>
-        </div>
-        <form @submit.prevent="handleLogin" class="space-y-5" autocomplete="on">
-          <div class="flex flex-col text-left">
-            <Label for="username" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Username</Label>
-            <Input
-              id="username"
-              v-model="username"
-              name="username"
-              type="text"
-              autocomplete="username"
-              autocapitalize="none"
-              spellcheck="false"
-              required
-              placeholder="username"
-              class="form-input"
-              :disabled="isLoading"
-            />
-          </div>
-          <div class="flex flex-col text-left">
-            <Label for="password" class="mb-2 font-medium text-slate-700 dark:text-slate-200">Password</Label>
-            <Input
-              id="password"
-              v-model="password"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              required
-              placeholder="••••••••"
-              class="form-input"
-              :disabled="isLoading"
-            />
-          </div>
-          <Button type="submit" class="w-full" :disabled="isLoading">
-            {{ isLoading ? 'Signing in…' : 'Sign in' }}
-          </Button>
-        </form>
-        <Alert v-if="error" variant="destructive" class="mt-4">
-          <AlertDescription>{{ error }}</AlertDescription>
-        </Alert>
-      </div>
+  <div
+    ref="rootEl"
+    class="relative flex flex-1 w-full items-center justify-center overflow-hidden p-6 md:p-10 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900"
+    :style="lightStyle"
+    @pointermove="onPointerMove"
+    @pointerleave="onPointerLeave"
+  >
+    <div class="login-rti-wash" aria-hidden="true" />
+    <div ref="specimenEl" class="relative z-10 w-full max-w-sm">
+      <LoginForm />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import ThemeToggle from '@/components/ThemeToggle.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { postLoginPath } from '@/composables/useAuth';
-import { login } from '@/api/auth';
-import { ApiError } from '@/api/client';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import LoginForm from '@/components/LoginForm.vue';
 
-const router = useRouter();
-const route = useRoute();
-const username = ref('');
-const password = ref('');
-const isLoading = ref(false);
-const error = ref('');
+const ORBIT_PERIOD_MS = 64_000;
+const ORBIT_RADIUS = 0.62;
+const FOLLOW = 0.07;
 
-const handleLogin = async () => {
-  isLoading.value = true;
-  error.value = '';
+const rootEl = ref<HTMLElement | null>(null);
+const specimenEl = ref<HTMLElement | null>(null);
+const guided = ref(false);
+const light = reactive({ dx: 0, dy: -ORBIT_RADIUS });
+const target = reactive({ dx: 0, dy: -ORBIT_RADIUS });
 
-  try {
-    await login(username.value, password.value);
-    router.push(postLoginPath(route.query.redirect));
-  } catch (err) {
-    console.error('Login error', err);
-    if (err instanceof ApiError) {
-      try {
-        const data = JSON.parse(err.body) as { error?: string; retryAfterSeconds?: number };
-        if (err.status === 429) {
-          const wait = data.retryAfterSeconds ? ` Try again in ${data.retryAfterSeconds}s.` : '';
-          error.value = (data.error || 'Too many login attempts.') + wait;
-        } else {
-          error.value = data.error || 'Login failed';
-        }
-      } catch {
-        error.value = err.body || 'Login failed';
-      }
-    } else {
-      error.value = 'Failed to connect to server';
-    }
-  } finally {
-    isLoading.value = false;
+let angle = -Math.PI / 2;
+let raf = 0;
+let lastTs = 0;
+let reducedMotion = false;
+
+function clampToDome(dx: number, dy: number) {
+  const len = Math.hypot(dx, dy);
+  if (len > 1) return { dx: dx / len, dy: dy / len };
+  return { dx, dy };
+}
+
+function placeOnOrbit() {
+  target.dx = Math.cos(angle) * ORBIT_RADIUS;
+  target.dy = Math.sin(angle) * ORBIT_RADIUS;
+}
+
+function tick(ts: number) {
+  if (!guided.value && !reducedMotion) {
+    const dt = lastTs ? ts - lastTs : 16;
+    lastTs = ts;
+    angle += (dt / ORBIT_PERIOD_MS) * Math.PI * 2;
+    placeOnOrbit();
+  } else {
+    lastTs = ts;
   }
-};
+
+  light.dx += (target.dx - light.dx) * FOLLOW;
+  light.dy += (target.dy - light.dy) * FOLLOW;
+  raf = requestAnimationFrame(tick);
+}
+
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerType !== 'mouse' || !rootEl.value) return;
+  const specimen = (specimenEl.value ?? rootEl.value).getBoundingClientRect();
+  const canvas = rootEl.value.getBoundingClientRect();
+  const cx = specimen.left + specimen.width / 2;
+  const cy = specimen.top + specimen.height / 2;
+  const dome = Math.min(canvas.width, canvas.height) * 0.42;
+  const next = clampToDome(
+    (event.clientX - cx) / dome,
+    (event.clientY - cy) / dome,
+  );
+  target.dx = next.dx;
+  target.dy = next.dy;
+  angle = Math.atan2(next.dy, next.dx);
+  guided.value = true;
+}
+
+function onPointerLeave() {
+  guided.value = false;
+  lastTs = 0;
+}
+
+const lightStyle = computed(() => ({
+  '--light-x': `${50 + light.dx * 36}%`,
+  '--light-y': `${50 + light.dy * 32}%`,
+}));
+
+onMounted(() => {
+  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  placeOnOrbit();
+  light.dx = target.dx;
+  light.dy = target.dy;
+  raf = requestAnimationFrame(tick);
+});
+
+onUnmounted(() => {
+  cancelAnimationFrame(raf);
+});
 </script>
+
+<style scoped>
+.login-rti-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 90% 75% at var(--light-x) var(--light-y),
+    color-mix(in srgb, var(--brand-from) 16%, transparent) 0%,
+    transparent 62%
+  );
+}
+
+:global(html.dark) .login-rti-wash {
+  background: radial-gradient(
+    ellipse 90% 75% at var(--light-x) var(--light-y),
+    color-mix(in srgb, var(--brand-from) 22%, transparent) 0%,
+    transparent 64%
+  );
+}
+</style>
