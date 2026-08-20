@@ -25,6 +25,7 @@ import { registerRecordMutationRoutes } from './routes/recordMutations.js';
 import { registerProcessingJobRoutes } from './routes/processingJobs.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
+import { registerUploadSessionRoutes } from './routes/uploadSessions.js';
 import { errorHandler, notFoundHandler } from './lib/httpErrors.js';
 import type { ServerContext } from './types/index.js';
 
@@ -39,7 +40,7 @@ export function createApp(config: ServerConfig): Express {
     app.set('trust proxy', config.trustProxy);
   }
   const { uploadDir, uploadFields, imageSearchUpload } = createUploadMiddleware(__dirname, config.maxRtiUploadBytes);
-  const auth = createAuthMiddleware(config.jwtSecret);
+  const auth = createAuthMiddleware(config.jwtSecret, db, schema);
   const recordHelpers = createRecordHelpers({ db, schema });
   const { runProcessingPipeline } = createProcessingPipeline({
     db,
@@ -49,13 +50,14 @@ export function createApp(config: ServerConfig): Express {
     snapshotRecordAfterSystem: recordHelpers.snapshotRecordAfterSystem,
   });
 
-  const processingQueue = createProcessingQueue(db, schema, async (item) => {
+  const processingQueue = createProcessingQueue(db, schema, async (item, signal) => {
     await runProcessingPipeline(
       item.recordId,
       item.originalFilePath,
       item.weightsPath,
       item.options,
       item.outputType,
+      signal,
     );
   });
   processingQueue.recoverOnStartup();
@@ -73,6 +75,8 @@ export function createApp(config: ServerConfig): Express {
     enqueueProcessing: (item) => processingQueue.enqueue(item),
     getProcessingJob: (jobId) => processingQueue.get(jobId),
     getLatestProcessingJob: (recordId) => processingQueue.getLatestForRecord(recordId),
+    cancelProcessingJob: (jobId) => processingQueue.cancel(jobId),
+    cancelRecordProcessing: (recordId) => processingQueue.cancelLatestForRecord(recordId),
   };
 
   app.use(cors(buildCorsOptions(config)));
@@ -81,7 +85,7 @@ export function createApp(config: ServerConfig): Express {
 
   registerHealthRoutes(app);
   registerDocsRoutes(app, auth.sessionAuthMiddleware);
-  registerDiscoveryRoutes(app);
+  registerDiscoveryRoutes(app, auth.authMiddleware);
   registerProgressRoutes(app, auth.authMiddleware, auth.requireManageRecords);
   registerAuthRoutes(app, ctx);
   registerSearchRoutes(app, ctx);
@@ -94,6 +98,7 @@ export function createApp(config: ServerConfig): Express {
   registerProcessingJobRoutes(app, ctx);
   registerUserRoutes(app, ctx);
   registerCatalogRoutes(app, ctx);
+  registerUploadSessionRoutes(app, ctx);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

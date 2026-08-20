@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { ProcessingJob } from '@rtidb/shared/api/jobs';
-import type { AppDb, AppSchema, ProcessingOptions } from '../types/index.js';
+import type { AppDb, AppSchema, CancelProcessingResult, ProcessingOptions } from '../types/index.js';
+import { isProcessingCancelledError } from './processingErrors.js';
+import { broadcastProgress } from './progress.js';
 
 export interface ProcessingJobItem {
   recordId: number;
@@ -17,10 +19,14 @@ interface ProcessingJobPayload {
   outputType: string;
 }
 
+export type { CancelProcessingResult } from '../types/index.js';
+
 export interface ProcessingQueue {
   enqueue: (item: ProcessingJobItem) => ProcessingJob;
   get: (jobId: string) => ProcessingJob | null;
   getLatestForRecord: (recordId: number) => ProcessingJob | null;
+  cancel: (jobId: string) => CancelProcessingResult;
+  cancelLatestForRecord: (recordId: number) => CancelProcessingResult;
   recoverOnStartup: () => void;
   stats: () => { queued: number; processing: number };
 }
@@ -58,10 +64,16 @@ function toPublic(row: {
 export function createProcessingQueue(
   db: AppDb,
   schema: AppSchema,
-  runPipeline: (item: ProcessingJobItem) => Promise<void>,
+  runPipeline: (item: ProcessingJobItem, signal: AbortSignal) => Promise<void>,
 ): ProcessingQueue {
   const { processingJobs, records } = schema;
   let workerActive = false;
+  let currentJobId: number | null = null;
+  let currentAbort: AbortController | null = null;
+
+  function loadJob(jobId: number) {
+    return db.select().from(processingJobs).where(eq(processingJobs.id, jobId)).get();
+  }
 
   function refreshQueuePositions(): void {
     const queued = db.select()
@@ -78,14 +90,62 @@ export function createProcessingQueue(
     });
   }
 
-  async function processJob(jobId: number): Promise<void> {
-    const row = db.select().from(processingJobs).where(eq(processingJobs.id, jobId)).get();
-    if (!row || row.status !== 'queued') return;
+  function markRecordCancelled(recordId: number): void {
+    db.update(records)
+      .set({ status: 'error', message: 'Cancelled', progress: 0 })
+      .where(eq(records.id, recordId))
+      .run();
+    broadcastProgress(recordId, -1, 'Cancelled');
+  }
 
+  function markJobCancelled(jobId: number, recordId: number): ProcessingJob {
     db.update(processingJobs)
-      .set({ status: 'processing', position: 0, startedAt: nowIso(), error: null })
+      .set({ status: 'cancelled', error: 'Cancelled', position: 0, finishedAt: nowIso() })
       .where(eq(processingJobs.id, jobId))
       .run();
+
+    const stillActive = db.select()
+      .from(processingJobs)
+      .where(and(
+        eq(processingJobs.recordId, recordId),
+        inArray(processingJobs.status, ['queued', 'processing']),
+      ))
+      .get();
+    if (!stillActive) {
+      markRecordCancelled(recordId);
+    }
+
+    const row = loadJob(jobId);
+    return toPublic(row!);
+  }
+
+  async function processJob(jobId: number): Promise<void> {
+    const row = loadJob(jobId);
+    if (!row || row.status !== 'queued') return;
+
+    const abort = new AbortController();
+    currentJobId = jobId;
+    currentAbort = abort;
+
+    const claimed = db.update(processingJobs)
+      .set({ status: 'processing', position: 0, startedAt: nowIso(), error: null })
+      .where(and(eq(processingJobs.id, jobId), eq(processingJobs.status, 'queued')))
+      .run();
+
+    if (claimed.changes === 0) {
+      if (currentJobId === jobId) {
+        currentJobId = null;
+        currentAbort = null;
+      }
+      return;
+    }
+
+    if (abort.signal.aborted) {
+      markJobCancelled(jobId, row.recordId);
+      currentJobId = null;
+      currentAbort = null;
+      return;
+    }
 
     const payload = parsePayload(row.payloadJson);
     const item: ProcessingJobItem = {
@@ -97,18 +157,27 @@ export function createProcessingQueue(
     };
 
     try {
-      await runPipeline(item);
+      await runPipeline(item, abort.signal);
       db.update(processingJobs)
         .set({ status: 'done', finishedAt: nowIso() })
         .where(eq(processingJobs.id, jobId))
         .run();
     } catch (err) {
+      if (abort.signal.aborted || isProcessingCancelledError(err)) {
+        markJobCancelled(jobId, row.recordId);
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Processing failed';
       console.error(`Processing job ${jobId} failed:`, err);
       db.update(processingJobs)
         .set({ status: 'error', error: message, finishedAt: nowIso() })
         .where(eq(processingJobs.id, jobId))
         .run();
+    } finally {
+      if (currentJobId === jobId) {
+        currentJobId = null;
+        currentAbort = null;
+      }
     }
   }
 
@@ -157,6 +226,29 @@ export function createProcessingQueue(
     return toPublic(inserted);
   }
 
+  function cancelById(jobId: number): CancelProcessingResult {
+    const row = loadJob(jobId);
+    if (!row) return { ok: false, reason: 'not_found' };
+    if (row.status === 'done' || row.status === 'error' || row.status === 'cancelled') {
+      return { ok: false, reason: 'not_active', job: toPublic(row) };
+    }
+
+    if (row.status === 'queued') {
+      const job = markJobCancelled(jobId, row.recordId);
+      refreshQueuePositions();
+      return { ok: true, job };
+    }
+
+    if (currentJobId === jobId && currentAbort) {
+      currentAbort.abort();
+    } else {
+      markJobCancelled(jobId, row.recordId);
+    }
+
+    const latest = loadJob(jobId);
+    return { ok: true, job: latest ? toPublic(latest) : markJobCancelled(jobId, row.recordId) };
+  }
+
   function recoverOnStartup(): void {
     db.update(processingJobs)
       .set({ status: 'queued', startedAt: null, position: 0 })
@@ -199,7 +291,7 @@ export function createProcessingQueue(
     get(jobId: string) {
       const id = Number.parseInt(jobId, 10);
       if (Number.isNaN(id)) return null;
-      const row = db.select().from(processingJobs).where(eq(processingJobs.id, id)).get();
+      const row = loadJob(id);
       return row ? toPublic(row) : null;
     },
     getLatestForRecord(recordId: number) {
@@ -210,6 +302,33 @@ export function createProcessingQueue(
         .limit(1)
         .get();
       return row ? toPublic(row) : null;
+    },
+    cancel(jobId: string) {
+      const id = Number.parseInt(jobId, 10);
+      if (Number.isNaN(id)) return { ok: false, reason: 'not_found' };
+      return cancelById(id);
+    },
+    cancelLatestForRecord(recordId: number) {
+      const row = db.select()
+        .from(processingJobs)
+        .where(and(
+          eq(processingJobs.recordId, recordId),
+          inArray(processingJobs.status, ['queued', 'processing']),
+        ))
+        .orderBy(desc(processingJobs.id))
+        .limit(1)
+        .get();
+      if (!row) {
+        const latest = db.select()
+          .from(processingJobs)
+          .where(eq(processingJobs.recordId, recordId))
+          .orderBy(desc(processingJobs.id))
+          .limit(1)
+          .get();
+        if (!latest) return { ok: false, reason: 'not_found' };
+        return { ok: false, reason: 'not_active', job: toPublic(latest) };
+      }
+      return cancelById(row.id);
     },
     recoverOnStartup,
     stats() {

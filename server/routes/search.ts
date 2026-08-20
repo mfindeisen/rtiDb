@@ -5,7 +5,6 @@ import {
   parseBboxParam,
   parseFiltersParam,
   loadSearchCandidatesForFilter,
-  enrichRecord,
 } from '../lib/search.js';
 import { enqueueImageSearch, getImageSearchJob } from '../lib/imageSearchQueue.js';
 import { getCachedImageSearch, hashImageFile } from '../lib/imageSearchCache.js';
@@ -15,6 +14,7 @@ import { loadRecordTypeMap } from '../lib/catalog.js';
 import { sendExport } from '../lib/recordHelpers.js';
 import { queryNumber, routeParam } from '../lib/httpParams.js';
 import { listRecordsByPublish, resolvePublishedFilter } from '../lib/userResources.js';
+import { pageRecords } from '../lib/recordList.js';
 import { publishedImageSearchMatches, type ImageSearchMatch } from '../lib/imageSearch.js';
 import type { ServerContext } from '../types/index.js';
 
@@ -37,50 +37,29 @@ function searchOptionsFromQuery(req: import('express').Request) {
     page: queryNumber(req.query.page),
     limit: queryNumber(req.query.limit),
     recordTypeId: queryNumber(req.query.recordTypeId),
+    sort: String(req.query.sort || ''),
+    dir: String(req.query.dir || ''),
   };
 }
 
 export function registerSearchRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, uploadDir, imageSearchUpload, authMiddleware, optionalAuthMiddleware } = ctx;
+  const { db, schema, uploadDir, imageSearchUpload, authMiddleware } = ctx;
 
-  app.get('/api/records', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records', authMiddleware, (req, res) => {
     try {
-      const hasFilters =
-        req.query.q ||
-        req.query.filters ||
-        req.query.bbox ||
-        Object.keys(req.query).some((k) => !['published', 'page', 'limit', 'recordTypeId'].includes(k));
-      const wantsPaging = req.query.page != null || req.query.limit != null;
       const types = loadRecordTypeMap(db, schema);
-
-      if (hasFilters || wantsPaging) {
-        const filter = resolvePublishedFilter(req);
-        const candidates = loadSearchCandidatesForFilter(
-          db,
-          schema,
-          filter,
-          String(req.query.q || ''),
-        );
-        const result = searchRecords(candidates, searchOptionsFromQuery(req), types);
-        return res.json(result);
-      }
-
-      const records = listRecordsByPublish(db, schema, resolvePublishedFilter(req));
-      const results = records.map((record) => enrichRecord(record, types));
-      res.json({
-        total: results.length,
-        page: 1,
-        limit: results.length || 20,
-        totalPages: 1,
-        results,
-      });
+      const result = pageRecords(db, schema, {
+        ...searchOptionsFromQuery(req),
+        published: resolvePublishedFilter(req),
+      }, types);
+      return res.json(result);
     } catch (err) {
       console.error('Records list error:', err);
       res.status(500).json({ error: 'Failed to list records' });
     }
   });
 
-  app.get('/api/export/records', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/export/records', authMiddleware, (req, res) => {
     try {
       const format = String(req.query.format || 'json').toLowerCase();
       if (!['json', 'xml', 'csv'].includes(format)) {
@@ -111,7 +90,7 @@ export function registerSearchRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/search', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/search', authMiddleware, (req, res) => {
     try {
       const filter = resolvePublishedFilter(req);
       const records = loadSearchCandidatesForFilter(

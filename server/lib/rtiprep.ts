@@ -1,7 +1,8 @@
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+import { ProcessingCancelledError } from './processingErrors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,11 +17,86 @@ export interface ProcessRTIOptions {
   tileSize?: number;
   format?: string;
   onProgress?: RtiprepProgressCallback;
+  signal?: AbortSignal;
 }
 
 export interface ProcessRtiToTiffOptions {
   onProgress?: RtiprepProgressCallback;
   weightsPath?: string;
+  signal?: AbortSignal;
+}
+
+function killProcess(proc: ChildProcess) {
+  if (proc.exitCode != null || proc.signalCode != null) return;
+  try {
+    proc.kill();
+  } catch {
+    // already exiting
+  }
+}
+
+function runRtiprep(
+  args: string[],
+  handlers: {
+    onStdout?: (text: string) => void;
+    onStderr?: (text: string) => void;
+    signal?: AbortSignal;
+  },
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (handlers.signal?.aborted) {
+      reject(new ProcessingCancelledError());
+      return;
+    }
+
+    let settled = false;
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    const proc = spawn(binPath, args, { env: { ...process.env, GOGC: '20' } });
+
+    const onAbort = () => {
+      killProcess(proc);
+      settle(() => reject(new ProcessingCancelledError()));
+    };
+
+    if (handlers.signal) {
+      handlers.signal.addEventListener('abort', onAbort, { once: true });
+    }
+
+    const cleanup = () => {
+      handlers.signal?.removeEventListener('abort', onAbort);
+    };
+
+    proc.stdout.on('data', (data: Buffer) => {
+      handlers.onStdout?.(data.toString());
+    });
+
+    proc.stderr.on('data', (data: Buffer) => {
+      handlers.onStderr?.(data.toString());
+    });
+
+    proc.on('close', (code) => {
+      cleanup();
+      if (handlers.signal?.aborted) {
+        settle(() => reject(new ProcessingCancelledError()));
+        return;
+      }
+      if (code === 0) {
+        settle(() => resolve());
+      } else {
+        settle(() => reject(new Error(`rtiprep exited with code ${code}`)));
+      }
+    });
+
+    proc.on('error', (err) => {
+      cleanup();
+      settle(() => reject(err));
+    });
+  });
 }
 
 /**
@@ -48,23 +124,20 @@ export async function processRTI(inputFile: string, options: ProcessRTIOptions =
 
   log(`Starting rtiprep (Tile mode)...`);
 
-  return new Promise((resolve, reject) => {
-    const normalizedFormat = format === 'jpeg' ? 'jpg' : format;
-    const args = [
-      '-q', quality.toString(),
-      '-t', tileSize.toString(),
-      '-o', outputDir,
-      '-legacy',
-      '-openlime',
-      '-format', normalizedFormat,
-    ];
-    args.push(inputFile);
+  const normalizedFormat = format === 'jpeg' ? 'jpg' : format;
+  const args = [
+    '-q', quality.toString(),
+    '-t', tileSize.toString(),
+    '-o', outputDir,
+    '-legacy',
+    '-openlime',
+    '-format', normalizedFormat,
+    inputFile,
+  ];
 
-    const proc = spawn(binPath, args, { env: { ...process.env, GOGC: '20' } });
-
-    proc.stdout.on('data', (data: Buffer) => {
-      const text = data.toString();
-
+  await runRtiprep(args, {
+    signal: options.signal,
+    onStdout: (text) => {
       const lines = text.split('\n');
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -83,27 +156,15 @@ export async function processRTI(inputFile: string, options: ProcessRTIOptions =
           console.log(`[rtiprep] ${line.trim()}`);
         }
       }
-    });
-
-    proc.stderr.on('data', (data: Buffer) => {
-      console.error(`[rtiprep Error] ${data.toString()}`);
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        log(`Successfully generated web format in ${outputDir}`);
-        if (options.onProgress) options.onProgress(100, 'Processing complete!');
-        resolve(outputDir);
-      } else {
-        reject(new Error(`rtiprep exited with code ${code}`));
-      }
-    });
-
-    proc.on('error', (err) => {
-      console.error('Failed to start rtiprep process:', err);
-      reject(err);
-    });
+    },
+    onStderr: (text) => {
+      console.error(`[rtiprep Error] ${text}`);
+    },
   });
+
+  log(`Successfully generated web format in ${outputDir}`);
+  if (options.onProgress) options.onProgress(100, 'Processing complete!');
+  return outputDir;
 }
 
 /**
@@ -120,44 +181,32 @@ export async function processRtiToTiff(inputFile: string, options: ProcessRtiToT
 
   log(`Starting rtiprep (GeoTIFF mode)...`);
 
-  return new Promise((resolve, reject) => {
-    const args = ['-tiff'];
-    if (options.weightsPath) {
-      args.push('-weights', options.weightsPath);
-    }
-    args.push('-o', outputFile, inputFile);
-    const proc = spawn(binPath, args, { env: { ...process.env, GOGC: '20' } });
+  const args = ['-tiff'];
+  if (options.weightsPath) {
+    args.push('-weights', options.weightsPath);
+  }
+  args.push('-o', outputFile, inputFile);
 
-    proc.stdout.on('data', (data: Buffer) => {
-      const text = data.toString().trim();
-      if (!text) return;
-      console.log(`[rtiprep] ${text}`);
+  await runRtiprep(args, {
+    signal: options.signal,
+    onStdout: (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      console.log(`[rtiprep] ${trimmed}`);
 
-      if (text.includes('Loaded:')) {
-        if (options.onProgress) options.onProgress(10, text);
-      } else if (text.includes('Generating')) {
-        if (options.onProgress) options.onProgress(20, text);
-      } else if (text.includes('Success')) {
-        if (options.onProgress) options.onProgress(99, text);
+      if (trimmed.includes('Loaded:')) {
+        if (options.onProgress) options.onProgress(10, trimmed);
+      } else if (trimmed.includes('Generating')) {
+        if (options.onProgress) options.onProgress(20, trimmed);
+      } else if (trimmed.includes('Success')) {
+        if (options.onProgress) options.onProgress(99, trimmed);
       }
-    });
-
-    proc.stderr.on('data', (data: Buffer) => {
-      console.error(`[rtiprep error] ${data.toString()}`);
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        log(`GeoTIFF generated: ${outputFile}`);
-        resolve(outputFile);
-      } else {
-        reject(new Error(`rtiprep exited with code ${code}`));
-      }
-    });
-
-    proc.on('error', (err) => {
-      console.error('Failed to start rtiprep process:', err);
-      reject(err);
-    });
+    },
+    onStderr: (text) => {
+      console.error(`[rtiprep error] ${text}`);
+    },
   });
+
+  log(`GeoTIFF generated: ${outputFile}`);
+  return outputFile;
 }

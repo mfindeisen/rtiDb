@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import { eq } from 'drizzle-orm';
 import type { Request } from 'express';
 import { processRTI, processRtiToTiff } from './rtiprep.js';
+import { isProcessingCancelledError, ProcessingCancelledError } from './processingErrors.js';
 import { normalizeMetadata, formatCatalogDate, type CatalogMetadata } from './metadataFields.js';
 import { firstExistingPath, writeGalleryThumbnail } from './thumbnail.js';
 import { updateRecordImageEmbedding } from './recordEmbeddings.js';
@@ -31,13 +32,16 @@ export function createProcessingPipeline({
     weightsPath: string | null,
     options: ProcessingOptions,
     outputType: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const isGeoTiff = outputType === 'geotiff' || outputType === 'neural';
     try {
+      if (signal?.aborted) throw new ProcessingCancelledError();
       broadcastProgress(recordId, 0, '');
 
       if (isGeoTiff) {
         const tiffPath = await processRtiToTiff(originalFilePath, {
+          signal,
           weightsPath: weightsPath || undefined,
           onProgress: (percent: number | null | undefined, message: string) => {
             if (percent !== undefined && percent !== null) {
@@ -72,6 +76,7 @@ export function createProcessingPipeline({
       } else {
         const outputDir = await processRTI(originalFilePath, {
           ...options,
+          signal,
           onProgress: (percent: number | null | undefined, message: string) => {
             if (percent !== undefined && percent !== null) {
               db.update(schema.records).set({ progress: percent }).where(eq(schema.records.id, recordId)).run();
@@ -137,9 +142,13 @@ export function createProcessingPipeline({
 
       snapshotRecordAfterSystem(recordId, 'processing_completed', `RTI processing completed (${outputType})`);
     } catch (error) {
+      if (isProcessingCancelledError(error)) {
+        snapshotRecordAfterSystem(recordId, 'processing_cancelled', 'Cancelled');
+        throw error;
+      }
       console.error(`Error processing RTI ${recordId}:`, error);
-      db.update(schema.records).set({ status: 'error' }).where(eq(schema.records.id, recordId)).run();
       const message = error instanceof Error ? error.message : 'RTI processing failed';
+      db.update(schema.records).set({ status: 'error', message }).where(eq(schema.records.id, recordId)).run();
       snapshotRecordAfterSystem(recordId, 'processing_failed', message);
       broadcastProgress(recordId, -1, '');
       throw error;

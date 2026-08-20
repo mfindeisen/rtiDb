@@ -24,7 +24,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': apiProxy,
+      '/api': {
+        target: apiProxy,
+        timeout: 3_600_000,
+      },
       '/static': apiProxy,
       '/docs': {
         target: process.env.VITE_DEV_DOCS_PROXY || 'http://127.0.0.1:5174',

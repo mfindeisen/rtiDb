@@ -61,6 +61,41 @@ describe('resolveRecordFromParam', () => {
     expect(resolved?.name).toBe('Slug record');
     expect(resolveRecordFromParam(db, schema, 'lion')?.name).toBe('Id record');
   });
+
+  it('resolves slugs case-insensitively without scanning every row in JS', () => {
+    const sqlite = new Database(':memory:');
+    sqlite.pragma('foreign_keys = ON');
+    const db = drizzle(sqlite, { schema });
+    const __filename = fileURLToPath(import.meta.url);
+    migrate(db, { migrationsFolder: path.join(path.dirname(__filename), '..', 'migrations') });
+
+    db.insert(schema.records).values({
+      name: 'Seal',
+      date: new Date().toISOString(),
+      status: 'done',
+      slug: 'demo-seal',
+    }).run();
+
+    expect(resolveRecordFromParam(db, schema, 'DEMO-SEAL')?.name).toBe('Seal');
+  });
+
+  it('finds a record by registration number via json_extract', () => {
+    const sqlite = new Database(':memory:');
+    sqlite.pragma('foreign_keys = ON');
+    const db = drizzle(sqlite, { schema });
+    const __filename = fileURLToPath(import.meta.url);
+    migrate(db, { migrationsFolder: path.join(path.dirname(__filename), '..', 'migrations') });
+
+    db.insert(schema.records).values({
+      name: 'Registered',
+      date: new Date().toISOString(),
+      status: 'done',
+      slug: 'other',
+      metadata: { primaryRegistrationNumber: 'DEMO-2024-SEAL-001' },
+    }).run();
+
+    expect(resolveRecordFromParam(db, schema, 'demo-2024-seal-001')?.name).toBe('Registered');
+  });
 });
 
 describe('refreshSlugIfAuto', () => {

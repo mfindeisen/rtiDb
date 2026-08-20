@@ -16,7 +16,7 @@ import type {
 
 export type { PublicRecord, PublicRecordLinks, PublicRecordAssets };
 
-/** Fields needed for public JSON/export — not filesystem paths or embeddings. */
+/** Public JSON/export fields. originalFilePath/weightsFilePath are used only to emit download links. */
 export type RecordViewSource = Pick<
   DbRecord,
   | 'id'
@@ -33,7 +33,10 @@ export type RecordViewSource = Pick<
   | 'folderUrl'
   | 'outputType'
   | 'recordTypeId'
->;
+> & {
+  originalFilePath?: string | null;
+  weightsFilePath?: string | null;
+};
 
 /** Friendly aliases for common filter query params (non-technical API consumers). */
 export const METADATA_FILTER_ALIASES = {
@@ -56,6 +59,8 @@ const RESERVED_QUERY_KEYS = new Set([
   'format',
   'recordTypeId',
   'view',
+  'sort',
+  'dir',
 ]);
 
 export type NormalizedRecord = RecordViewSource & {
@@ -191,6 +196,12 @@ export function buildPublicRecord(record: RecordViewSource, req: Request): Publi
       rti: `${baseUrl}/api/records/${apiKey}/rti`,
       viewer: `${baseUrl}${viewerPath}`,
       iiif: `${baseUrl}/api/records/${apiKey}/export?format=iiif`,
+      ...(record.originalFilePath
+        ? { original: `${baseUrl}/api/records/${apiKey}/original` }
+        : {}),
+      ...(record.weightsFilePath
+        ? { weights: `${baseUrl}/api/records/${apiKey}/original?file=weights` }
+        : {}),
     },
     assets: buildRtiAssets(normalized, baseUrl),
   };

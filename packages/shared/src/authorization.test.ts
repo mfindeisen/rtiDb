@@ -35,17 +35,23 @@ describe('authorization', () => {
     expect(canAccessAdmin(editor)).toBe(true);
   });
 
-  it('allows public access to published records only', () => {
+  it('requires login for every record; drafts stay staff-only', () => {
     const published = { isPublished: 1 };
     const draft = { isPublished: 0 };
-    expect(userCanViewRecord(null, published)).toBe(true);
+    const researcher = {
+      id: 2,
+      username: 'r',
+      role: 'researcher' as const,
+      permissions: RESEARCHER_DEFAULT_PERMISSIONS,
+    };
+    expect(userCanViewRecord(null, published)).toBe(false);
     expect(userCanViewRecord(null, draft)).toBe(false);
+    expect(userCanViewRecord(researcher, published)).toBe(true);
+    expect(userCanViewRecord(researcher, draft)).toBe(false);
     expect(userCanViewRecord(
       { id: 1, username: 'e', role: 'editor', permissions: [] },
       draft,
     )).toBe(true);
-    expect(userCanManageRecords(
-      { id: 2, username: 'r', role: 'researcher', permissions: RESEARCHER_DEFAULT_PERMISSIONS },
-    )).toBe(false);
+    expect(userCanManageRecords(researcher)).toBe(false);
   });
 });

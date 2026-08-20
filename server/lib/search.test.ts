@@ -80,4 +80,9 @@ describe('searchRecords', () => {
     expect(result.results).toHaveLength(1);
     expect(result.totalPages).toBe(2);
   });
+
+  it('sorts published records by name', () => {
+    const result = searchRecords(records, { publishedOnly: true, sort: 'name', dir: 'asc' });
+    expect(result.results.map((row) => row.name)).toEqual(['Seal A', 'Seal B']);
+  });
 });

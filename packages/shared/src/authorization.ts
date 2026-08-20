@@ -44,13 +44,13 @@ export function requireUser(user: JwtUser | undefined): JwtUser {
   return user;
 }
 
-/** Published records are public; drafts require staff with edit_record (or admin/editor). */
+/** Catalog is login-only. Published records: any signed-in user. Drafts: staff with edit_record. */
 export function userCanViewRecord(
   user: JwtUser | null | undefined,
   record: { isPublished?: number | null },
 ): boolean {
-  if (record.isPublished === 1) return true;
   if (!user) return false;
+  if (record.isPublished === 1) return true;
   if (user.role === 'admin' || user.role === 'editor') return true;
   return hasPermission(user, 'edit_record');
 }

@@ -1,11 +1,14 @@
 import jwt from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
 import type { NextFunction, Request, Response } from 'express';
-import type { AuthContext } from '../types/index.js';
-import type { JwtUser } from '../types/index.js';
-import type { Permission } from '../types/index.js';
+import { PERMISSIONS, type Permission, type UserRole } from '@rtidb/shared/permissions';
 import { userCanManageRecords } from '@rtidb/shared/authorization';
+import { parsePermissions } from '../lib/auth/password.js';
+import type { AuthContext, AppDb, AppSchema, JwtUser } from '../types/index.js';
 
 const TOKEN_COOKIE = 'adminToken';
+const USER_ROLES = new Set<string>(['admin', 'editor', 'researcher']);
+const PERMISSION_SET = new Set<string>(PERMISSIONS);
 
 function parseCookies(header?: string): Record<string, string> {
   if (!header) return {};
@@ -30,12 +33,46 @@ function extractToken(req: Request): string | null {
   return parseCookies(req.headers.cookie)[TOKEN_COOKIE] ?? null;
 }
 
-function verifyToken(token: string, jwtSecret: string): JwtUser | null {
+function tokenUserId(token: string, jwtSecret: string): number | null {
   try {
-    return jwt.verify(token, jwtSecret) as JwtUser;
+    const payload = jwt.verify(token, jwtSecret) as { id?: unknown };
+    const id = Number(payload.id);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return id;
   } catch {
     return null;
   }
+}
+
+function jwtUserFromRow(row: {
+  id: number;
+  username: string;
+  role: string;
+  permissions: unknown;
+}): JwtUser | null {
+  if (!USER_ROLES.has(row.role)) return null;
+  const permissions = parsePermissions(row.permissions)
+    .filter((permission): permission is Permission => PERMISSION_SET.has(permission));
+  return {
+    id: row.id,
+    username: row.username,
+    role: row.role as UserRole,
+    permissions,
+  };
+}
+
+/** JWT proves identity; role and permissions always come from SQLite. */
+export function hydrateRequestUser(
+  token: string,
+  jwtSecret: string,
+  db: AppDb,
+  schema: AppSchema,
+): JwtUser | null {
+  const userId = tokenUserId(token, jwtSecret);
+  if (userId == null) return null;
+  const row = db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
+  if (!row) return null;
+  return jwtUserFromRow(row);
 }
 
 function wantsHtml(req: Request): boolean {
@@ -48,14 +85,20 @@ function redirectToLogin(req: Request, res: Response) {
   res.redirect(302, `/login?redirect=${redirect}`);
 }
 
-export function createAuthMiddleware(JWT_SECRET: string): AuthContext {
+export function createAuthMiddleware(JWT_SECRET: string, db: AppDb, schema: AppSchema): AuthContext {
+  const resolveUser = (req: Request): JwtUser | null => {
+    const token = extractToken(req);
+    if (!token) return null;
+    return hydrateRequestUser(token, JWT_SECRET, db, schema);
+  };
+
   const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const token = extractToken(req);
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
-    const user = verifyToken(token, JWT_SECRET);
+    const user = hydrateRequestUser(token, JWT_SECRET, db, schema);
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
@@ -65,11 +108,8 @@ export function createAuthMiddleware(JWT_SECRET: string): AuthContext {
   };
 
   const optionalAuthMiddleware = (req: Request, _res: Response, next: NextFunction) => {
-    const token = extractToken(req);
-    if (token) {
-      const user = verifyToken(token, JWT_SECRET);
-      if (user) req.user = user;
-    }
+    const user = resolveUser(req);
+    if (user) req.user = user;
     next();
   };
 
@@ -80,7 +120,7 @@ export function createAuthMiddleware(JWT_SECRET: string): AuthContext {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = verifyToken(token, JWT_SECRET);
+    const user = hydrateRequestUser(token, JWT_SECRET, db, schema);
     if (!user) {
       if (wantsHtml(req)) return redirectToLogin(req, res);
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
@@ -92,7 +132,7 @@ export function createAuthMiddleware(JWT_SECRET: string): AuthContext {
 
   const verifyAuthHandler = (req: Request, res: Response) => {
     const token = extractToken(req);
-    if (!token || !verifyToken(token, JWT_SECRET)) {
+    if (!token || !hydrateRequestUser(token, JWT_SECRET, db, schema)) {
       return res.status(401).end();
     }
     return res.status(204).end();

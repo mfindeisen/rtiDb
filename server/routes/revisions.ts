@@ -10,9 +10,9 @@ import type { ServerContext } from '../types/index.js';
 import { routeParam } from '../lib/httpParams.js';
 
 export function registerRevisionRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, fetchRecordOr404, fetchAccessibleRecordOr404, optionalAuthMiddleware } = ctx;
+  const { db, schema, fetchAccessibleRecordOr404, authMiddleware } = ctx;
 
-  app.get('/api/records/:id/revisions', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/revisions', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     if (!userCanViewRevisions(req.user, record)) {
@@ -30,7 +30,7 @@ export function registerRevisionRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/records/:id/revisions/compare', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/revisions/compare', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     if (!userCanViewRevisions(req.user, record)) {
@@ -56,7 +56,7 @@ export function registerRevisionRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/records/:id/revisions/:revisionNumber', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/revisions/:revisionNumber', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     if (!userCanViewRevisions(req.user, record)) {

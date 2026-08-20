@@ -41,8 +41,8 @@ export function registerDocsRoutes(app: Express, sessionAuthMiddleware: RequestH
   app.use('/docs', sessionAuthMiddleware, express.static(docsDir, { index: 'index.html' }));
 }
 
-export function registerDiscoveryRoutes(app: Express) {
-  app.get('/api', (req, res) => {
+export function registerDiscoveryRoutes(app: Express, authMiddleware: RequestHandler) {
+  app.get('/api', authMiddleware, (req, res) => {
     const base = getBaseUrl(req);
     res.json({
       name: getPublicApiName(getDb(), schema),
@@ -58,6 +58,7 @@ export function registerDiscoveryRoutes(app: Express) {
           detail: `GET ${base}/api/records/{id-or-slug}`,
           metadata: `GET ${base}/api/records/{id-or-slug}/metadata`,
           rti: `GET ${base}/api/records/{id-or-slug}/rti`,
+          original: `GET ${base}/api/records/{id-or-slug}/original`,
           export: `GET ${base}/api/records/{id-or-slug}/export?format=json|xml|csv|bibtex|ris|iiif`,
           revisions: `GET ${base}/api/records/{id-or-slug}/revisions`,
           revisionCompare: `GET ${base}/api/records/{id-or-slug}/revisions/compare?from=1&to=current`,

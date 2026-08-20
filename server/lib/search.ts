@@ -64,6 +64,8 @@ export interface SearchOptions {
   page?: number;
   limit?: number;
   recordTypeId?: number;
+  sort?: string;
+  dir?: string;
 }
 
 export function enrichRecord(record: DbRecord, types?: Map<number, RecordType>): EnrichedRecord {
@@ -74,6 +76,42 @@ export function enrichRecord(record: DbRecord, types?: Map<number, RecordType>):
     lat: coords?.lat ?? null,
     lng: coords?.lng ?? null,
   };
+}
+
+function recordSortValue(record: DbRecord, field: string): string {
+  switch (field) {
+    case 'name':
+      return record.name || '';
+    case 'description':
+      return record.description || '';
+    case 'date':
+      return record.date || '';
+    case 'dateUpdated':
+      return getMetadata(record).lastEdit?.trim() || '';
+    case 'recordType':
+      return String(record.recordTypeId ?? '');
+    case 'outputType':
+      return record.outputType || '';
+    case 'id':
+      return String(record.id).padStart(12, '0');
+    default:
+      return String(getMetadata(record)[field as keyof CatalogMetadata] || '');
+  }
+}
+
+function compareRecords(a: DbRecord, b: DbRecord, field: string): number {
+  const av = recordSortValue(a, field);
+  const bv = recordSortValue(b, field);
+  if (field === 'date' || field === 'dateUpdated' || field === 'id') {
+    const at = field === 'id' ? a.id : Date.parse(av);
+    const bt = field === 'id' ? b.id : Date.parse(bv);
+    const aValid = field === 'id' || !Number.isNaN(at);
+    const bValid = field === 'id' || !Number.isNaN(bt);
+    if (aValid && bValid) return at - bt;
+    if (aValid) return 1;
+    if (bValid) return -1;
+  }
+  return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
 }
 
 export function searchRecords(
@@ -89,6 +127,8 @@ export function searchRecords(
     page = 1,
     limit = 20,
     recordTypeId,
+    sort,
+    dir,
   } = options;
 
   let results = records;
@@ -102,6 +142,12 @@ export function searchRecords(
   results = results.filter((r) => matchesQuery(r, q));
   results = results.filter((r) => matchesFilters(r, filters));
   results = results.filter((r) => matchesBbox(r, bbox));
+
+  const sortField = sort?.trim();
+  if (sortField) {
+    const sign = dir === 'asc' ? 1 : -1;
+    results = [...results].sort((a, b) => compareRecords(a, b, sortField) * sign);
+  }
 
   const total = results.length;
   const safePage = Math.max(1, Number(page) || 1);

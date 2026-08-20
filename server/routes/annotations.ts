@@ -14,10 +14,9 @@ export function registerAnnotationRoutes(app: Express, ctx: ServerContext) {
     schema,
     fetchAccessibleRecordOr404,
     authMiddleware,
-    optionalAuthMiddleware,
   } = ctx;
 
-  app.get('/api/records/:id/annotations', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/annotations', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     if (!canListRecordAnnotations(req.user, record)) {

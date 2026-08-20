@@ -31,7 +31,7 @@ export interface ImageSearchJob {
   finishedAt: number | null;
 }
 
-export type ProcessingJobStatus = 'queued' | 'processing' | 'done' | 'error';
+export type ProcessingJobStatus = 'queued' | 'processing' | 'done' | 'error' | 'cancelled';
 
 export interface ProcessingJob {
   jobId: string;

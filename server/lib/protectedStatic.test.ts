@@ -11,6 +11,7 @@ function resolveStaticUploadAccess(options: {
 }): StaticAccess {
   const { relPath, record, user } = options;
   if (relPath.startsWith('search-temp/')) return 'not_found';
+  if (relPath.startsWith('incoming/')) return 'not_found';
   if (relPath.startsWith('branding/')) return 'serve';
   if (relPath.startsWith('archive/')) {
     if (!user || !userCanManageRecords(user)) {
@@ -54,11 +55,27 @@ describe('protectedStatic access rules', () => {
     })).toBe('not_found');
   });
 
-  it('allows published record assets for anonymous users', () => {
+  it('blocks incoming chunk files for everyone', () => {
+    expect(resolveStaticUploadAccess({
+      relPath: 'incoming/abc.part',
+      record: null,
+      user: editor,
+    })).toBe('not_found');
+  });
+
+  it('hides published record assets from anonymous users', () => {
     expect(resolveStaticUploadAccess({
       relPath: 'record-1/thumb.jpg',
       record: published,
       user: null,
+    })).toBe('not_found');
+  });
+
+  it('allows published record assets for signed-in staff', () => {
+    expect(resolveStaticUploadAccess({
+      relPath: 'record-1/thumb.jpg',
+      record: published,
+      user: editor,
     })).toBe('serve');
   });
 

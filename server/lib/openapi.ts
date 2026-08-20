@@ -72,7 +72,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
         get: {
           tags: ['Records'],
           summary: 'List or filter records',
-          description: 'Always returns a paginated object `{ total, page, limit, totalPages, results }`. Use `published=1` for the public catalog.',
+          description: 'Always returns a paginated object `{ total, page, limit, totalPages, results }` (default page=1, limit=20). Login required. Default is published records; staff may pass `published=all`.',
           parameters: [
             { name: 'published', in: 'query', schema: { type: 'string', enum: ['0', '1'] }, description: '1 = published only (default when filtering)' },
             { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Full-text search' },
@@ -80,6 +80,8 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
             { name: 'bbox', in: 'query', schema: { type: 'string' }, description: 'west,south,east,north' },
             { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
             { name: 'limit', in: 'query', schema: { type: 'integer', default: 20, maximum: 100 } },
+            { name: 'sort', in: 'query', schema: { type: 'string' }, description: 'id, name, date, description, outputType, recordType, dateUpdated, or a metadata field key' },
+            { name: 'dir', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'] } },
             { name: 'primaryMotif', in: 'query', schema: { type: 'string' }, description: 'Alias: iconography, motif' },
             { name: 'culturalPeriod', in: 'query', schema: { type: 'string' }, description: 'Alias: period' },
             ...metadataFilterParams,
@@ -225,7 +227,7 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
         get: {
           tags: ['Records'],
           summary: 'RTI asset descriptors',
-          description: 'Returns URLs for TIFF, tile folder, thumbnail, and viewer. Use `redirect=1` to redirect to the primary asset.',
+          description: 'Returns URLs for TIFF, tile folder, thumbnail, viewer, and archived original downloads when available. Use `redirect=1` to redirect to the primary asset.',
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
             { name: 'redirect', in: 'query', schema: { type: 'string', enum: ['0', '1'] } },
@@ -233,6 +235,22 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
           responses: {
             200: { description: 'RTI asset JSON' },
             404: { description: 'Not found' },
+          },
+        },
+      },
+      '/records/{id}/original': {
+        get: {
+          tags: ['Records'],
+          summary: 'Download the uploaded source file',
+          description: 'Streams the archived original .rti/.ptm/.hsh (or neural latent map). Use `file=weights` for the neural decoder JSON. Available when KEEP_ORIGINAL_RTI is enabled and the file is still on disk.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+            { name: 'file', in: 'query', schema: { type: 'string', enum: ['original', 'weights'] }, description: 'Which archived file to download' },
+          ],
+          responses: {
+            200: { description: 'Source file attachment' },
+            401: { description: 'Unauthorized' },
+            404: { description: 'Original not retained or record not found' },
           },
         },
       },
@@ -409,6 +427,79 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
           responses: { 200: { description: 'Upload started' } },
         },
       },
+      '/uploads/sessions': {
+        post: {
+          tags: ['Admin'],
+          summary: 'Start a resumable chunked upload',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['field', 'originalName', 'sizeBytes'],
+                  properties: {
+                    field: { type: 'string', enum: ['file', 'latentMap', 'weights'] },
+                    originalName: { type: 'string' },
+                    sizeBytes: { type: 'integer' },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 201: { description: 'Session created with offset 0' } },
+        },
+      },
+      '/uploads/sessions/{id}': {
+        get: {
+          tags: ['Admin'],
+          summary: 'Resume offset for a chunked upload',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'Current offset and status' } },
+        },
+        put: {
+          tags: ['Admin'],
+          summary: 'Append an 8–16 MiB chunk',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'X-Upload-Offset', in: 'header', required: true, schema: { type: 'integer' } },
+          ],
+          requestBody: {
+            content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } },
+          },
+          responses: {
+            200: { description: 'New offset after the chunk' },
+            409: { description: 'Resume from the returned offset' },
+          },
+        },
+      },
+      '/uploads/complete': {
+        post: {
+          tags: ['Admin'],
+          summary: 'Finish chunked upload(s) and enqueue processing',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    recordId: { type: 'integer' },
+                    name: { type: 'string' },
+                    fileSessionId: { type: 'string' },
+                    latentMapSessionId: { type: 'string' },
+                    weightsSessionId: { type: 'string' },
+                    uploadMode: { type: 'string', enum: ['standard', 'neural'] },
+                  },
+                },
+              },
+            },
+          },
+          responses: { 200: { description: 'Processing queued' } },
+        },
+      },
       '/records/{id}/revisions': {
         get: {
           tags: ['Records'],
@@ -456,6 +547,51 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
           security: [{ bearerAuth: [] }],
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
           responses: { 200: { description: 'Processing restarted' } },
+        },
+      },
+      '/records/{id}/processing': {
+        get: {
+          tags: ['Admin'],
+          summary: 'Latest processing job for a record',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: { 200: { description: 'queued | processing | done | error | cancelled' } },
+        },
+      },
+      '/records/{id}/processing/cancel': {
+        post: {
+          tags: ['Admin'],
+          summary: 'Cancel queued or running RTI processing',
+          description: 'Stops rtiprep if it is running. The record is left in error status so it can be rerun.',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Cancel requested' },
+            404: { description: 'No processing job found' },
+            409: { description: 'Job already finished' },
+          },
+        },
+      },
+      '/processing/jobs/{jobId}': {
+        get: {
+          tags: ['Admin'],
+          summary: 'Processing job status',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'jobId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { 200: { description: 'queued | processing | done | error | cancelled' } },
+        },
+      },
+      '/processing/jobs/{jobId}/cancel': {
+        post: {
+          tags: ['Admin'],
+          summary: 'Cancel a processing job by id',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'jobId', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            200: { description: 'Cancel requested' },
+            404: { description: 'Job not found' },
+            409: { description: 'Job already finished' },
+          },
         },
       },
       '/users': {

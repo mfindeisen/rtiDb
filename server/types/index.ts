@@ -15,6 +15,7 @@ export type {
 } from './db.js';
 export type {
   AuthContext,
+  CancelProcessingResult,
   ProcessingOptions,
   RecordHelpersContext,
   RouteRegistrar,

@@ -63,6 +63,9 @@ export function createProtectedUploadsStatic(
     if (rel.startsWith('search-temp/')) {
       return res.status(404).end();
     }
+    if (rel.startsWith('incoming/')) {
+      return res.status(404).end();
+    }
     if (rel.startsWith('branding/')) {
       return staticHandler(req, res, next);
     }

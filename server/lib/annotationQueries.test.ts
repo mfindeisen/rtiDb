@@ -15,11 +15,8 @@ describe('canListRecordAnnotations', () => {
   const publishedRecord = { isPublished: 1 } as DbRecord;
   const draftRecord = { isPublished: 0 } as DbRecord;
 
-  it('allows guests on published records', () => {
-    expect(canListRecordAnnotations(undefined, publishedRecord)).toBe(true);
-  });
-
-  it('denies guests on draft records', () => {
+  it('denies guests on published and draft records', () => {
+    expect(canListRecordAnnotations(undefined, publishedRecord)).toBe(false);
     expect(canListRecordAnnotations(undefined, draftRecord)).toBe(false);
   });
 

@@ -2,10 +2,9 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import type { CatalogMetadata } from '@rtidb/shared/metadataFields';
 import {
-  parseUploadFiles,
-  isParsedUploadError,
   buildUploadSettings,
   buildRtiMetadata,
+  type ParsedUploadFiles,
 } from './processingPipeline.js';
 import { getDefaultRecordType, schemaForRecordTypeId } from './catalog.js';
 import { normalizeMetadata } from './metadataFields.js';
@@ -89,13 +88,8 @@ export async function handleRtiUpload(
   req: Request,
   res: Response,
   target: RtiUploadTarget,
+  parsed: ParsedUploadFiles,
 ): Promise<void> {
-  const parsed = parseUploadFiles(req, req.body.uploadMode);
-  if (isParsedUploadError(parsed)) {
-    sendError(res, 400, parsed.error);
-    return;
-  }
-
   const { options, resolvedOutputType, isNeural, isGeoTiff } = buildUploadSettings(req.body);
   const typeId = target.recordId
     ? undefined

@@ -7,6 +7,7 @@ import { assignSlugForRecord, refreshSlugIfAuto } from '../lib/slug.js';
 import { metadataWithPublishStatus } from '../lib/records.js';
 import { parseScaleCalibration } from '@rtidb/shared/scaleCalibration';
 import { handleRtiUpload, validateRecordForUpload, claimRecordForRerun } from '../lib/rtiUploadHandler.js';
+import { parseUploadFiles, isParsedUploadError } from '../lib/processingPipeline.js';
 import { sendError } from '../lib/httpErrors.js';
 import { resolveThumbnailPath } from '../lib/recordEmbeddings.js';
 import { sendDatabaseError } from '../lib/userResources.js';
@@ -71,15 +72,27 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
     if (!record) return;
     if (!validateRecordForUpload(record, res)) return;
 
+    const parsed = parseUploadFiles(req, req.body.uploadMode);
+    if (isParsedUploadError(parsed)) {
+      sendError(res, 400, parsed.error);
+      return;
+    }
+
     await handleRtiUpload(ctx, req, res, {
       recordId: record.id,
       existingMetadata: normalizeMetadata(record.metadata, schemaForRecordTypeId(db, schema, record.recordTypeId)),
       snapshotAction: 'upload_started',
       snapshotComment: 'RTI upload started',
-    });
+    }, parsed);
   });
 
   app.post('/api/upload', authMiddleware, requirePermission('upload_rti'), uploadFields, async (req, res) => {
+    const parsed = parseUploadFiles(req, req.body.uploadMode);
+    if (isParsedUploadError(parsed)) {
+      sendError(res, 400, parsed.error);
+      return;
+    }
+
     const { name, description, direction } = req.body;
     await handleRtiUpload(ctx, req, res, {
       name,
@@ -87,7 +100,7 @@ export function registerRecordMutationRoutes(app: Express, ctx: ServerContext) {
       direction,
       snapshotAction: 'created',
       snapshotComment: 'Record created with RTI upload',
-    });
+    }, parsed);
   });
 
   app.put('/api/records/:id', authMiddleware, requirePermission('edit_record'), (req, res) => {

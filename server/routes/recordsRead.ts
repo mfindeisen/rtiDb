@@ -11,6 +11,7 @@ import { resolveRecordFromParam, recordPublicPath } from '../lib/slug.js';
 import { getLatestRevision } from '../lib/recordRevisions.js';
 import { getFolderStats, sendExport } from '../lib/recordHelpers.js';
 import { ensureRecordViewAccess } from '../lib/recordAccess.js';
+import { listAvailableSourceFiles, parseSourceFileKind, resolveSourceFilePath } from '../lib/originalFiles.js';
 import { enqueueAutoAnnotate, getAutoAnnotateJob } from '../lib/autoAnnotateQueue.js';
 import { consumeRateLimit } from '../lib/rateLimit.js';
 import { routeParam } from '../lib/httpParams.js';
@@ -25,23 +26,22 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
     fetchRecordOr404,
     fetchAccessibleRecordOr404,
     authMiddleware,
-    optionalAuthMiddleware,
     requireAdmin,
   } = ctx;
 
-  app.get('/api/records/lookup/:identifier', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/lookup/:identifier', authMiddleware, (req, res) => {
     const record = resolveRecordFromParam(db, schema, req.params.identifier);
     if (!record || !ensureRecordViewAccess(req, res, record)) return;
     res.json(buildPublicRecord(record, req));
   });
 
-  app.get('/api/records/:id/metadata', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/metadata', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     res.json(metadataOnlyPayload(record));
   });
 
-  app.get('/api/records/:id/export', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/export', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
     const format = String(req.query.format || 'json').toLowerCase();
@@ -53,7 +53,7 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
     }
   });
 
-  app.get('/api/records/:id/rti', optionalAuthMiddleware, (req, res) => {
+  app.get('/api/records/:id/rti', authMiddleware, (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
 
@@ -75,10 +75,37 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
       return res.status(404).json({ error: 'No RTI assets available' });
     }
 
-    res.json(payload);
+    res.json({
+      ...payload,
+      originalDownloadUrl: record.originalFilePath
+        ? `${baseUrl}/api/records/${record.slug || record.id}/original`
+        : null,
+      weightsDownloadUrl: record.weightsFilePath
+        ? `${baseUrl}/api/records/${record.slug || record.id}/original?file=weights`
+        : null,
+    });
   });
 
-  app.get('/api/records/:id', optionalAuthMiddleware, async (req, res) => {
+  app.get('/api/records/:id/original', authMiddleware, async (req, res) => {
+    const record = fetchAccessibleRecordOr404(req, res);
+    if (!record) return;
+
+    const kind = parseSourceFileKind(req.query.file);
+    const resolved = await resolveSourceFilePath(record, uploadDir, kind);
+    if (!resolved) {
+      return res.status(404).json({ error: 'Original file is not available' });
+    }
+
+    res.download(resolved.absPath, resolved.fileName, (err) => {
+      if (!err) return;
+      console.error(`Original download failed for record ${record.id}:`, err);
+      if (!res.headersSent) {
+        res.status(404).json({ error: 'Original file is not available' });
+      }
+    });
+  });
+
+  app.get('/api/records/:id', authMiddleware, async (req, res) => {
     const record = fetchAccessibleRecordOr404(req, res);
     if (!record) return;
 
@@ -96,6 +123,7 @@ export function registerRecordReadRoutes(app: Express, ctx: ServerContext) {
       folderSize,
       fileCount,
       revisionNumber: getLatestRevision(db, schema, record.id)?.revisionNumber ?? 0,
+      sourceFiles: await listAvailableSourceFiles(record, uploadDir),
     });
   });
 

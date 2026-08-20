@@ -60,7 +60,7 @@ function optionalInt(value: unknown): number | null | undefined {
 }
 
 export function registerCatalogRoutes(app: Express, ctx: ServerContext) {
-  const { db, schema, uploadDir, optionalAuthMiddleware, authMiddleware, requireAdmin } = ctx;
+  const { db, schema, uploadDir, authMiddleware, requireAdmin } = ctx;
   const uploadBranding = brandingUploader(uploadDir);
 
   app.get('/api/site-config', (_req, res) => {
@@ -97,7 +97,7 @@ export function registerCatalogRoutes(app: Express, ctx: ServerContext) {
     }));
   });
 
-  app.get('/api/record-types', optionalAuthMiddleware, (_req, res) => {
+  app.get('/api/record-types', authMiddleware, (_req, res) => {
     res.json(listRecordTypes(db, schema));
   });
 
@@ -141,7 +141,7 @@ export function registerCatalogRoutes(app: Express, ctx: ServerContext) {
     res.json({ success: true });
   });
 
-  app.get('/api/views', optionalAuthMiddleware, (_req, res) => {
+  app.get('/api/views', authMiddleware, (_req, res) => {
     res.json(listCatalogViews(db, schema, true));
   });
 

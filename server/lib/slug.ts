@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { normalizeMetadata } from './metadataFields.js';
 import type { AppDb, AppSchema, DbRecord } from '../types/index.js';
 
@@ -114,9 +114,10 @@ export function resolveRecordFromParam(
   const bySlug = db.select().from(schema.records).where(eq(schema.records.slug, raw)).get();
   if (bySlug) return bySlug;
 
-  const bySlugCi = db.select().from(schema.records).all().find(
-    (r) => r.slug && r.slug.toLowerCase() === raw.toLowerCase(),
-  );
+  const bySlugCi = db.select()
+    .from(schema.records)
+    .where(sql`lower(${schema.records.slug}) = ${raw.toLowerCase()}`)
+    .get();
   if (bySlugCi) return bySlugCi;
 
   if (/^\d+$/.test(raw)) {
@@ -124,15 +125,15 @@ export function resolveRecordFromParam(
     if (byId) return byId;
   }
 
-  const all = db.select().from(schema.records).all();
-  const meta = all.find((r) => {
-    const m = normalizeMetadata(r.metadata);
-    const candidates = [m.primaryRegistrationNumber, m.rtiFileName, m.secondaryRegistrationNumber]
-      .filter(Boolean)
-      .map((c) => String(c).toLowerCase());
-    return candidates.includes(raw.toLowerCase());
-  });
-  return meta || null;
+  const needle = raw.toLowerCase();
+  return db.select()
+    .from(schema.records)
+    .where(sql`
+      lower(ifnull(json_extract(${schema.records.metadata}, '$.primaryRegistrationNumber'), '')) = ${needle}
+      OR lower(ifnull(json_extract(${schema.records.metadata}, '$.rtiFileName'), '')) = ${needle}
+      OR lower(ifnull(json_extract(${schema.records.metadata}, '$.secondaryRegistrationNumber'), '')) = ${needle}
+    `)
+    .get() ?? null;
 }
 
 export function recordPublicPath(record: Pick<DbRecord, 'slug' | 'id'>) {

@@ -22,6 +22,11 @@ export interface RecordHelpersContext {
   snapshotRecordAfterSystem: (recordId: number, action: string, comment?: string | null) => void;
 }
 
+export type CancelProcessingResult =
+  | { ok: true; job: ProcessingJob }
+  | { ok: false; reason: 'not_found' }
+  | { ok: false; reason: 'not_active'; job: ProcessingJob };
+
 export interface ProcessingOptions {
   quality: number;
   tileSize: number;
@@ -41,6 +46,7 @@ export interface ServerContext extends AuthContext, RecordHelpersContext {
     weightsPath: string | null,
     options: ProcessingOptions,
     outputType: string,
+    signal?: AbortSignal,
   ) => Promise<void>;
   enqueueProcessing: (item: {
     recordId: number;
@@ -51,6 +57,8 @@ export interface ServerContext extends AuthContext, RecordHelpersContext {
   }) => ProcessingJob;
   getProcessingJob: (jobId: string) => ProcessingJob | null;
   getLatestProcessingJob: (recordId: number) => ProcessingJob | null;
+  cancelProcessingJob: (jobId: string) => CancelProcessingResult;
+  cancelRecordProcessing: (recordId: number) => CancelProcessingResult;
 }
 
 export type RouteRegistrar = (app: Express, ctx: ServerContext) => void;
