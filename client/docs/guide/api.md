@@ -2,10 +2,10 @@
 
 The rtiDb server exposes a versioned REST API under `/api`. Interactive docs (Swagger UI) are at **`/api/docs`** (login required). The machine-readable spec is **`/api/openapi.json`**.
 
-Discovery (no auth):
+Discovery (`GET /api`, login required):
 
 ```bash
-curl http://localhost:8090/api
+curl -b cookie.txt http://localhost:8090/api
 ```
 
 ## Authentication
@@ -16,9 +16,11 @@ curl http://localhost:8090/api
 4. For Swagger: click **Authorize** and paste the `token` (without a `Bearer` prefix)
 5. API clients may send `Authorization: Bearer <token>`
 
-`GET /api/auth/me` returns the current user. `POST /api/logout` clears the cookie.
+`GET /api/auth/me` returns the current user (reloaded from the database). `POST /api/logout` clears the cookie.
 
 Failed logins are rate-limited (HTTP 429 with `retryAfterSeconds`).
+
+Without a session, only `POST /api/login`, `GET /api/health`, `GET /api/site-config`, and branding assets (`/static/uploads/branding/…`) are reachable. Everything else returns 401. Deleted or unknown users are rejected even if they still hold a valid JWT.
 
 ## Record identifiers
 
@@ -28,16 +30,17 @@ Records have a numeric `id` and a unique `slug` (from registration number or nam
 - `/api/records/DEMO-2024-SEAL-001`
 - Viewer URL: `/record/DEMO-2024-SEAL-001`
 
-`GET /api/records/lookup/{identifier}` resolves either form to the public record payload.
+`GET /api/records/lookup/{identifier}` resolves either form to the record payload.
 
-## Public catalog
+## Catalog (login required)
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/api/records` | Paginated `{ total, page, limit, totalPages, results }`. Use `published=1` for the public catalog |
+| `GET` | `/api/records` | Paginated `{ total, page, limit, totalPages, results }` (default 20). `sort` / `dir` supported. Staff may use `published=all` |
 | `GET` | `/api/records/{id-or-slug}` | Full record |
 | `GET` | `/api/records/{id-or-slug}/metadata` | Metadata only |
 | `GET` | `/api/records/{id-or-slug}/rti` | Tile folder / GeoTIFF URLs for the viewer |
+| `GET` | `/api/records/{id-or-slug}/original` | Archived source file (`.rti` / `.ptm` / `.hsh`, or neural latent map). `?file=weights` for decoder JSON |
 | `GET` | `/api/search` | `q`, `filters` (JSON), `bbox` (`west,south,east,north`), `recordTypeId` |
 
 Metadata filters accept real field keys (`primaryMotif`, `culturalPeriod`, …) or aliases (`motif`, `period`, `iconography`).
@@ -54,11 +57,12 @@ Metadata filters accept real field keys (`primaryMotif`, `culturalPeriod`, …) 
 JWT required. Permission checks apply (`upload_rti`, `edit_record`, `delete_record`, `annotate`, `comment`, `private_notes`, `manage_users`).
 
 - **Records:** `POST /api/records`, `PUT /api/records/{id}`, publish/unpublish, delete, RTI upload
-- **Processing:** job status and SSE progress
+- **Uploads:** resumable chunks via `POST /api/uploads/sessions`, `PUT /api/uploads/sessions/{id}` (`X-Upload-Offset`, 8 MiB pieces), then `POST /api/uploads/complete`. Multipart `POST /api/upload` still works for small files and API clients.
+- **Processing:** job status, cancel (`POST /api/records/{id}/processing/cancel`), and SSE progress
 - **Revisions:** list and compare
 - **Notes, comments, annotations**
 - **Users** (admin)
 - **Catalog:** record types, views, site config
 - **Image search:** `POST /api/search/image` (multipart upload, rate-limited)
 
-Uploads are served from `/static/uploads/…` with Range-request support for GeoTIFF tiles. Draft assets require a session; published assets are public.
+Uploads are served from `/static/uploads/…` with Range-request support for GeoTIFF tiles. Catalog assets require a session.

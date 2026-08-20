@@ -1,6 +1,6 @@
 # rtiDb client
 
-Vue 3 frontend for the RTI Database: public gallery, record viewer, advanced search, and admin dashboard.
+Vue 3 frontend for the RTI Database: login-gated gallery, record viewer, advanced search, and admin dashboard.
 
 This package is part of the [rtiDb](../README.md) pnpm workspace. Shared types and catalog helpers come from `@rtidb/shared`.
 

@@ -5,7 +5,7 @@
 It is a pnpm workspace:
 
 - **Server** — Node.js / Express 5 / TypeScript. Metadata lives in SQLite (Drizzle ORM). Uploads are processed by the `rtiprep` binary into web-ready tiles or a pyramidal GeoTIFF.
-- **Client** — Vue 3 dashboard: public gallery, record viewer, advanced search, and admin.
+- **Client** — Vue 3 dashboard: gallery, record viewer, advanced search, and admin (all behind login).
 - **`@rtidb/shared`** — catalog schema, permissions, site config, and API types used by both sides.
 
 ## Features
@@ -20,6 +20,7 @@ It is a pnpm workspace:
 - Annotations, comments, private notes, and revision history
 - Full-text / metadata / map search and CLIP **image similarity**
 - Record export: JSON, XML, CSV, BibTeX, RIS, IIIF
+- Download of the archived original RTI / PTM / HSH (or neural latent map + weights)
 
 ## Docker
 
@@ -64,7 +65,7 @@ Admin → Site:
 
 ## Auth & permissions
 
-Sessions are JWTs stored in an httpOnly `adminToken` cookie (`SameSite=Lax`, 24h). Swagger and API clients may send `Authorization: Bearer <token>` instead.
+Sessions are JWTs stored in an httpOnly `adminToken` cookie (`SameSite=Lax`, 24h). The token only proves identity; each request reloads the user from SQLite, so deleted accounts and permission changes take effect immediately. Swagger and API clients may send `Authorization: Bearer <token>` instead.
 
 | Role | Access |
 |---|---|
@@ -74,15 +75,15 @@ Sessions are JWTs stored in an httpOnly `adminToken` cookie (`SameSite=Lax`, 24h
 
 Granular flags: `upload_rti`, `edit_record`, `delete_record`, `manage_users`, `private_notes`, `annotate`, `comment`. Admins implicitly have every flag. Researchers default to notes, annotate, and comment.
 
-Published records are public. Drafts are visible only to staff with `edit_record` (or admin/editor). Login is rate-limited (default 10 failures per IP per 15 minutes).
+The catalog is login-only. After sign-in, published records are visible to every role; drafts only to staff with `edit_record` (or admin/editor). Login is rate-limited (default 10 failures per IP per 15 minutes). The gallery loads one page at a time from `GET /api/records` (default 20). SQLite is snapshotted into `data/backups/` in production (startup + every 24 hours).
 
 ## Processing pipeline
 
-1. Create a catalog record (metadata first) **or** upload a file that creates/attaches a record.
+1. Create a catalog record (metadata first) **or** upload a file that creates/attaches a record. Large RTI files are sent in 8 MiB chunks and can resume after a dropped connection.
 2. Choose **tiles** (JPEG/PNG/WebP pyramid) or **GeoTIFF**. Neural RTI always produces a GeoTIFF with decoder weights in TIFF `ImageDescription`.
-3. The job is queued (`processing_jobs`). `rtiprep` runs with live SSE progress.
-4. A gallery thumbnail is generated (`sharp`) and a CLIP embedding is stored for image search.
-5. Optionally the original file is archived under `uploads/archive/` (`KEEP_ORIGINAL_RTI=1`).
+3. The job is queued (`processing_jobs`). `rtiprep` runs with live SSE progress. Staff can cancel a queued or running job from the admin record card; that kills `rtiprep` and leaves the record in error so it can be rerun.
+4. A gallery thumbnail is generated (`sharp`) and a CLIP embedding is stored for image search (ONNX runs in a child process so the API stays responsive).
+5. By default the original file is archived under `uploads/archive/` and can be downloaded from the record catalog tab (`KEEP_ORIGINAL_RTI=0` deletes it instead).
 
 Tile mode also writes `info.json`, legacy `info.xml`, and an OpenLIME DeepZoom export.
 
@@ -91,7 +92,7 @@ Tile mode also writes `info.json`, legacy `info.xml`, and an OpenLIME DeepZoom e
 `/record/:slug` (numeric ids still work) has:
 
 - **Viewer** — lighting, render modes, annotations overlaid on the RTI, optional scale bar
-- **Metadata** — schema-driven catalog fields and export buttons
+- **Metadata** — schema-driven catalog fields, original-file download, and export buttons
 - **Discussion** — threaded comments
 - **Notes** — private per-user notes (permission `private_notes`)
 - **History** — revision snapshots with compare
@@ -107,7 +108,7 @@ Annotations are `point`, `circle`, or `rectangle`, each with a saved RTI view (l
 - **Map** — Leaflet markers from `gpsPosition`; optional bounding-box filter
 - **Image search** — upload a photo; CLIP cosine similarity against published thumbnails (rate-limited)
 
-The public gallery search filters the currently visible columns only. Advanced search hits the server.
+The gallery search filters the currently visible columns only. Advanced search hits the server.
 
 ## Admin dashboard
 

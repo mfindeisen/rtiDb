@@ -28,16 +28,16 @@ Sample datasets shown in these screenshots are credited under [Acknowledgements]
 
 ## Features
 
-- **Public gallery** of published records with configurable catalog views, column picker, and pagination
+- **Login-gated gallery** of published records with configurable catalog views, column picker, and pagination
 - **Configurable catalog types** with custom metadata schemas (text, date, GPS, select, color, URL)
 - **Site branding** (name, tagline, logo, favicon, brand colors) and locale date/time formats
-- **JWT sessions** in httpOnly cookies, with roles (`admin`, `editor`, `researcher`) and fine-grained permissions
+- **JWT sessions** in httpOnly cookies (identity only; roles and permissions are loaded from SQLite on each request)
 - **Upload & processing** of `.rti` / `.ptm` / `.hsh` (or Neural RTI latent map + decoder weights) into JPEG/PNG/WebP tile pyramids or pyramidal GeoTIFF
 - **Live progress** via Server-Sent Events while `rtiprep` tiles gigabyte-scale files
 - **Embedded [modernRtiViewer](https://github.com/mfindeisen/modernRtiViewer)** Web Component (PTM, HSH, Neural RTI; pan/zoom, lighting, annotations, scale)
 - **Collaboration:** viewer annotations (private / team / published), threaded comments, private notes, revision history
 - **Advanced search:** full-text, metadata filters, GPS map / bounding box, CLIP image similarity
-- **Exports:** JSON, XML, CSV, BibTeX, RIS, IIIF
+- **Exports:** catalog JSON/XML/CSV/BibTeX/RIS/IIIF, plus download of the archived original RTI file
 - **OpenAPI / Swagger** at `/api/docs` (login required)
 
 ## Architecture & Tech Stack
@@ -64,11 +64,11 @@ A pnpm workspace with three packages, containerized via Docker:
 ### Server (backend)
 
 - **Runtime:** Node.js, Express 5, TypeScript (`tsx`)
-- **Database:** SQLite via [Drizzle ORM](https://orm.drizzle.team/) and `better-sqlite3` (`server/data/database.sqlite`)
-- **Auth:** JWT in an httpOnly `adminToken` cookie (Bearer tokens still work for Swagger / API clients)
-- **Uploads:** `multer` to disk (`server/uploads/`), default max 2 GB per file
+- **Database:** SQLite via [Drizzle ORM](https://orm.drizzle.team/) and `better-sqlite3` (`server/data/database.sqlite`, WAL). Online backups go to `server/data/backups/` (production: on startup and every 24h, keep 14).
+- **Auth:** JWT in an httpOnly `adminToken` cookie (Bearer tokens still work for Swagger / API clients). Each request reloads the user from SQLite.
+- **Uploads:** resumable 8 MiB chunks (`server/uploads/incoming/`), then processing; default max 2 GB per file. Processing jobs can be cancelled from Admin.
 - **Processing:** queued jobs that run the compiled [rtiprep](https://github.com/mfindeisen/rtiprep) Go binary
-- **Vision:** Hugging Face Transformers.js — CLIP embeddings for image search, OWL-ViT for auto-annotate proposals
+- **Vision:** Hugging Face Transformers.js in a **child process** — CLIP embeddings for image search, OWL-ViT for auto-annotate proposals
 - **Thumbnails:** `sharp`
 
 ### Processing & tiling
@@ -115,10 +115,14 @@ Copy `.env.example` to `.env`. In production, **`ADMIN_PASSWORD` and `JWT_SECRET
 | `JWT_SECRET` | Session token signing key |
 | `PUBLIC_BASE_URL` | Canonical site URL (links, OpenAPI, CORS) |
 | `CORS_ORIGINS` | Extra allowed browser origins |
-| `KEEP_ORIGINAL_RTI` | `1` archives source files after processing |
+| `KEEP_ORIGINAL_RTI` | `0` deletes source files after processing (default: archive and offer download) |
 | `MAX_RTI_UPLOAD_BYTES` | Upload size cap (default 2 GB) |
 | `TRUST_PROXY` | Reverse-proxy hop count (production default: 1) |
 | `LOGIN_RATE_LIMIT` | Failed logins per IP (default 10 / 15 min) |
+| `BACKUP_DIR` | SQLite snapshot directory (default `server/data/backups`) |
+| `BACKUP_INTERVAL_HOURS` | How often to snapshot (default 24; `0` disables the timer) |
+| `BACKUP_KEEP` | How many snapshots to retain (default 14) |
+| `BACKUP_ON_STARTUP` | Write a snapshot when the API starts (default on in production) |
 | `AUTO_ANNOTATE_ENABLED` | OWL-ViT proposals (`0` to disable) |
 | `TRANSFORMERS_CACHE` | Local cache for CLIP / OWL-ViT models |
 
