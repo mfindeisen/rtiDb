@@ -7,7 +7,7 @@ export interface AutoAnnotateUiState {
   status?: string;
   phase?: string;
   message?: string;
-  error?: string;
+  error?: string | boolean;
   canRetry?: boolean;
   startedAt?: number;
   position?: number;
