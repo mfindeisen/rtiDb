@@ -29,21 +29,25 @@
         class="glass-card px-4 py-4 sm:px-6"
         :class="{ 'max-lg:hidden': activeTab === 'viewer' && !showHistory }"
       >
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-          <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white break-words">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 min-w-0">
+          <div class="flex flex-col gap-2 min-w-0">
+          <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white wrap-anywhere">
             {{ record.name }}
-            <RecordOutputBadge v-if="record" :record="record" class="ml-2 align-middle" />
+          </h2>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <RecordOutputBadge v-if="record" :record="record" />
             <span
               v-if="record.recordTypeName"
-              class="ml-2 align-middle text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10"
+              class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10"
             >{{ record.recordTypeName }}</span>
             <span
               v-if="record.revisionNumber"
-              class="ml-2 align-middle text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10"
+              class="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10"
             >
               rev. {{ record.revisionNumber }}
             </span>
-          </h2>
+          </div>
+        </div>
           <div class="text-sm text-slate-500 dark:text-slate-400 shrink-0 space-y-1 sm:text-right">
             <div>
               <div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -119,7 +123,8 @@
                   :key="fmt.id"
                   as-child
                   variant="outline"
-                  size="xs"
+                  size="sm"
+                  class="h-9"
                 >
                   <a :href="exportUrl(fmt.id)" :download="fmt.download">
                     <component :is="fmt.icon" class="w-3.5 h-3.5" />
@@ -154,7 +159,7 @@
       <!-- Tab: RTI + annotations -->
       <div v-show="!showHistory && activeTab === 'viewer'" class="flex flex-col gap-4">
           <template v-if="viewerMounted">
-          <div class="flex flex-col lg:flex-row gap-4 items-stretch max-lg:h-[calc(100dvh-9rem)] lg:min-h-[max(49rem,calc(100svh-15rem))]">
+          <div class="flex flex-col lg:flex-row gap-4 items-stretch max-lg:min-h-[22rem] max-lg:h-[70svh] lg:min-h-[max(49rem,calc(100svh-15rem))]">
             <!-- Help sidebar -->
             <div
               v-if="showGuide"
@@ -359,7 +364,7 @@
 
             <!-- Viewer — full remaining width & height -->
             <div
-              class="flex-1 min-w-0 min-h-0 flex flex-col rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/75 dark:bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_32px_rgba(15,23,42,0.08)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.45)] overflow-hidden"
+              class="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/75 dark:bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_32px_rgba(15,23,42,0.08)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.45)]"
             >
               <template v-if="record.status === 'done'">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-white/10 shrink-0 bg-white/50 dark:bg-white/[0.02]">
@@ -400,7 +405,7 @@
                   </ToggleGroup>
                 </div>
 
-                <div ref="viewerHostRef" class="flex-1 min-h-0 flex flex-col relative bg-slate-100 dark:bg-black/40 lg:min-h-[49rem]">
+                <div ref="viewerHostRef" class="flex-1 min-h-0 flex flex-col relative overflow-hidden bg-slate-900 lg:min-h-[49rem]">
                   <RtiViewerHost
                     ref="viewerHostComponentRef"
                     :record="record"

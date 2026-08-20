@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport :to="overlayContainer">
     <div
       v-if="open"
       class="fixed inset-0 z-[100] flex items-center justify-center p-4"
@@ -93,6 +93,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
+import { useOverlayContainer } from '@/composables/useOverlayContainer';
 import AnnotationColorPicker from './AnnotationColorPicker.vue';
 import AnnotationStrokePicker from './AnnotationStrokePicker.vue';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,7 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
+const overlayContainer = useOverlayContainer();
 const noteText = ref('');
 const selectedColor = ref(loadAnnotationColor());
 const selectedStrokeWidth = ref(loadStoredAnnotationStrokeWidth());

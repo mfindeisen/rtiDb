@@ -8,6 +8,7 @@ import {
   useForwardPropsEmits,
 } from 'reka-ui'
 import { cn } from '@/lib/utils'
+import { useOverlayContainer } from '@/composables/useOverlayContainer'
 
 defineOptions({
   inheritAttrs: false,
@@ -25,10 +26,11 @@ const emits = defineEmits<PopoverContentEmits>()
 const delegatedProps = reactiveOmit(props, 'class')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
+const overlayContainer = useOverlayContainer()
 </script>
 
 <template>
-  <PopoverPortal>
+  <PopoverPortal :to="overlayContainer">
     <PopoverContent
       data-slot="popover-content"
       v-bind="{ ...$attrs, ...forwarded }"

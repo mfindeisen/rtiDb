@@ -9,6 +9,7 @@ import {
 } from "reka-ui";
 import type { SelectContentProps } from "reka-ui";
 import { cn } from "@/lib/utils";
+import { useOverlayContainer } from "@/composables/useOverlayContainer";
 import { SelectScrollDownButton, SelectScrollUpButton } from ".";
 
 defineOptions({
@@ -61,10 +62,11 @@ const emits = defineEmits([
 const delegatedProps = reactiveOmit(props, "class") as SelectContentProps;
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
+const overlayContainer = useOverlayContainer();
 </script>
 
 <template>
-  <SelectPortal>
+  <SelectPortal :to="overlayContainer">
     <SelectContent
       data-slot="select-content"
       :data-align-trigger="position === 'item-aligned'"

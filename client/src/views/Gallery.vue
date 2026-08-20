@@ -1,6 +1,6 @@
 <template>
   <div class="page-shell space-y-8">
-    <div class="text-center mb-12">
+    <div class="text-center mb-6 md:mb-12">
       <h2 class="page-title mb-4">RTI Gallery</h2>
     </div>
 
@@ -18,9 +18,9 @@
     </div>
 
     <div v-else class="glass-card flex flex-col !p-0 overflow-hidden">
-      <div class="flex flex-col md:flex-row justify-between items-center gap-4 p-4 sm:p-6 pb-4 sm:pb-4">
-        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
-          <div class="relative flex-1 md:max-w-xs">
+      <div class="flex flex-col gap-3 p-3 sm:p-6 pb-3 sm:pb-4 md:flex-row md:justify-between md:items-center md:gap-4">
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 min-w-0">
+          <div class="relative flex-1 md:max-w-xs min-w-0">
             <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
             <Input
               v-model="searchQuery"
@@ -29,7 +29,7 @@
               class="pl-10 w-full"
             />
           </div>
-          <Button as-child variant="outline">
+          <Button as-child variant="outline" class="w-full sm:w-auto shrink-0">
             <router-link to="/search">
               <ScanSearchIcon class="w-4 h-4" />
               Advanced Search
@@ -37,25 +37,27 @@
           </Button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <Select v-if="galleryViews.length" :model-value="selectedViewSlug" @update:model-value="onViewChange">
-            <SelectTrigger class="w-[12rem]">
-              <SelectValue placeholder="View" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="view in galleryViews" :key="view.slug" :value="view.slug">{{ view.name }}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div class="flex flex-wrap items-center gap-2 w-full min-w-0 md:w-auto">
+          <div v-if="galleryViews.length" class="w-full min-w-0 basis-full sm:w-auto sm:basis-auto">
+            <Select :model-value="selectedViewSlug" @update:model-value="onViewChange">
+              <SelectTrigger class="w-full min-w-0 sm:w-[12rem]">
+                <SelectValue placeholder="View" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="view in galleryViews" :key="view.slug" :value="view.slug">{{ view.name }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <GalleryColumnPicker
             :prefs="columnPrefs"
             :extra-fields="viewFields"
             @change="onColumnPrefsChange"
             @reset="onColumnReset"
           />
-          <div class="flex items-center gap-2">
-            <Label class="text-sm font-medium text-slate-600 dark:text-slate-300">Show:</Label>
+          <div class="flex items-center gap-2 ml-auto sm:ml-0">
+            <Label class="text-sm font-medium text-slate-600 dark:text-slate-300 shrink-0">Show:</Label>
             <Select :model-value="String(itemsPerPage)" @update:model-value="onItemsPerPageChange">
-              <SelectTrigger class="w-[4.75rem]">
+              <SelectTrigger class="w-[4.75rem] shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" align="end">
@@ -81,8 +83,8 @@
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <h3 class="font-bold text-slate-800 dark:text-white leading-snug">{{ rec.name }}</h3>
+            <h3 class="font-bold text-slate-800 dark:text-white leading-snug wrap-anywhere">{{ rec.name }}</h3>
+            <div class="flex flex-wrap items-center gap-1.5 mt-1">
               <span v-if="rec.recordTypeName" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/10">{{ rec.recordTypeName }}</span>
               <RecordOutputBadge :record="rec" />
             </div>
@@ -261,14 +263,14 @@
         </table>
       </ScrollArea>
 
-      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 sm:p-6 pt-4 border-t border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400">
-        <div>
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-3 p-4 sm:p-6 pt-4 border-t border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400">
+        <div class="text-center sm:text-left">
           Showing <span class="font-bold text-slate-800 dark:text-white">{{ filteredRecords.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1 }}</span> to
           <span class="font-bold text-slate-800 dark:text-white">{{ Math.min(currentPage * itemsPerPage, filteredRecords.length) }}</span> of
           <span class="font-bold text-slate-800 dark:text-white">{{ filteredRecords.length }}</span> entries
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-center gap-2 max-w-full">
           <Button
             type="button"
             variant="outline"

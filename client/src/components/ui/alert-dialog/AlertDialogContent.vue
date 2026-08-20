@@ -7,6 +7,7 @@ import {
   useForwardPropsEmits,
 } from "reka-ui";
 import { cn } from "@/lib/utils";
+import { useOverlayContainer } from "@/composables/useOverlayContainer";
 
 defineOptions({
   inheritAttrs: false,
@@ -29,10 +30,11 @@ const emits = defineEmits(["openAutoFocus", "closeAutoFocus", "escapeKeyDown"]);
 
 const delegatedProps = reactiveOmit(props, "class", "size");
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
+const overlayContainer = useOverlayContainer();
 </script>
 
 <template>
-  <AlertDialogPortal>
+  <AlertDialogPortal :to="overlayContainer">
     <AlertDialogOverlay
       data-slot="alert-dialog-overlay"
       class="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 z-[200]"

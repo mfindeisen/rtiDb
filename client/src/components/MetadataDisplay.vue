@@ -82,7 +82,7 @@
         <Table>
           <TableHeader>
             <TableRow class="hover:bg-transparent">
-              <TableHead class="w-[38%] min-w-[10rem] font-semibold text-slate-600 dark:text-slate-300">Field</TableHead>
+              <TableHead class="w-[38%] min-w-0 sm:min-w-[10rem] font-semibold text-slate-600 dark:text-slate-300">Field</TableHead>
               <TableHead class="font-semibold text-slate-600 dark:text-slate-300">Value</TableHead>
             </TableRow>
           </TableHeader>

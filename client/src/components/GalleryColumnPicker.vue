@@ -13,7 +13,7 @@
       </Button>
     </div>
 
-    <Teleport to="body">
+    <Teleport :to="overlayContainer">
       <div
         v-if="open"
         class="fixed inset-0 z-[200]"
@@ -24,7 +24,7 @@
         v-if="open"
         role="dialog"
         aria-label="Configure gallery columns"
-        class="fixed z-[210] w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl"
+        class="fixed z-[210] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl"
         :style="panelStyle"
       >
         <ScrollArea class="h-[min(28rem,calc(100vh-5rem))]">
@@ -128,6 +128,7 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
+import { useOverlayContainer } from '@/composables/useOverlayContainer';
 import { Columns3 as Columns3Icon, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon } from '@lucide/vue';
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue';
 import { Button } from '@/components/ui/button';
@@ -154,6 +155,7 @@ const emit = defineEmits<{
 }>();
 
 const extraFields = computed(() => props.extraFields ?? []);
+const overlayContainer = useOverlayContainer();
 const open = ref(false);
 const buttonEl = ref<HTMLElement | null>(null);
 const panelStyle = ref<Record<string, string>>({});
@@ -161,13 +163,37 @@ const panelStyle = ref<Record<string, string>>({});
 const visibleColumns = computed(() => resolveVisibleColumns(props.prefs, extraFields.value));
 const hiddenColumns = computed(() => getHiddenColumns(props.prefs, extraFields.value));
 
+const PANEL_MARGIN = 16;
+const PANEL_WIDTH = 22 * 16;
+
 function updatePosition() {
   const el = buttonEl.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
+  const top = `${rect.bottom + 8}px`;
+  const narrow = window.matchMedia('(max-width: 767px)').matches;
+
+  if (narrow) {
+    const width = Math.min(PANEL_WIDTH, window.innerWidth - PANEL_MARGIN * 2);
+    panelStyle.value = {
+      top,
+      left: '50%',
+      right: 'auto',
+      width: `${width}px`,
+      transform: 'translateX(-50%)',
+    };
+    return;
+  }
+
+  const width = Math.min(PANEL_WIDTH, window.innerWidth - PANEL_MARGIN * 2);
+  const maxLeft = window.innerWidth - PANEL_MARGIN - width;
+  const left = Math.min(Math.max(rect.right - width, PANEL_MARGIN), maxLeft);
   panelStyle.value = {
-    top: `${rect.bottom + 8}px`,
-    right: `${Math.max(8, window.innerWidth - rect.right)}px`,
+    top,
+    left: `${left}px`,
+    right: 'auto',
+    width: `${width}px`,
+    transform: 'none',
   };
 }
 

@@ -7,11 +7,23 @@
     </div>
 
     <Tabs v-model="activeTab">
-      <TabsList v-if="userRole === 'admin'" class="mb-6 w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1 sm:w-auto sm:inline-flex">
-        <TabsTrigger value="records" class="gap-1.5 text-xs sm:text-sm"><FolderOpen class="w-4 h-4 shrink-0" /> Records & Upload</TabsTrigger>
-        <TabsTrigger value="catalog" class="gap-1.5 text-xs sm:text-sm"><Shapes class="w-4 h-4 shrink-0" /> Catalog</TabsTrigger>
-        <TabsTrigger value="site" class="gap-1.5 text-xs sm:text-sm"><Palette class="w-4 h-4 shrink-0" /> Site</TabsTrigger>
-        <TabsTrigger value="users" class="gap-1.5 text-xs sm:text-sm"><Users class="w-4 h-4 shrink-0" /> User Management</TabsTrigger>
+      <TabsList v-if="userRole === 'admin'" class="mb-6 w-full grid grid-cols-2 gap-1 p-1 h-auto min-h-0 group-data-horizontal/tabs:h-auto sm:grid-cols-4 sm:w-auto sm:inline-flex sm:group-data-horizontal/tabs:h-8">
+        <TabsTrigger value="records" aria-label="Records & Upload" class="h-auto min-h-10 whitespace-normal px-2 py-2 gap-1.5 text-xs sm:h-[calc(100%-1px)] sm:whitespace-nowrap sm:py-0.5 sm:text-sm">
+          <FolderOpen class="w-4 h-4 shrink-0" />
+          <span class="sm:hidden">Records</span>
+          <span class="hidden sm:inline">Records & Upload</span>
+        </TabsTrigger>
+        <TabsTrigger value="catalog" class="h-auto min-h-10 whitespace-normal px-2 py-2 gap-1.5 text-xs sm:h-[calc(100%-1px)] sm:whitespace-nowrap sm:py-0.5 sm:text-sm">
+          <Shapes class="w-4 h-4 shrink-0" /> Catalog
+        </TabsTrigger>
+        <TabsTrigger value="site" class="h-auto min-h-10 whitespace-normal px-2 py-2 gap-1.5 text-xs sm:h-[calc(100%-1px)] sm:whitespace-nowrap sm:py-0.5 sm:text-sm">
+          <Palette class="w-4 h-4 shrink-0" /> Site
+        </TabsTrigger>
+        <TabsTrigger value="users" aria-label="User Management" class="h-auto min-h-10 whitespace-normal px-2 py-2 gap-1.5 text-xs sm:h-[calc(100%-1px)] sm:whitespace-nowrap sm:py-0.5 sm:text-sm">
+          <Users class="w-4 h-4 shrink-0" />
+          <span class="sm:hidden">Users</span>
+          <span class="hidden sm:inline">User Management</span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="records" :class="(hasPermission('upload_rti') || hasPermission('edit_record')) ? 'grid grid-cols-1 lg:grid-cols-2 gap-8 items-start' : 'max-w-3xl mx-auto space-y-6'">
@@ -264,19 +276,19 @@
         <div v-else-if="records.length === 0" class="text-center text-slate-500 dark:text-slate-400 py-8">No records found.</div>
 
         <div v-else class="space-y-4">
-          <div v-for="rec in records" :key="rec.id" class="metadata-field p-4 text-left">
-            <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-              <div class="flex gap-4 items-start flex-1 min-w-0">
-                <div v-if="rec.thumbnailUrl" class="w-20 h-20 shrink-0 bg-slate-100 dark:bg-black/30 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
+          <div v-for="rec in records" :key="rec.id" class="metadata-field p-3 sm:p-4 text-left">
+            <div class="flex flex-col gap-3">
+              <div class="flex gap-3 items-start min-w-0">
+                <div v-if="rec.thumbnailUrl" class="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-slate-100 dark:bg-black/30 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
                   <img :src="rec.thumbnailUrl" alt="Thumbnail" class="w-full h-full object-cover" />
                 </div>
-                <div v-else class="w-20 h-20 shrink-0 bg-slate-100 dark:bg-black/30 rounded-lg border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-400">
+                <div v-else class="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-slate-100 dark:bg-black/30 rounded-lg border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-400">
                   <ImageIcon class="w-8 h-8 opacity-50" />
                 </div>
 
                 <div class="flex-grow min-w-0">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 class="text-xl font-bold truncate text-slate-800 dark:text-white">{{ rec.name }}</h3>
+                  <h3 class="text-lg sm:text-xl font-bold text-slate-800 dark:text-white wrap-anywhere leading-snug">{{ rec.name }}</h3>
+                  <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     <span v-if="rec.recordTypeName" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">{{ rec.recordTypeName }}</span>
                     <span v-if="rec.status === 'done'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">Ready</span>
                     <RecordOutputBadge :record="rec" />
@@ -285,34 +297,41 @@
                     <span v-else-if="rec.status === 'processing'" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 animate-pulse">Processing</span>
                     <span v-else class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400">Error</span>
                   </div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400 mb-2 font-mono flex items-center gap-1">
-                    <CalendarIcon class="w-3.5 h-3.5" />
+                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 font-mono flex items-center gap-1">
+                    <CalendarIcon class="w-3.5 h-3.5 shrink-0" />
                     {{ formatRecordDateTime(rec.date) }}
                   </div>
-                  <p class="text-sm text-slate-600 dark:text-slate-300 mb-3 line-clamp-2" :dir="rec.direction">{{ rec.description }}</p>
+                  <p class="text-sm text-slate-600 dark:text-slate-300 mt-2 line-clamp-2" :dir="rec.direction">{{ rec.description }}</p>
                 </div>
               </div>
 
-              <div class="flex items-center gap-1 shrink-0">
-                <Button v-if="rec.status === 'draft' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon-sm" class="text-emerald-600 dark:text-emerald-400" title="Upload RTI" @click="startUploadForRecord(rec)">
+              <div class="flex flex-wrap items-center gap-1 border-t border-slate-200/70 dark:border-white/10 pt-2">
+                <Button v-if="rec.status === 'draft' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon" class="size-9 text-emerald-600 dark:text-emerald-400" title="Upload RTI" @click="startUploadForRecord(rec)">
                   <Upload />
                 </Button>
-                <Button v-if="rec.status === 'done' && hasPermission('edit_record')" type="button" variant="ghost" size="sm" class="text-blue-600 dark:text-blue-400" :title="rec.isPublished ? 'Unpublish' : 'Publish'" @click="togglePublish(rec)">
+                <Button v-if="rec.status === 'done' && hasPermission('edit_record')" type="button" variant="ghost" size="sm" class="h-9 px-2.5 text-blue-600 dark:text-blue-400" :title="rec.isPublished ? 'Unpublish' : 'Publish'" @click="togglePublish(rec)">
                   {{ rec.isPublished ? 'Unpublish' : 'Publish' }}
                 </Button>
-                <Button v-if="rec.status === 'error' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon-sm" class="text-amber-600 dark:text-amber-400" title="Rerun" @click="rerunRecord(rec.id)">
+                <Button v-if="rec.status === 'error' && hasPermission('upload_rti')" type="button" variant="ghost" size="icon" class="size-9 text-amber-600 dark:text-amber-400" title="Rerun" @click="rerunRecord(rec.id)">
                   <RefreshCw />
                 </Button>
-                <Button v-if="userRole === 'admin' && rec.status === 'done' && rec.thumbnailUrl" type="button" variant="ghost" size="icon-sm" class="relative text-violet-600 dark:text-violet-400" :disabled="!!autoAnnotateState[rec.id]?.running" title="AI auto-annotate (experimental)" @click="runAutoAnnotate(rec, false)">
+                <Button v-if="userRole === 'admin' && rec.status === 'done' && rec.thumbnailUrl" type="button" variant="ghost" size="icon" class="relative size-9 text-violet-600 dark:text-violet-400" :disabled="!!autoAnnotateState[rec.id]?.running" title="AI auto-annotate (experimental)" @click="runAutoAnnotate(rec, false)">
                   <Sparkles :class="autoAnnotateState[rec.id]?.running ? 'animate-spin' : ''" />
                   <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />
                 </Button>
-                <Button v-if="hasPermission('edit_record')" type="button" variant="ghost" size="icon-sm" class="text-blue-600 dark:text-blue-400" title="Edit" @click="openEdit(rec.id)">
+                <Button v-if="hasPermission('edit_record')" type="button" variant="ghost" size="icon" class="size-9 text-blue-600 dark:text-blue-400" title="Edit" @click="openEdit(rec.id)">
                   <Pencil />
                 </Button>
-                <Button v-if="hasPermission('delete_record')" type="button" variant="ghost" size="icon-sm" class="text-destructive" title="Delete" @click="deleteRecord(rec.id)">
+                <Button v-if="hasPermission('delete_record')" type="button" variant="ghost" size="icon" class="size-9 text-destructive" title="Delete" @click="deleteRecord(rec.id)">
                   <Trash2 />
                 </Button>
+                <router-link
+                  v-if="rec.status === 'done' || rec.status === 'draft'"
+                  :to="recordPath(rec)"
+                  class="ml-auto text-sm font-semibold px-2 py-2 text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {{ rec.status === 'draft' ? 'View catalog →' : 'View Record →' }}
+                </router-link>
               </div>
             </div>
 
@@ -337,13 +356,6 @@
               :now="now"
               @retry="runAutoAnnotate(rec, true)"
             />
-
-            <div v-if="rec.status === 'done'" class="mt-2 text-right">
-              <router-link :to="recordPath(rec)" class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">View Record →</router-link>
-            </div>
-            <div v-else-if="rec.status === 'draft'" class="mt-2 text-right">
-              <router-link :to="recordPath(rec)" class="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:underline">View catalog entry →</router-link>
-            </div>
           </div>
         </div>
         </CardContent>

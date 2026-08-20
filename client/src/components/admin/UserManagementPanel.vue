@@ -149,12 +149,12 @@ defineExpose({ fetchUsers });
 
 <template>
   <FancyCard class="text-left">
-    <CardHeader class="flex flex-row items-center justify-between">
+    <CardHeader class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <CardTitle>User Accounts</CardTitle>
         <CardDescription>Create and manage access credentials and permission roles.</CardDescription>
       </div>
-      <Button @click="openAddUser">Add User</Button>
+      <Button class="w-full sm:w-auto" @click="openAddUser">Add User</Button>
     </CardHeader>
     <CardContent class="space-y-6">
       <div v-if="showUserForm" class="surface-panel p-6 space-y-4">
@@ -223,14 +223,45 @@ defineExpose({ fetchUsers });
         </form>
       </div>
 
-      <div class="rounded-xl border overflow-hidden">
-        <Table>
+      <ul class="md:hidden rounded-xl border divide-y divide-slate-200 dark:divide-white/10 overflow-hidden">
+        <li v-for="u in usersList" :key="`m-${u.id}`" class="p-3 space-y-2 bg-white dark:bg-slate-950/40">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-semibold text-slate-800 dark:text-white wrap-anywhere">{{ u.username }}</div>
+              <Badge
+                class="mt-1"
+                :variant="u.role === 'admin' ? 'default' : u.role === 'researcher' ? 'outline' : 'secondary'"
+              >{{ u.role }}</Badge>
+            </div>
+            <div class="flex gap-1 shrink-0">
+              <Button variant="ghost" size="icon" class="size-9" @click="editUser(u)" title="Edit User">
+                <Pencil class="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" class="size-9 text-destructive hover:text-destructive" @click="deleteUser(u)" title="Delete User">
+                <Trash2 class="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            <span v-if="u.role === 'admin'">All permissions</span>
+            <span v-else-if="u.role === 'researcher'">Private notes &amp; collaboration</span>
+            <span v-else-if="u.permissions.length === 0">None (read-only)</span>
+            <span v-else>{{ u.permissions.join(', ') }}</span>
+          </p>
+        </li>
+      </ul>
+
+      <div class="relative hidden md:block rounded-xl border overflow-hidden">
+        <p class="lg:hidden px-3 py-2 text-[11px] text-muted-foreground border-b border-slate-200 dark:border-white/10">
+          Swipe sideways to see actions →
+        </p>
+        <Table class="min-w-[40rem]">
           <TableHeader>
             <TableRow>
               <TableHead>Username</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Permissions</TableHead>
-              <TableHead class="text-right">Actions</TableHead>
+              <TableHead class="sticky right-0 z-10 text-right bg-card shadow-[-10px_0_12px_-8px_rgba(15,23,42,0.18)] dark:shadow-[-10px_0_12px_-8px_rgba(0,0,0,0.45)]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -247,7 +278,7 @@ defineExpose({ fetchUsers });
                   <Badge v-for="p in u.permissions" :key="p" variant="outline" class="text-xs">{{ p }}</Badge>
                 </div>
               </TableCell>
-              <TableCell class="text-right">
+              <TableCell class="sticky right-0 z-10 text-right bg-card shadow-[-10px_0_12px_-8px_rgba(15,23,42,0.18)] dark:shadow-[-10px_0_12px_-8px_rgba(0,0,0,0.45)]">
                 <div class="flex gap-1 justify-end">
                   <Button variant="ghost" size="icon" @click="editUser(u)" title="Edit User">
                     <Pencil class="w-4 h-4" />

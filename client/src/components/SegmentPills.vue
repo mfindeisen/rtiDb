@@ -3,7 +3,7 @@
     type="single"
     :model-value="modelValue"
     :disabled="disabled"
-    :class="fullWidth ? 'w-full bg-muted p-1 rounded-lg' : 'w-fit bg-muted p-1 rounded-lg'"
+    :class="fullWidth ? 'w-full min-w-0 bg-muted p-1 rounded-lg' : 'w-fit bg-muted p-1 rounded-lg'"
     :spacing="4"
     size="sm"
     @update:model-value="onChange"
@@ -13,12 +13,13 @@
       :key="opt.value"
       :value="opt.value"
       :disabled="opt.disabled"
-      :class="fullWidth ? 'flex-1' : ''"
-      class="gap-1.5 px-4 text-xs font-semibold data-[state=on]:bg-background data-[state=on]:shadow-sm"
+      :aria-label="opt.label"
+      :class="fullWidth ? 'flex-1 min-w-0 shrink! px-2 sm:px-4' : ''"
+      class="gap-1.5 text-xs font-semibold data-[state=on]:bg-background data-[state=on]:shadow-sm"
     >
       <component v-if="opt.icon" :is="opt.icon" class="w-3.5 h-3.5 shrink-0" />
-      <span v-if="opt.shortLabel" class="sm:hidden">{{ opt.shortLabel }}</span>
-      <span :class="opt.shortLabel ? 'hidden sm:inline' : ''">{{ opt.label }}</span>
+      <span v-if="opt.shortLabel" class="sm:hidden truncate">{{ opt.shortLabel }}</span>
+      <span :class="opt.shortLabel ? 'hidden sm:inline' : ''" class="truncate">{{ opt.label }}</span>
       <ExperimentalBadge v-if="opt.experimental" class="max-sm:hidden" />
       <span
         v-if="opt.experimental"
