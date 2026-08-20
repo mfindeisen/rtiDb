@@ -8,8 +8,8 @@ import { isAuthenticated, getCurrentUser, postLoginPath, waitForAuth, hasPermiss
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
-  { path: '/', component: Gallery, meta: { public: true } },
-  { path: '/record/:slug', component: RecordDetail, meta: { public: true } },
+  { path: '/', component: Gallery, meta: { requiresAuth: true } },
+  { path: '/record/:slug', component: RecordDetail, meta: { requiresAuth: true } },
   { path: '/search', component: AdvancedSearch, meta: { requiresAuth: true } },
   { path: '/admin', component: Admin, meta: { requiresAuth: true } },
   {
@@ -33,10 +33,6 @@ router.beforeEach(async (to) => {
     if (authed) {
       return postLoginPath(to.query.redirect);
     }
-    return;
-  }
-
-  if (to.meta.public) {
     return;
   }
 

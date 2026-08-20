@@ -13,10 +13,6 @@
       {{ error }}
     </div>
 
-    <div v-else-if="records.length === 0" class="text-center py-20 glass-card">
-      <p class="text-slate-500 dark:text-slate-400 text-lg">No published scans found.</p>
-    </div>
-
     <div v-else class="glass-card flex flex-col !p-0 overflow-hidden">
       <div class="flex flex-col gap-3 p-3 sm:p-6 pb-3 sm:pb-4 md:flex-row md:justify-between md:items-center md:gap-4">
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 min-w-0">
@@ -25,7 +21,7 @@
             <Input
               v-model="searchQuery"
               type="text"
-              placeholder="Search visible columns..."
+              placeholder="Search catalog..."
               class="pl-10 w-full"
             />
           </div>
@@ -71,7 +67,7 @@
       <!-- Mobile card list -->
       <div class="md:hidden space-y-3 px-4 sm:px-6 pb-4 sm:pb-6">
         <router-link
-          v-for="rec in paginatedRecords"
+          v-for="rec in records"
           :key="rec.id"
           :to="recordPath(rec)"
           class="rounded-xl border border-slate-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 p-4 flex gap-3 active:bg-slate-50 dark:active:bg-white/5 no-underline text-inherit"
@@ -92,7 +88,7 @@
             <p class="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-2">{{ formatRecordDateTime(rec.date) }}</p>
           </div>
         </router-link>
-        <p v-if="paginatedRecords.length === 0" class="text-center py-8 text-slate-500 dark:text-slate-400">
+        <p v-if="records.length === 0" class="text-center py-8 text-slate-500 dark:text-slate-400">
           No scans match your search.
         </p>
       </div>
@@ -146,7 +142,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="rec in paginatedRecords"
+              v-for="rec in records"
               :key="rec.id"
               class="border-b border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 focus-within:bg-slate-50 dark:focus-within:bg-white/5 transition-colors group"
             >
@@ -254,7 +250,7 @@
                 </template>
               </td>
             </tr>
-            <tr v-if="paginatedRecords.length === 0">
+            <tr v-if="records.length === 0">
               <td :colspan="visibleColumns.length" class="p-8 text-center text-slate-500 dark:text-slate-400">
                 No scans match your search.
               </td>
@@ -265,9 +261,9 @@
 
       <div class="flex flex-col sm:flex-row justify-between items-center gap-3 p-4 sm:p-6 pt-4 border-t border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400">
         <div class="text-center sm:text-left">
-          Showing <span class="font-bold text-slate-800 dark:text-white">{{ filteredRecords.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1 }}</span> to
-          <span class="font-bold text-slate-800 dark:text-white">{{ Math.min(currentPage * itemsPerPage, filteredRecords.length) }}</span> of
-          <span class="font-bold text-slate-800 dark:text-white">{{ filteredRecords.length }}</span> entries
+          Showing <span class="font-bold text-slate-800 dark:text-white">{{ totalResults === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1 }}</span> to
+          <span class="font-bold text-slate-800 dark:text-white">{{ Math.min(currentPage * itemsPerPage, totalResults) }}</span> of
+          <span class="font-bold text-slate-800 dark:text-white">{{ totalResults }}</span> entries
         </div>
 
         <div class="flex flex-wrap items-center justify-center gap-2 max-w-full">
@@ -314,7 +310,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { recordPath } from '@/lib/recordPath';
 import { formatRecordDateTime, getRecordUpdatedAt } from '@rtidb/shared';
 import type { RecordRow } from '@rtidb/shared/api/records';
-import { listRecords } from '@/api/records';
+import { listRecordsPage } from '@/api/records';
 import { listCatalogViews, listRecordTypes } from '@/api/catalog';
 import type { CatalogView } from '@rtidb/shared/api/catalog';
 import type { RecordType } from '@rtidb/shared/api/catalog';
@@ -331,7 +327,6 @@ import {
   getColumnOverride,
   getMetadataValue,
   hasStoredGalleryColumnPrefs,
-  recordMatchesGallerySearch,
   loadGalleryColumnPrefs,
   resolveColumnsByIds,
   sanitizeColumnIds,
@@ -356,6 +351,8 @@ import {
 
 const GALLERY_VIEW_KEY = 'galleryViewSlug';
 const records = ref<RecordRow[]>([]);
+const totalResults = ref(0);
+const totalPages = ref(1);
 const galleryViews = ref<CatalogView[]>([]);
 const recordTypes = ref<RecordType[]>([]);
 const selectedViewSlug = ref('');
@@ -405,14 +402,50 @@ function applyColumnsForView(slug: string) {
   };
 }
 
+const activeSort = computed(() => userSort.value ?? selectedView.value?.config.sort ?? null);
+
+function galleryQuery(): Record<string, string> {
+  const params: Record<string, string> = {
+    published: '1',
+    page: String(currentPage.value),
+    limit: String(itemsPerPage.value),
+  };
+  const q = searchQuery.value.trim();
+  if (q) params.q = q;
+  const view = selectedView.value;
+  if (view?.recordTypeId) params.recordTypeId = String(view.recordTypeId);
+  if (view?.config.filters) {
+    for (const [key, value] of Object.entries(view.config.filters)) {
+      if (value) params[key] = value;
+    }
+  }
+  const sort = activeSort.value;
+  if (sort?.field) {
+    params.sort = sort.field;
+    params.dir = sort.dir;
+  }
+  return params;
+}
+
+async function fetchGallery() {
+  const result = await listRecordsPage(galleryQuery());
+  records.value = result.results;
+  totalResults.value = result.total;
+  totalPages.value = result.totalPages;
+  if (currentPage.value > result.totalPages && result.totalPages >= 1) {
+    currentPage.value = result.totalPages;
+  }
+}
+
+let galleryReady = false;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
 onMounted(async () => {
   try {
-    const [list, views, types] = await Promise.all([
-      listRecords({ published: '1' }),
+    const [views, types] = await Promise.all([
       listCatalogViews().catch(() => []),
       listRecordTypes().catch(() => []),
     ]);
-    records.value = list;
     galleryViews.value = views;
     recordTypes.value = types;
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(GALLERY_VIEW_KEY) : '';
@@ -425,6 +458,8 @@ onMounted(async () => {
       }
     }
     applyColumnsForView(selectedViewSlug.value);
+    await fetchGallery();
+    galleryReady = true;
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to fetch records';
   } finally {
@@ -471,8 +506,6 @@ function columnSizeClass(col: GalleryColumnDef): string {
   return 'min-w-40';
 }
 
-const activeSort = computed(() => userSort.value ?? selectedView.value?.config.sort ?? null);
-
 function isColumnSorted(col: GalleryColumnDef): boolean {
   const field = sortFieldForColumn(col);
   return !!field && activeSort.value?.field === field;
@@ -497,72 +530,6 @@ function toggleSort(col: GalleryColumnDef) {
   currentPage.value = 1;
 }
 
-function getSortValue(record: RecordRow, field: string): string {
-  switch (field) {
-    case 'name':
-      return record.name || '';
-    case 'description':
-      return record.description || '';
-    case 'date':
-      return record.date || '';
-    case 'dateUpdated':
-      return record.metadata?.lastEdit?.trim() || '';
-    case 'recordType':
-      return record.recordTypeName || '';
-    case 'outputType':
-      return record.outputType || '';
-    default:
-      return getMetadataValue(record, field);
-  }
-}
-
-function compareRecords(a: RecordRow, b: RecordRow, field: string): number {
-  const av = getSortValue(a, field);
-  const bv = getSortValue(b, field);
-  if (field === 'date' || field === 'dateUpdated') {
-    const at = Date.parse(av);
-    const bt = Date.parse(bv);
-    const aValid = !Number.isNaN(at);
-    const bValid = !Number.isNaN(bt);
-    if (aValid && bValid) return at - bt;
-    if (aValid) return 1;
-    if (bValid) return -1;
-  }
-  return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
-}
-
-const filteredRecords = computed(() => {
-  let list = records.value;
-  const view = selectedView.value;
-  if (view?.recordTypeId) {
-    list = list.filter((r) => r.recordTypeId === view.recordTypeId);
-  }
-  if (view?.config.filters) {
-    for (const [key, value] of Object.entries(view.config.filters)) {
-      if (!value) continue;
-      const needle = value.toLowerCase();
-      list = list.filter((r) => getMetadataValue(r, key).toLowerCase().includes(needle));
-    }
-  }
-  if (searchQuery.value) {
-    const columns = visibleColumns.value;
-    list = list.filter((r) => recordMatchesGallerySearch(r, searchQuery.value, columns));
-  }
-  const sort = activeSort.value;
-  if (sort?.field) {
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    list = [...list].sort((a, b) => compareRecords(a, b, sort.field) * dir);
-  }
-  return list;
-});
-
-const totalPages = computed(() => Math.ceil(filteredRecords.value.length / itemsPerPage.value) || 1);
-
-const paginatedRecords = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  return filteredRecords.value.slice(start, start + itemsPerPage.value);
-});
-
 const visiblePages = computed(() => {
   const pages = [];
   const maxPagesToShow = 5;
@@ -580,5 +547,27 @@ const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
 const goToPage = (page: number) => { currentPage.value = page; };
 
-watch([searchQuery, itemsPerPage], () => { currentPage.value = 1; });
+function resetToFirstPage() {
+  if (currentPage.value !== 1) currentPage.value = 1;
+  else if (galleryReady) void fetchGallery();
+}
+
+watch(searchQuery, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => resetToFirstPage(), 300);
+});
+watch(itemsPerPage, () => {
+  resetToFirstPage();
+});
+watch(selectedViewSlug, () => {
+  if (!galleryReady) return;
+  resetToFirstPage();
+});
+watch(activeSort, () => {
+  if (!galleryReady) return;
+  resetToFirstPage();
+});
+watch(currentPage, () => {
+  if (galleryReady) void fetchGallery();
+});
 </script>

@@ -12,11 +12,36 @@ import type { CatalogMetadata } from '@rtidb/shared';
 import type { SearchResults } from '@rtidb/shared/api/search';
 import { ApiError, apiUrl, request } from './client';
 
-export async function listRecords(params?: Record<string, string>): Promise<RecordRow[]> {
+export async function listRecordsPage(params?: Record<string, string>): Promise<SearchResults> {
   const query = params ? `?${new URLSearchParams(params)}` : '';
   const data = await request<RecordRow[] | SearchResults>(`/api/records${query}`);
-  if (Array.isArray(data)) return data;
-  return Array.isArray(data?.results) ? data.results : [];
+  if (Array.isArray(data)) {
+    return {
+      total: data.length,
+      page: 1,
+      limit: data.length || 20,
+      totalPages: 1,
+      results: data as SearchResults['results'],
+    };
+  }
+  return {
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    limit: data.limit ?? 20,
+    totalPages: data.totalPages ?? 1,
+    results: Array.isArray(data.results) ? data.results : [],
+  };
+}
+
+export async function listRecords(params?: Record<string, string>): Promise<RecordRow[]> {
+  const pageSize = 100;
+  const first = await listRecordsPage({ ...params, page: '1', limit: String(pageSize) });
+  const all = [...first.results];
+  for (let page = 2; page <= first.totalPages; page++) {
+    const next = await listRecordsPage({ ...params, page: String(page), limit: String(pageSize) });
+    all.push(...next.results);
+  }
+  return all;
 }
 
 export async function getRecord(id: number | string): Promise<RecordDetail> {
@@ -100,8 +125,17 @@ export async function getRecordProcessing(id: number): Promise<ProcessingJob> {
   return request<ProcessingJob>(`/api/records/${id}/processing`);
 }
 
+export async function cancelRecordProcessing(id: number): Promise<ProcessingJob> {
+  return request<ProcessingJob>(`/api/records/${id}/processing/cancel`, { method: 'POST' });
+}
+
 export function exportRecordUrl(id: number | string, format: string): string {
   return apiUrl(`/api/records/${id}/export?format=${encodeURIComponent(format)}`);
+}
+
+export function originalFileUrl(id: number | string, kind: 'original' | 'weights' = 'original'): string {
+  const path = `/api/records/${id}/original`;
+  return apiUrl(kind === 'weights' ? `${path}?file=weights` : path);
 }
 
 export function uploadWithProgress(

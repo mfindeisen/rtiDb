@@ -4,28 +4,23 @@ function passwordInput(page: Page) {
   return page.locator('#password');
 }
 
-test.describe('Public gallery', () => {
-  test('loads the gallery shell', async ({ page }) => {
+test.describe('Authentication', () => {
+  test('sends the gallery to login', async ({ page }) => {
     await page.goto('/');
-
-    await expect(page.getByRole('heading', { name: 'RTI Gallery' })).toBeVisible();
-    await expect(
-      page.getByText('No published scans found.')
-        .or(page.getByPlaceholder('Search visible columns...')),
-    ).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('shows the login page for protected routes', async ({ page }) => {
-    await page.goto('/search');
 
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByText('Login to your account', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Username')).toBeVisible();
     await expect(passwordInput(page)).toBeVisible();
   });
-});
 
-test.describe('Authentication', () => {
+  test('sends a record URL to login', async ({ page }) => {
+    await page.goto('/record/demo');
+
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByLabel('Username')).toBeVisible();
+  });
+
   test('logs in with the seeded admin user', async ({ page }) => {
     await page.goto('/login');
 
