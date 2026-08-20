@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, FolderOpen, Users, Shapes, Palette } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
@@ -61,9 +61,33 @@ import CatalogTypesPanel from '@/components/admin/CatalogTypesPanel.vue';
 import CatalogViewsPanel from '@/components/admin/CatalogViewsPanel.vue';
 import AdminRecordsTab from '@/components/admin/AdminRecordsTab.vue';
 
+const ADMIN_TAB_KEY = 'adminTab';
+const ADMIN_TABS = ['records', 'catalog', 'site', 'users'] as const;
+
+function readAdminTab(role: string): (typeof ADMIN_TABS)[number] {
+  if (role !== 'admin') return 'records';
+  try {
+    const stored = localStorage.getItem(ADMIN_TAB_KEY);
+    if (stored && (ADMIN_TABS as readonly string[]).includes(stored)) {
+      return stored as (typeof ADMIN_TABS)[number];
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'records';
+}
+
 const router = useRouter();
 const userRole = ref(getCurrentUser()?.role || 'editor');
-const activeTab = ref('records');
+const activeTab = ref(readAdminTab(userRole.value));
+
+watch(activeTab, (tab) => {
+  try {
+    localStorage.setItem(ADMIN_TAB_KEY, String(tab));
+  } catch {
+    /* ignore */
+  }
+});
 
 const logout = async () => {
   await authLogout();

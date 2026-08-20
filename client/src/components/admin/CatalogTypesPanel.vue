@@ -1,15 +1,13 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-      <div>
-        <h2 class="section-heading">Record types</h2>
-        <p class="section-sub mt-1">Each type has its own catalog fields. Existing seal records stay on the default type.</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" @click="createBlank">New type</Button>
-        <Button type="button" variant="outline" :disabled="!selectedId" @click="duplicateSelected">Duplicate</Button>
-      </div>
-    </div>
+  <CatalogSection
+    v-model:open="sectionOpen"
+    title="Record types"
+    description="Each type has its own catalog fields. Existing seal records stay on the default type."
+  >
+    <template #actions>
+      <Button type="button" variant="outline" @click="createBlank">New type</Button>
+      <Button type="button" variant="outline" :disabled="!selectedId" @click="duplicateSelected">Duplicate</Button>
+    </template>
 
     <InfoCallout v-if="error" variant="error">{{ error }}</InfoCallout>
     <InfoCallout v-if="success" variant="success">{{ success }}</InfoCallout>
@@ -118,7 +116,7 @@
         </CardContent>
       </FancyCard>
     </div>
-  </div>
+  </CatalogSection>
 </template>
 
 <script setup>
@@ -126,6 +124,7 @@ import { onMounted, ref } from 'vue';
 import { CATALOG_FIELD_TYPES, cloneCatalogSchema, slugifyCatalogId, slugifyFieldKey } from '@rtidb/shared';
 import FancyCard from '../FancyCard.vue';
 import InfoCallout from '../InfoCallout.vue';
+import CatalogSection from './CatalogSection.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -138,6 +137,7 @@ import { confirmAction } from '@/composables/useConfirmDialog';
 import { ApiError } from '@/api/client';
 
 const fieldTypes = CATALOG_FIELD_TYPES;
+const sectionOpen = ref(true);
 const types = ref([]);
 const selectedId = ref(null);
 const draft = ref(null);
@@ -177,6 +177,7 @@ function selectType(id) {
 }
 
 async function createBlank() {
+  sectionOpen.value = true;
   error.value = '';
   try {
     const created = await createRecordType({
@@ -194,6 +195,7 @@ async function createBlank() {
 async function duplicateSelected() {
   const type = selected();
   if (!type) return;
+  sectionOpen.value = true;
   try {
     const created = await createRecordType({
       name: `${type.name} copy`,

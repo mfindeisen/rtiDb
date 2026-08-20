@@ -1,15 +1,15 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-      <div>
-        <h2 class="section-heading">Gallery views</h2>
-        <p class="section-sub mt-1">Saved column sets, filters, and optional type filters — like Airtable views.</p>
-      </div>
+  <CatalogSection
+    v-model:open="sectionOpen"
+    title="Gallery views"
+    description="Saved column sets, filters, and optional type filters."
+  >
+    <template #actions>
       <Button type="button" variant="outline" @click="createView">
         <Plus />
         New view
       </Button>
-    </div>
+    </template>
 
     <Alert v-if="error" variant="destructive">
       <CircleAlert />
@@ -21,13 +21,9 @@
       <AlertDescription>{{ success }}</AlertDescription>
     </Alert>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-6 items-start">
-      <Card>
-        <CardHeader>
-          <CardTitle>Views</CardTitle>
-          <CardDescription>Pick a view to edit its columns and sort.</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-1">
+    <div class="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-6 items-start">
+      <FancyCard>
+        <CardContent class="pt-4 space-y-1">
           <Button
             v-for="view in views"
             :key="view.id"
@@ -43,9 +39,9 @@
           </Button>
           <p v-if="!views.length" class="text-sm text-muted-foreground py-4">No views yet. Create one to start.</p>
         </CardContent>
-      </Card>
+      </FancyCard>
 
-      <Card v-if="draft">
+      <FancyCard v-if="draft">
         <CardHeader>
           <CardTitle>{{ draft.name || 'Untitled view' }}</CardTitle>
           <CardDescription>Columns, sort, and visibility for this gallery view.</CardDescription>
@@ -155,16 +151,16 @@
           <Button type="button" variant="destructive" :disabled="saving" @click="remove">Delete</Button>
           <Button type="button" :disabled="saving" @click="save">{{ saving ? 'Saving…' : 'Save view' }}</Button>
         </CardFooter>
-      </Card>
+      </FancyCard>
 
-      <Card v-else>
+      <FancyCard v-else>
         <CardHeader>
           <CardTitle>No view selected</CardTitle>
           <CardDescription>Choose a view on the left, or create a new one.</CardDescription>
         </CardHeader>
-      </Card>
+      </FancyCard>
     </div>
-  </div>
+  </CatalogSection>
 </template>
 
 <script setup lang="ts">
@@ -175,7 +171,9 @@ import type { CatalogView, RecordType } from '@rtidb/shared/api/catalog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import FancyCard from '@/components/FancyCard.vue';
+import CatalogSection from '@/components/admin/CatalogSection.vue';
+import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -187,6 +185,7 @@ import { allGalleryColumnsForFields, sortFieldOptionsForColumns } from '@/lib/ga
 import { confirmAction } from '@/composables/useConfirmDialog';
 import { ApiError } from '@/api/client';
 
+const sectionOpen = ref(true);
 const types = ref<RecordType[]>([]);
 const views = ref<CatalogView[]>([]);
 const selectedId = ref<number | null>(null);
@@ -274,6 +273,7 @@ function toggleColumn(id: string, visible: boolean) {
 }
 
 async function createView() {
+  sectionOpen.value = true;
   error.value = '';
   success.value = '';
   try {

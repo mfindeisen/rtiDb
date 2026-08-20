@@ -130,9 +130,12 @@ const goBack = () => {
   }
 };
 
+const RECORD_TAB_KEY = 'recordDetailTab';
+const RECORD_TABS = ['metadata', 'viewer', 'discussion'] as const;
+
 const loading = ref(true);
 const error = ref('');
-const activeTab = ref('metadata');
+const activeTab = ref<(typeof RECORD_TABS)[number]>('metadata');
 const viewerMounted = ref(false);
 const showHistory = ref(false);
 const viewerMode = ref<'modern' | 'legacy'>('modern');
@@ -151,7 +154,11 @@ const recordTabOptions = computed(() => [
 
 watch(activeTab, (tab) => {
   showHistory.value = false;
-  localStorage.setItem('recordDetailTab', tab);
+  try {
+    localStorage.setItem(RECORD_TAB_KEY, tab);
+  } catch {
+    /* ignore */
+  }
   if (tab === 'viewer') viewerMounted.value = true;
 });
 
@@ -181,10 +188,17 @@ onMounted(async () => {
       router.replace(recordPath(record.value));
     }
 
-    const storedTab = localStorage.getItem('recordDetailTab');
+    let storedTab = '';
+    try {
+      storedTab = localStorage.getItem(RECORD_TAB_KEY) || '';
+    } catch {
+      storedTab = '';
+    }
     if (storedTab === 'viewer' && record.value.status === 'done') {
       activeTab.value = 'viewer';
       viewerMounted.value = true;
+    } else if (storedTab === 'discussion' || storedTab === 'metadata') {
+      activeTab.value = storedTab;
     }
 
     loading.value = false;
