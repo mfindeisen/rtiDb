@@ -8,6 +8,8 @@ export interface PublicRecordLinks {
   rti: string;
   viewer: string;
   iiif: string;
+  original?: string;
+  weights?: string;
 }
 
 export interface PublicRecordAssets {
@@ -59,10 +61,19 @@ export interface RecordRow {
   recordTypeSlug: string | null;
 }
 
+export type RecordSourceFileKind = 'original' | 'weights';
+
+export interface RecordSourceFile {
+  kind: RecordSourceFileKind;
+  fileName: string;
+  sizeBytes: number;
+}
+
 export interface RecordDetail extends RecordRow {
   folderSize: number;
   fileCount: number;
   revisionNumber: number;
+  sourceFiles: RecordSourceFile[];
 }
 
 export interface CreateRecordResponse {

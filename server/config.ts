@@ -29,6 +29,10 @@ export interface ServerConfig {
   trustProxy: boolean | number;
   loginRateLimit: number;
   loginRateWindowMs: number;
+  backupDir: string;
+  backupIntervalMs: number;
+  backupKeep: number;
+  backupOnStartup: boolean;
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -94,7 +98,24 @@ export function loadConfig(): ServerConfig {
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY, isProduction),
     loginRateLimit: Number(process.env.LOGIN_RATE_LIMIT) || 10,
     loginRateWindowMs: Number(process.env.LOGIN_RATE_WINDOW_MS) || 15 * 60 * 1000,
+    backupDir: process.env.BACKUP_DIR || path.join(dataDir, 'backups'),
+    backupIntervalMs: parseBackupIntervalMs(process.env.BACKUP_INTERVAL_HOURS),
+    backupKeep: Math.max(1, Number(process.env.BACKUP_KEEP) || 14),
+    backupOnStartup: parseBackupOnStartup(process.env.BACKUP_ON_STARTUP, isProduction),
   };
+}
+
+function parseBackupIntervalMs(value: string | undefined): number {
+  if (value == null || value.trim() === '') return 24 * 60 * 60 * 1000;
+  const hours = Number(value);
+  if (!Number.isFinite(hours) || hours <= 0) return 0;
+  return hours * 60 * 60 * 1000;
+}
+
+function parseBackupOnStartup(value: string | undefined, isProduction: boolean): boolean {
+  if (value == null || value.trim() === '') return isProduction;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
 let cachedConfig: ServerConfig | null = null;

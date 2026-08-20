@@ -25,7 +25,7 @@ RUN pnpm install --filter server... --frozen-lockfile || pnpm install --filter s
 COPY server server
 
 ENV TRANSFORMERS_CACHE=/repo/server/.clip-model-cache
-RUN cd server && pnpm exec tsx --input-type=module -e "import { warmupClipModel } from './lib/imageEmbeddings.js'; await warmupClipModel(); console.log('CLIP model cached');"
+RUN cd server && pnpm exec tsx lib/vision/worker.ts --warmup=clip
 
 COPY --from=go-builder /build/rtiprep /repo/server/lib/rtiprep/rtiprep
 RUN chmod +x /repo/server/lib/rtiprep/rtiprep

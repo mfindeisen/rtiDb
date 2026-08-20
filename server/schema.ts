@@ -127,6 +127,20 @@ export const recordTypes = sqliteTable('record_types', {
   schema: text('schema', { mode: 'json' }).notNull(),
 });
 
+export const uploadSessions = sqliteTable('upload_sessions', {
+  id: text('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  field: text('field').notNull(),
+  originalName: text('original_name').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  receivedBytes: integer('received_bytes').notNull().default(0),
+  tempPath: text('temp_path').notNull(),
+  finalPath: text('final_path'),
+  status: text('status').notNull().default('receiving'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const catalogViews = sqliteTable('catalog_views', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   recordTypeId: integer('record_type_id').references(() => recordTypes.id, { onDelete: 'set null' }),

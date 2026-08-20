@@ -15,6 +15,7 @@ export { hashPassword, verifyPassword, parsePermissions } from './lib/auth/passw
 export { schema };
 
 let dbInstance: AppDb | null = null;
+let sqliteInstance: Database.Database | null = null;
 
 export function bootstrapDatabase(config: ServerConfig): AppDb {
   if (dbInstance) return dbInstance;
@@ -26,7 +27,9 @@ export function bootstrapDatabase(config: ServerConfig): AppDb {
   runMigrations({ dataDir: config.dataDir });
 
   const sqlite = new Database(path.join(config.dataDir, 'database.sqlite'));
+  sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
+  sqliteInstance = sqlite;
   dbInstance = drizzle(sqlite, { schema });
 
   backfillRecordSlugs(dbInstance, schema);
@@ -35,6 +38,13 @@ export function bootstrapDatabase(config: ServerConfig): AppDb {
   seedCatalogDefaults(dbInstance, schema);
 
   return dbInstance;
+}
+
+export function getSqlite(): Database.Database {
+  if (!sqliteInstance) {
+    throw new Error('Database not initialized. Call bootstrapDatabase() first.');
+  }
+  return sqliteInstance;
 }
 
 export function getDb(): AppDb {

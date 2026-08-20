@@ -1,21 +1,6 @@
-import type { ImageFeatureExtractionPipelineType } from '@huggingface/transformers';
-import { pipeline, RawImage } from '@huggingface/transformers';
-import { configureTransformersCache } from './transformersEnv.js';
-
-configureTransformersCache();
-
-const CLIP_MODEL = 'Xenova/clip-vit-base-patch32';
+import { computeClipEmbedding, warmupVisionModel } from './vision/client.js';
 
 export type ImageEmbedding = number[];
-
-let extractorPromise: Promise<ImageFeatureExtractionPipelineType> | null = null;
-
-function getExtractor() {
-  if (!extractorPromise) {
-    extractorPromise = pipeline('image-feature-extraction', CLIP_MODEL);
-  }
-  return extractorPromise;
-}
 
 /** L2-normalize a vector (for cosine similarity via dot product). */
 export function normalizeVector(values: ArrayLike<number>): ImageEmbedding {
@@ -27,12 +12,9 @@ export function normalizeVector(values: ArrayLike<number>): ImageEmbedding {
   return out;
 }
 
-/** Compute a 512-d CLIP embedding from a local image file path. */
+/** Compute a 512-d CLIP embedding from a local image file path (runs in a child process). */
 export async function computeImageEmbedding(imagePath: string): Promise<ImageEmbedding> {
-  const extractor = await getExtractor();
-  const image = await RawImage.read(imagePath);
-  const output = await extractor(image);
-  return normalizeVector((output as { data: ArrayLike<number> }).data);
+  return computeClipEmbedding(imagePath);
 }
 
 /** Cosine similarity for L2-normalized vectors (returns 0–1 for typical CLIP matches). */
@@ -45,5 +27,5 @@ export function cosineSimilarity(a: ImageEmbedding | null | undefined, b: ImageE
 
 /** Pre-download CLIP weights (Docker build / maintenance). */
 export async function warmupClipModel(): Promise<void> {
-  await getExtractor();
+  await warmupVisionModel('clip');
 }

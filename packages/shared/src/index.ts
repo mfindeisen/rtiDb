@@ -46,3 +46,13 @@ export type * from './api/jobs.js';
 export type * from './api/auth.js';
 export type * from './api/revisions.js';
 export type * from './api/catalog.js';
+export type * from './api/uploads.js';
+export {
+  UPLOAD_CHUNK_SIZE_BYTES,
+  UPLOAD_MAX_CHUNK_SIZE_BYTES,
+  UPLOAD_SESSION_TTL_MS,
+  UPLOAD_CHUNK_RETRIES,
+  UPLOAD_FIELDS,
+  chunkRanges,
+} from './api/uploads.js';
+export type { UploadFieldName, UploadSessionStatus } from './api/uploads.js';

@@ -42,6 +42,10 @@ export function ensureRecordsSchema(sqlite: Database.Database) {
     sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS `records_slug_unique` ON `records` (`slug`)');
     console.log('Schema repair: added records_slug_unique index');
   }
+  sqlite.exec('CREATE INDEX IF NOT EXISTS `records_slug_lower_idx` ON `records` (lower(`slug`))');
+  sqlite.exec("CREATE INDEX IF NOT EXISTS `records_reg_lower_idx` ON `records` (lower(json_extract(`metadata`, '$.primaryRegistrationNumber')))");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS `records_rti_filename_lower_idx` ON `records` (lower(json_extract(`metadata`, '$.rtiFileName')))");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS `records_reg2_lower_idx` ON `records` (lower(json_extract(`metadata`, '$.secondaryRegistrationNumber')))");
 }
 
 /** Ensure record_comments exists on databases that missed migration 0009. */
@@ -159,6 +163,34 @@ export function ensureProcessingJobsSchema(sqlite: Database.Database) {
     CREATE INDEX \`processing_jobs_record_idx\` ON \`processing_jobs\` (\`record_id\`);
   `);
   console.log('Schema repair: created processing_jobs table');
+}
+
+/** Resumable chunked RTI upload sessions. */
+export function ensureUploadSessionsSchema(sqlite: Database.Database) {
+  const tableExists = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'upload_sessions'")
+    .get();
+  if (tableExists) return;
+
+  sqlite.exec(`
+    CREATE TABLE \`upload_sessions\` (
+      \`id\` text PRIMARY KEY NOT NULL,
+      \`user_id\` integer NOT NULL,
+      \`field\` text NOT NULL,
+      \`original_name\` text NOT NULL,
+      \`size_bytes\` integer NOT NULL,
+      \`received_bytes\` integer DEFAULT 0 NOT NULL,
+      \`temp_path\` text NOT NULL,
+      \`final_path\` text,
+      \`status\` text DEFAULT 'receiving' NOT NULL,
+      \`created_at\` text NOT NULL,
+      \`updated_at\` text NOT NULL,
+      FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE cascade
+    );
+    CREATE INDEX \`upload_sessions_user_idx\` ON \`upload_sessions\` (\`user_id\`);
+    CREATE INDEX \`upload_sessions_status_idx\` ON \`upload_sessions\` (\`status\`);
+  `);
+  console.log('Schema repair: created upload_sessions table');
 }
 
 /** Site settings, record types, and gallery views. */

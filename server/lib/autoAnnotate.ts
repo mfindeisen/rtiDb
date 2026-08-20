@@ -1,12 +1,11 @@
 import sharp from 'sharp';
-import { pipeline } from '@huggingface/transformers';
 import { getConfig } from '../config.js';
-import { configureTransformersCache } from './transformersEnv.js';
+import { detectWithOwlVit, warmupVisionModel } from './vision/client.js';
+import type { OwlDetectionBox } from './vision/protocol.js';
 import { normalizeMetadata } from './metadataFields.js';
 import type { RectangleGeometry } from './annotations.js';
 import type { RecordMetadata } from '../types/index.js';
 
-configureTransformersCache();
 const config = getConfig();
 const OWL_MODEL = config.autoAnnotateModel;
 const DETECTION_THRESHOLD = config.autoAnnotateThreshold;
@@ -58,34 +57,6 @@ export interface AutoAnnotateProposal {
   model: string;
   imageSize: { width: number; height: number };
   detectionCount: number;
-}
-
-interface OwlDetectionBox {
-  xmin: number;
-  ymin: number;
-  xmax: number;
-  ymax: number;
-}
-
-interface OwlDetectionHit {
-  box: OwlDetectionBox;
-  label: string;
-  score: number;
-}
-
-type ZeroShotDetector = (
-  imagePath: string,
-  labels: string[],
-  options: { threshold: number; top_k: number },
-) => Promise<OwlDetectionHit[]>;
-
-let detectorPromise: Promise<ZeroShotDetector> | null = null;
-
-function getDetector(): Promise<ZeroShotDetector> {
-  if (!detectorPromise) {
-    detectorPromise = pipeline('zero-shot-object-detection', OWL_MODEL) as Promise<ZeroShotDetector>;
-  }
-  return detectorPromise;
 }
 
 function clamp01(value: number): number {
@@ -173,10 +144,12 @@ export async function proposeAutoAnnotations(
   const height = meta.height || 1;
 
   onProgress?.('detecting');
-  const detector = await getDetector();
-  const raw = await detector(imagePath, CANDIDATE_LABELS, {
+  const raw = await detectWithOwlVit({
+    imagePath,
+    labels: CANDIDATE_LABELS,
     threshold: DETECTION_THRESHOLD,
-    top_k: 10,
+    topK: 10,
+    model: OWL_MODEL,
   });
 
   const detections: ProposedAnnotation[] = [];
@@ -213,5 +186,5 @@ export async function proposeAutoAnnotations(
 }
 
 export async function warmupAutoAnnotateModel(): Promise<void> {
-  await getDetector();
+  await warmupVisionModel('owlvit', OWL_MODEL);
 }

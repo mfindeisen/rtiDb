@@ -27,7 +27,8 @@
     "./api/jobs": "./src/api/jobs.ts",
     "./api/auth": "./src/api/auth.ts",
     "./api/revisions": "./src/api/revisions.ts",
-    "./api/catalog": "./src/api/catalog.ts"
+    "./api/catalog": "./src/api/catalog.ts",
+    "./api/uploads": "./src/api/uploads.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
