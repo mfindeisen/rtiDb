@@ -350,6 +350,7 @@ import {
 } from '@lucide/vue';
 
 const GALLERY_VIEW_KEY = 'galleryViewSlug';
+const GALLERY_PAGE_SIZE_KEY = 'galleryPageSize';
 const records = ref<RecordRow[]>([]);
 const totalResults = ref(0);
 const totalPages = ref(1);
@@ -361,7 +362,20 @@ const error = ref('');
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSizeOptions = [5, 10, 20, 50] as const;
-const itemsPerPage = ref<(typeof pageSizeOptions)[number]>(10);
+
+function readGalleryPageSize(): (typeof pageSizeOptions)[number] {
+  try {
+    const n = Number(typeof localStorage !== 'undefined' ? localStorage.getItem(GALLERY_PAGE_SIZE_KEY) : '');
+    if ((pageSizeOptions as readonly number[]).includes(n)) {
+      return n as (typeof pageSizeOptions)[number];
+    }
+  } catch {
+    /* ignore */
+  }
+  return 10;
+}
+
+const itemsPerPage = ref<(typeof pageSizeOptions)[number]>(readGalleryPageSize());
 const columnPrefs = ref<GalleryColumnPrefs>(loadGalleryColumnPrefs());
 const userSort = ref<{ field: string; dir: 'asc' | 'desc' } | null>(null);
 
@@ -492,6 +506,11 @@ function onItemsPerPageChange(value: unknown) {
   const n = Number(value);
   if ((pageSizeOptions as readonly number[]).includes(n)) {
     itemsPerPage.value = n as (typeof pageSizeOptions)[number];
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(GALLERY_PAGE_SIZE_KEY, String(n));
+    } catch {
+      /* ignore */
+    }
   }
 }
 
