@@ -376,6 +376,22 @@ export function buildOpenApiSpec(req: Request): Record<string, unknown> {
           },
         },
       },
+      '/auth/events': {
+        get: {
+          tags: ['Admin'],
+          summary: 'List login audit events',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: 'page', in: 'query', schema: { type: 'integer' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer' } },
+            { name: 'event', in: 'query', schema: { type: 'string', enum: ['login', 'login_failed', 'logout', 'session_sync'] } },
+            { name: 'username', in: 'query', schema: { type: 'string' } },
+            { name: 'from', in: 'query', schema: { type: 'string' } },
+            { name: 'to', in: 'query', schema: { type: 'string' } },
+          ],
+          responses: { 200: { description: 'Paginated auth events' } },
+        },
+      },
       '/records/{id}/upload': {
         post: {
           tags: ['Admin'],

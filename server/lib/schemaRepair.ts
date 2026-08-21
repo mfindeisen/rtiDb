@@ -193,6 +193,31 @@ export function ensureUploadSessionsSchema(sqlite: Database.Database) {
   console.log('Schema repair: created upload_sessions table');
 }
 
+/** Append-only login / logout audit trail. */
+export function ensureAuthEventsSchema(sqlite: Database.Database) {
+  const tableExists = sqlite
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'auth_events'")
+    .get();
+  if (tableExists) return;
+
+  sqlite.exec(`
+    CREATE TABLE \`auth_events\` (
+      \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      \`created_at\` text NOT NULL,
+      \`event\` text NOT NULL,
+      \`user_id\` integer,
+      \`username\` text NOT NULL,
+      \`ip\` text,
+      \`user_agent\` text,
+      FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE set null
+    );
+    CREATE INDEX \`auth_events_created_idx\` ON \`auth_events\` (\`created_at\`);
+    CREATE INDEX \`auth_events_user_idx\` ON \`auth_events\` (\`user_id\`);
+    CREATE INDEX \`auth_events_event_idx\` ON \`auth_events\` (\`event\`);
+  `);
+  console.log('Schema repair: created auth_events table');
+}
+
 /** Site settings, record types, and gallery views. */
 export function ensureCatalogSchema(sqlite: Database.Database) {
   const cols = new Set(

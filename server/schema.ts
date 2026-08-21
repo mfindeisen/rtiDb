@@ -1,4 +1,5 @@
 import { sqliteTable, integer, text, primaryKey } from 'drizzle-orm/sqlite-core';
+import type { AuthEventType } from '@rtidb/shared/api/authEvents';
 import type { ScaleCalibration } from '@rtidb/shared/scaleCalibration';
 
 /** JSON metadata blob stored on records.metadata */
@@ -36,6 +37,16 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('editor'),
   permissions: text('permissions', { mode: 'json' }).notNull().default('[]'),
+});
+
+export const authEvents = sqliteTable('auth_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull(),
+  event: text('event').notNull().$type<AuthEventType>(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  username: text('username').notNull(),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
 });
 
 export const recordNotes = sqliteTable('record_notes', {

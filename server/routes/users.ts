@@ -7,6 +7,7 @@ import {
   usernameTaken,
   sendDatabaseError,
 } from '../lib/userResources.js';
+import { latestSuccessfulLogins } from '../lib/authEvents.js';
 import type { ServerContext } from '../types/index.js';
 
 export function registerUserRoutes(app: Express, ctx: ServerContext) {
@@ -20,7 +21,11 @@ export function registerUserRoutes(app: Express, ctx: ServerContext) {
         role: schema.users.role,
         permissions: schema.users.permissions,
       }).from(schema.users).orderBy(schema.users.id).all();
-      res.json(mapPublicUsers(users));
+      const lastLogins = latestSuccessfulLogins(db, schema);
+      res.json(mapPublicUsers(users).map((user) => ({
+        ...user,
+        lastLoginAt: lastLogins.get(user.id) ?? null,
+      })));
     } catch (err) {
       sendDatabaseError(res, err, 'Fetch users error');
     }
