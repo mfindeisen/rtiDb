@@ -9,6 +9,14 @@ import {
   loginRateLimitKey,
   peekRateLimit,
 } from '../lib/rateLimit.js';
+import {
+  authEventRequestMeta,
+  isAuthEventType,
+  listAuthEvents,
+  recordAuthEventSafe,
+} from '../lib/authEvents.js';
+import { queryNumber } from '../lib/httpParams.js';
+import { sendDatabaseError } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
 import type { JwtUser } from '../types/index.js';
 
@@ -74,26 +82,26 @@ function issueSessionFromToken(
   schema: ServerContext['schema'],
   jwtSecret: string,
   secure: boolean,
-): boolean {
+): { id: number; username: string } | null {
   const authHeader = req.headers.authorization;
   const bodyToken = typeof req.body?.token === 'string' ? req.body.token : null;
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.slice(7)
     : bodyToken;
-  if (!token) return false;
+  if (!token) return null;
 
   let payload: JwtUser;
   try {
     payload = jwt.verify(token, jwtSecret) as JwtUser;
   } catch {
-    return false;
+    return null;
   }
 
   const user = db.select().from(schema.users).where(eq(schema.users.id, payload.id)).get();
-  if (!user) return false;
+  if (!user) return null;
 
   issueSessionFromUser(res, user, jwtSecret, secure);
-  return true;
+  return { id: user.id, username: user.username };
 }
 
 export function registerAuthRoutes(
@@ -104,9 +112,31 @@ export function registerAuthRoutes(
     config,
     verifyAuthHandler,
     authMiddleware,
-  }: Pick<ServerContext, 'db' | 'schema' | 'config' | 'verifyAuthHandler' | 'authMiddleware'>,
+    optionalAuthMiddleware,
+    requireAdmin,
+  }: Pick<ServerContext, 'db' | 'schema' | 'config' | 'verifyAuthHandler' | 'authMiddleware' | 'optionalAuthMiddleware' | 'requireAdmin'>,
 ) {
   app.get('/api/auth/verify', verifyAuthHandler);
+
+  app.get('/api/auth/events', authMiddleware, requireAdmin, (req, res) => {
+    try {
+      const eventRaw = typeof req.query.event === 'string' ? req.query.event : '';
+      const username = typeof req.query.username === 'string' ? req.query.username : '';
+      const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+      const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+      res.json(listAuthEvents(db, schema, {
+        page: queryNumber(req.query.page),
+        limit: queryNumber(req.query.limit),
+        event: isAuthEventType(eventRaw) ? eventRaw : undefined,
+        username: username || undefined,
+        userId: queryNumber(req.query.userId),
+        from,
+        to,
+      }));
+    } catch (err) {
+      sendDatabaseError(res, err, 'Fetch auth events error');
+    }
+  });
 
   app.get('/api/auth/me', authMiddleware, (req, res) => {
     const user = db.select().from(schema.users).where(eq(schema.users.id, req.user!.id)).get();
@@ -125,13 +155,28 @@ export function registerAuthRoutes(
 
   app.post('/api/auth/sync-session', (req, res) => {
     const secure = sessionCookieSecure(req, config);
-    if (!issueSessionFromToken(req, res, db, schema, config.jwtSecret, secure)) {
+    const user = issueSessionFromToken(req, res, db, schema, config.jwtSecret, secure);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    recordAuthEventSafe(db, schema, {
+      event: 'session_sync',
+      userId: user.id,
+      username: user.username,
+      ...authEventRequestMeta(req),
+    });
     return res.json({ success: true });
   });
 
-  app.post('/api/logout', (req, res) => {
+  app.post('/api/logout', optionalAuthMiddleware, (req, res) => {
+    if (req.user) {
+      recordAuthEventSafe(db, schema, {
+        event: 'logout',
+        userId: req.user.id,
+        username: req.user.username,
+        ...authEventRequestMeta(req),
+      });
+    }
     clearSessionCookie(res, sessionCookieSecure(req, config));
     res.json({ success: true });
   });
@@ -141,7 +186,13 @@ export function registerAuthRoutes(
     const rateKey = loginRateLimitKey(req);
     const rateOpts = getLoginRateLimit();
     const preview = peekRateLimit(rateKey, rateOpts);
+    const meta = authEventRequestMeta(req);
     if (!preview.allowed) {
+      recordAuthEventSafe(db, schema, {
+        event: 'login_failed',
+        username: typeof username === 'string' ? username : '',
+        ...meta,
+      });
       return sendRateLimited(res, preview.retryAfterMs);
     }
 
@@ -154,12 +205,24 @@ export function registerAuthRoutes(
           config.jwtSecret,
           sessionCookieSecure(req, config),
         );
+        recordAuthEventSafe(db, schema, {
+          event: 'login',
+          userId: user.id,
+          username: user.username,
+          ...meta,
+        });
         res.json({
           success: true,
           user: publicUser,
         });
       } else {
         consumeRateLimit(rateKey, rateOpts);
+        recordAuthEventSafe(db, schema, {
+          event: 'login_failed',
+          userId: user?.id ?? null,
+          username: typeof username === 'string' ? username : '',
+          ...meta,
+        });
         res.status(401).json({ error: 'Invalid credentials' });
       }
     } catch (err) {
