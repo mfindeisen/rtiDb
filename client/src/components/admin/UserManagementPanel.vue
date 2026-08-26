@@ -15,13 +15,14 @@ import { ApiError } from '@/api/client';
 import { confirmAction, showAlert } from '@/composables/useConfirmDialog';
 import { listUsers, createUser, updateUser, deleteUser as apiDeleteUser } from '@/api/users';
 import { RESEARCHER_DEFAULT_PERMISSIONS } from '@rtidb/shared/authorization';
+import type { ApiUser } from '@rtidb/shared/api/users';
 import type { UserRole, Permission } from '@rtidb/shared/permissions';
 
 const emit = defineEmits<{
   unauthorized: [];
 }>();
 
-const usersList = ref<Array<{ id: number; username: string; role: UserRole; permissions: Permission[] }>>([]);
+const usersList = ref<ApiUser[]>([]);
 const showUserForm = ref(false);
 const editingUserId = ref<number | null>(null);
 const userFormError = ref('');
@@ -75,7 +76,7 @@ function openAddUser() {
   showUserForm.value = true;
 }
 
-function editUser(u: { id: number; username: string; role: UserRole; permissions: Permission[] }) {
+function editUser(u: ApiUser) {
   editingUserId.value = u.id;
   userForm.value = {
     username: u.username,

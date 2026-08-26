@@ -26,6 +26,7 @@
     "./api/comments": "./src/api/comments.ts",
     "./api/jobs": "./src/api/jobs.ts",
     "./api/auth": "./src/api/auth.ts",
+    "./api/authEvents": "./src/api/authEvents.ts",
     "./api/revisions": "./src/api/revisions.ts",
     "./api/catalog": "./src/api/catalog.ts",
     "./api/uploads": "./src/api/uploads.ts"

@@ -5,6 +5,7 @@ export interface ApiUser {
   username: string;
   role: UserRole;
   permissions: Permission[];
+  lastLoginAt: string | null;
 }
 
 export interface CreateUserResponse {

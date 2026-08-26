@@ -44,6 +44,8 @@ export type * from './api/annotations.js';
 export type * from './api/comments.js';
 export type * from './api/jobs.js';
 export type * from './api/auth.js';
+export type * from './api/authEvents.js';
+export { AUTH_EVENT_TYPES } from './api/authEvents.js';
 export type * from './api/revisions.js';
 export type * from './api/catalog.js';
 export type * from './api/uploads.js';

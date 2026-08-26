@@ -13,6 +13,11 @@ const routes: RouteRecordRaw[] = [
   { path: '/search', component: AdvancedSearch, meta: { requiresAuth: true } },
   { path: '/admin', component: Admin, meta: { requiresAuth: true } },
   {
+    path: '/admin/audit',
+    component: () => import('./views/AuthAudit.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/admin/records/:id/edit',
     component: () => import('./views/AdminRecordEdit.vue'),
     meta: { requiresAuth: true, requiresEditRecord: true },
@@ -43,6 +48,9 @@ router.beforeEach(async (to) => {
   if (to.path.startsWith('/admin')) {
     if (user?.role === 'researcher' || !canAccessAdmin()) {
       return '/';
+    }
+    if (to.meta.requiresAdmin && user?.role !== 'admin') {
+      return '/admin';
     }
     if (to.meta.requiresEditRecord && !hasPermission('edit_record')) {
       return '/admin';
