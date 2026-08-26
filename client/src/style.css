@@ -19,16 +19,24 @@
 @layer base {
   html {
     overflow-x: clip;
+    /* Overscroll/rubber-band paints html, not body. Without this, mobile
+       browsers flash the default white canvas in dark mode. */
+    background-color: var(--background);
   }
 
   body {
     @apply text-foreground font-sans antialiased;
-    @apply bg-gradient-to-br from-slate-50 via-white to-blue-50/40;
+    background-color: var(--background);
+    min-height: 100dvh;
     transition: background-color 0.3s, color 0.3s;
   }
 
-  .dark body {
-    @apply bg-gradient-to-br from-[#0a0f1a] via-slate-950 to-[#0d1526];
+  html:not(.dark) body {
+    @apply bg-gradient-to-br from-slate-50 via-white to-blue-50/40;
+  }
+
+  html.dark body {
+    background-color: #0a0f1a;
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.12), transparent),
       linear-gradient(to bottom right, #0a0f1a, #0f172a 50%, #0a1020);
@@ -198,6 +206,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: oklch(0.99 0.005 250);
   --foreground: oklch(0.18 0.02 260);
   --card: oklch(1 0 0 / 0.85);
@@ -235,6 +244,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.14 0.02 260);
   --foreground: oklch(0.97 0.005 250);
   --card: oklch(0.2 0.025 260 / 0.6);

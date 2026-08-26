@@ -1,6 +1,6 @@
 <template>
   <ConfigProvider :teleport-to="overlayContainer">
-  <div class="flex flex-col lg:min-h-svh text-foreground transition-colors duration-300">
+  <div class="flex flex-col min-h-svh text-foreground transition-colors duration-300 bg-background">
     <nav
       v-if="showNav"
       class="sticky top-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 transition-colors duration-300"
