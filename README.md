@@ -125,6 +125,11 @@ Copy `.env.example` to `.env`. In production, **`ADMIN_PASSWORD` and `JWT_SECRET
 | `BACKUP_ON_STARTUP` | Write a snapshot when the API starts (default on in production) |
 | `AUTO_ANNOTATE_ENABLED` | OWL-ViT proposals (`0` to disable) |
 | `TRANSFORMERS_CACHE` | Local cache for CLIP / OWL-ViT models |
+| `DEMO_MODE` | `1` = read-only public demo (blocks writes, shows login credentials on the login page) |
+
+### Read-only demo
+
+Set `DEMO_MODE=1` (and choose demo `ADMIN_USERNAME` / `ADMIN_PASSWORD` you are willing to display). The API rejects uploads and edits, signed-in users are treated as permission-less browsers, and the login form shows the demo credentials for one-click fill. Do not use this on an archive with private data.
 
 In local development the API defaults to `admin` / `admin` if those variables are unset.
 

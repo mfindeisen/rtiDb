@@ -71,6 +71,26 @@
                 {{ isLoading ? 'Signing in…' : 'Login' }}
               </Button>
             </Field>
+            <Field v-if="demoCredentials">
+              <button
+                type="button"
+                class="w-full rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-900/50 px-3 py-2.5 text-left transition-colors hover:border-[var(--brand-from)] hover:bg-slate-100/90 dark:hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                :disabled="isLoading"
+                @click="fillDemoCredentials"
+              >
+                <span class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Demo account · click to fill
+                </span>
+                <span class="mt-1 block font-mono text-sm text-foreground">
+                  {{ demoCredentials.username }}
+                  <span class="text-muted-foreground"> / </span>
+                  {{ demoCredentials.password }}
+                </span>
+                <span class="mt-1 block text-xs text-muted-foreground">
+                  Read-only demo — uploads and edits are disabled.
+                </span>
+              </button>
+            </Field>
             <Field v-if="error">
               <Alert variant="destructive">
                 <AlertDescription>{{ error }}</AlertDescription>
@@ -95,6 +115,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 import { postLoginPath } from '@/composables/useAuth';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { useSiteConfig } from '@/composables/useSiteConfig';
 import { login } from '@/api/auth';
 import { ApiError } from '@/api/client';
@@ -104,6 +125,7 @@ const props = defineProps<{
 }>()
 
 const { config: siteConfig } = useSiteConfig();
+const { demoCredentials } = useDemoMode();
 const router = useRouter();
 const route = useRoute();
 const username = ref('');
@@ -111,6 +133,14 @@ const password = ref('');
 const showPassword = ref(false);
 const isLoading = ref(false);
 const error = ref('');
+
+function fillDemoCredentials() {
+  if (!demoCredentials.value) return;
+  username.value = demoCredentials.value.username;
+  password.value = demoCredentials.value.password;
+  showPassword.value = true;
+  error.value = '';
+}
 
 const handleLogin = async () => {
   isLoading.value = true;

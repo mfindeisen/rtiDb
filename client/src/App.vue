@@ -1,6 +1,15 @@
 <template>
   <ConfigProvider :teleport-to="overlayContainer">
   <div class="flex flex-col min-h-svh text-foreground transition-colors duration-300 bg-background">
+    <div
+      v-if="demoMode && showNav"
+      class="border-b border-amber-200/80 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
+      role="status"
+    >
+      <p class="page-shell px-4 py-2 text-center text-sm sm:px-6 lg:px-8">
+        Demo · read-only — browsing and search work; uploads and edits are disabled.
+      </p>
+    </div>
     <nav
       v-if="showNav"
       class="sticky top-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 transition-colors duration-300"
@@ -81,6 +90,7 @@ import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ConfirmDialogHost from '@/components/ConfirmDialogHost.vue';
 import { logout, useAuth } from '@/composables/useAuth';
+import { useDemoMode } from '@/composables/useDemoMode';
 import { useTheme } from '@/composables/useTheme';
 import { useSiteConfig } from '@/composables/useSiteConfig';
 import { useOverlayContainer } from '@/composables/useOverlayContainer';
@@ -89,6 +99,7 @@ const route = useRoute();
 const router = useRouter();
 const { initTheme } = useTheme();
 const { config: siteConfig } = useSiteConfig();
+const { demoMode } = useDemoMode();
 const { canAccessAdmin: showAdminLink } = useAuth();
 const overlayContainer = useOverlayContainer();
 const mobileMenuOpen = ref(false);

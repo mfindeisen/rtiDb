@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { PERMISSIONS, type Permission, type UserRole } from '@rtidb/shared/permissions';
 import { userCanManageRecords } from '@rtidb/shared/authorization';
 import { parsePermissions } from '../lib/auth/password.js';
+import { applyDemoSessionUser } from '../lib/demoMode.js';
 import type { AuthContext, AppDb, AppSchema, JwtUser } from '../types/index.js';
 
 const TOKEN_COOKIE = 'adminToken';
@@ -67,12 +68,15 @@ export function hydrateRequestUser(
   jwtSecret: string,
   db: AppDb,
   schema: AppSchema,
+  demoMode = false,
 ): JwtUser | null {
   const userId = tokenUserId(token, jwtSecret);
   if (userId == null) return null;
   const row = db.select().from(schema.users).where(eq(schema.users.id, userId)).get();
   if (!row) return null;
-  return jwtUserFromRow(row);
+  const user = jwtUserFromRow(row);
+  if (!user) return null;
+  return demoMode ? applyDemoSessionUser(user) : user;
 }
 
 function wantsHtml(req: Request): boolean {
@@ -85,11 +89,16 @@ function redirectToLogin(req: Request, res: Response) {
   res.redirect(302, `/login?redirect=${redirect}`);
 }
 
-export function createAuthMiddleware(JWT_SECRET: string, db: AppDb, schema: AppSchema): AuthContext {
+export function createAuthMiddleware(
+  JWT_SECRET: string,
+  db: AppDb,
+  schema: AppSchema,
+  demoMode = false,
+): AuthContext {
   const resolveUser = (req: Request): JwtUser | null => {
     const token = extractToken(req);
     if (!token) return null;
-    return hydrateRequestUser(token, JWT_SECRET, db, schema);
+    return hydrateRequestUser(token, JWT_SECRET, db, schema, demoMode);
   };
 
   const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -98,7 +107,7 @@ export function createAuthMiddleware(JWT_SECRET: string, db: AppDb, schema: AppS
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
-    const user = hydrateRequestUser(token, JWT_SECRET, db, schema);
+    const user = hydrateRequestUser(token, JWT_SECRET, db, schema, demoMode);
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
@@ -120,7 +129,7 @@ export function createAuthMiddleware(JWT_SECRET: string, db: AppDb, schema: AppS
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = hydrateRequestUser(token, JWT_SECRET, db, schema);
+    const user = hydrateRequestUser(token, JWT_SECRET, db, schema, demoMode);
     if (!user) {
       if (wantsHtml(req)) return redirectToLogin(req, res);
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
@@ -132,7 +141,7 @@ export function createAuthMiddleware(JWT_SECRET: string, db: AppDb, schema: AppS
 
   const verifyAuthHandler = (req: Request, res: Response) => {
     const token = extractToken(req);
-    if (!token || !hydrateRequestUser(token, JWT_SECRET, db, schema)) {
+    if (!token || !hydrateRequestUser(token, JWT_SECRET, db, schema, demoMode)) {
       return res.status(401).end();
     }
     return res.status(204).end();

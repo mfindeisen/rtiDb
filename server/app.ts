@@ -8,6 +8,7 @@ import { getSiteConfig } from './lib/catalog.js';
 import { buildCorsOptions } from './lib/cors.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createUploadMiddleware } from './lib/uploads.js';
+import { createDemoReadOnlyMiddleware } from './lib/demoMode.js';
 import { registerProgressRoutes } from './lib/progress.js';
 import { createRecordHelpers } from './lib/recordHelpers.js';
 import { createProcessingPipeline } from './lib/processingPipeline.js';
@@ -40,7 +41,7 @@ export function createApp(config: ServerConfig): Express {
     app.set('trust proxy', config.trustProxy);
   }
   const { uploadDir, uploadFields, imageSearchUpload } = createUploadMiddleware(__dirname, config.maxRtiUploadBytes);
-  const auth = createAuthMiddleware(config.jwtSecret, db, schema);
+  const auth = createAuthMiddleware(config.jwtSecret, db, schema, config.demoMode);
   const recordHelpers = createRecordHelpers({ db, schema });
   const { runProcessingPipeline } = createProcessingPipeline({
     db,
@@ -81,6 +82,7 @@ export function createApp(config: ServerConfig): Express {
 
   app.use(cors(buildCorsOptions(config)));
   app.use(express.json());
+  app.use(createDemoReadOnlyMiddleware(config.demoMode));
   app.use('/static/uploads', auth.optionalAuthMiddleware, createProtectedUploadsStatic(uploadDir, db, schema));
 
   registerHealthRoutes(app);

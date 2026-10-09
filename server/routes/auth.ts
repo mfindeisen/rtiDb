@@ -16,6 +16,7 @@ import {
   recordAuthEventSafe,
 } from '../lib/authEvents.js';
 import { queryNumber } from '../lib/httpParams.js';
+import { applyDemoSessionUser } from '../lib/demoMode.js';
 import { sendDatabaseError } from '../lib/userResources.js';
 import type { ServerContext } from '../types/index.js';
 import type { JwtUser } from '../types/index.js';
@@ -64,6 +65,7 @@ function issueSessionFromUser(
   user: { id: number; username: string; role: string; permissions: unknown },
   jwtSecret: string,
   secure: boolean,
+  demoMode = false,
 ) {
   const permissions = parsePermissions(user.permissions);
   const token = jwt.sign(
@@ -72,7 +74,13 @@ function issueSessionFromUser(
     { expiresIn: '24h' },
   );
   setSessionCookie(res, token, secure);
-  return { id: user.id, username: user.username, role: user.role, permissions };
+  const publicUser: JwtUser = {
+    id: user.id,
+    username: user.username,
+    role: user.role as JwtUser['role'],
+    permissions,
+  };
+  return demoMode ? applyDemoSessionUser(publicUser) : publicUser;
 }
 
 function issueSessionFromToken(
@@ -116,6 +124,17 @@ export function registerAuthRoutes(
     requireAdmin,
   }: Pick<ServerContext, 'db' | 'schema' | 'config' | 'verifyAuthHandler' | 'authMiddleware' | 'optionalAuthMiddleware' | 'requireAdmin'>,
 ) {
+  app.get('/api/demo', (_req, res) => {
+    if (!config.demoMode) {
+      return res.json({ demoMode: false });
+    }
+    return res.json({
+      demoMode: true,
+      username: config.adminUsername,
+      password: config.adminPassword,
+    });
+  });
+
   app.get('/api/auth/verify', verifyAuthHandler);
 
   app.get('/api/auth/events', authMiddleware, requireAdmin, (req, res) => {
@@ -149,6 +168,7 @@ export function registerAuthRoutes(
       user,
       config.jwtSecret,
       sessionCookieSecure(req, config),
+      config.demoMode,
     );
     res.json({ user: publicUser });
   });
@@ -204,6 +224,7 @@ export function registerAuthRoutes(
           user,
           config.jwtSecret,
           sessionCookieSecure(req, config),
+          config.demoMode,
         );
         recordAuthEventSafe(db, schema, {
           event: 'login',

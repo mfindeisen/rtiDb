@@ -33,6 +33,8 @@ export interface ServerConfig {
   backupIntervalMs: number;
   backupKeep: number;
   backupOnStartup: boolean;
+  /** Public read-only demo: block writes and expose login credentials for visitors. */
+  demoMode: boolean;
 }
 
 function requireInProduction(value: string | undefined, name: string, isProduction: boolean, devDefault: string): string {
@@ -102,7 +104,16 @@ export function loadConfig(): ServerConfig {
     backupIntervalMs: parseBackupIntervalMs(process.env.BACKUP_INTERVAL_HOURS),
     backupKeep: Math.max(1, Number(process.env.BACKUP_KEEP) || 14),
     backupOnStartup: parseBackupOnStartup(process.env.BACKUP_ON_STARTUP, isProduction),
+    demoMode: parseEnvFlag(process.env.DEMO_MODE, false),
   };
+}
+
+function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean {
+  if (value == null || value.trim() === '') return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes') return true;
+  if (normalized === '0' || normalized === 'false' || normalized === 'no') return false;
+  return defaultValue;
 }
 
 function parseBackupIntervalMs(value: string | undefined): number {

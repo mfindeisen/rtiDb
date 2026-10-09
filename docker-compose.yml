@@ -14,6 +14,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - DEMO_MODE=${DEMO_MODE:-0}
       - KEEP_ORIGINAL_RTI=${KEEP_ORIGINAL_RTI:-1}
       - TRANSFORMERS_CACHE=/repo/server/.clip-model-cache
       - GOGC=20
